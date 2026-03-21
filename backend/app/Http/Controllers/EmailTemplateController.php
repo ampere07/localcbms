@@ -48,7 +48,9 @@ class EmailTemplateController extends Controller
                 'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
                 'Is_Active' => 'nullable|boolean',
-                'email_body' => 'nullable|string|max:255'
+                'email_body' => 'nullable|string|max:255',
+                'Page_Margin' => 'nullable|string|max:50',
+                'Image_Margin' => 'nullable|string|max:50'
             ]);
 
             if ($validator->fails()) {
@@ -79,7 +81,9 @@ class EmailTemplateController extends Controller
                 'Body_HTML' => $request->input('Body_HTML'),
                 'Description' => $request->input('Description'),
                 'Is_Active' => $request->input('Is_Active', 1),
-                'email_body' => $request->input('email_body')
+                'email_body' => $request->input('email_body'),
+                'Page_Margin' => $request->input('Page_Margin', '1in'),
+                'Image_Margin' => $request->input('Image_Margin', '0px')
             ]);
 
             return response()->json([
@@ -153,7 +157,9 @@ class EmailTemplateController extends Controller
                 'Body_HTML' => 'nullable|string',
                 'Description' => 'nullable|string|max:255',
                 'Is_Active' => 'nullable|boolean',
-                'email_body' => 'nullable|string|max:255'
+                'email_body' => 'nullable|string|max:255',
+                'Page_Margin' => 'nullable|string|max:50',
+                'Image_Margin' => 'nullable|string|max:50'
             ]);
 
             if ($validator->fails()) {
@@ -166,6 +172,9 @@ class EmailTemplateController extends Controller
 
             Log::info('Updating email template', [
                 'template_code' => $templateCode,
+                'has_Body_HTML' => $request->has('Body_HTML'),
+                'Body_HTML_length' => $request->has('Body_HTML') ? strlen($request->input('Body_HTML')) : 0,
+                'existing_Body_HTML_length' => strlen($template->Body_HTML ?? ''),
                 'data' => $request->except(['Body_HTML'])
             ]);
 
@@ -201,8 +210,28 @@ class EmailTemplateController extends Controller
             if ($request->has('email_body')) {
                 $updateData['email_body'] = $request->input('email_body');
             }
+            if ($request->has('Page_Margin')) {
+                $updateData['Page_Margin'] = $request->input('Page_Margin');
+            }
+            if ($request->has('Image_Margin')) {
+                $updateData['Image_Margin'] = $request->input('Image_Margin');
+            }
+
+            Log::info('Email template update data', [
+                'template_code' => $templateCode,
+                'fields_being_updated' => array_keys($updateData),
+                'Body_HTML_in_updateData' => isset($updateData['Body_HTML']),
+                'Body_HTML_update_length' => isset($updateData['Body_HTML']) ? strlen($updateData['Body_HTML']) : 0,
+            ]);
 
             $template->update($updateData);
+
+            Log::info('Email template updated result', [
+                'template_code' => $templateCode,
+                'wasChanged' => $template->wasChanged(),
+                'changes' => $template->getChanges(),
+                'Body_HTML_after_length' => strlen($template->fresh()->Body_HTML ?? ''),
+            ]);
 
             return response()->json([
                 'success' => true,
@@ -300,3 +329,4 @@ class EmailTemplateController extends Controller
         }
     }
 }
+

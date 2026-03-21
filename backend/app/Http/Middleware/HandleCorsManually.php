@@ -62,3 +62,4 @@ class HandleCorsManually
         return $response;
     }
 }
+

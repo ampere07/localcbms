@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use App\Models\BillingAccount;
-use App\Services\ManualRadiusOperationsService;
 use App\Services\PppoeUsernameService;
+use App\Services\ManualRadiusOperationsService;
+use App\Models\RadiusConfig;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Auth;
 
 class ServiceOrderApiController extends Controller
@@ -22,17 +24,17 @@ class ServiceOrderApiController extends Controller
             $limit = $request->input('limit', 50); // Default 50 for faster response
             $search = $request->input('search', '');
             // Fast mode variable kept for compatibility but new logic is inherently faster
-            $fastMode = $request->input('fast', false); 
+            $fastMode = $request->input('fast', false);
 
             // Base query on service_orders
             $query = DB::table('service_orders as so')
                 ->select('so.*', 'so.id as ticket_id');
-            
+
             // Apply filters
             if ($request->has('assigned_email')) {
                 $query->where('so.assigned_email', $request->input('assigned_email'));
             }
-            
+
             if ($request->has('account_no')) {
                 $query->where('so.account_no', 'LIKE', "%" . $request->input('account_no') . "%");
             }
@@ -41,63 +43,86 @@ class ServiceOrderApiController extends Controller
                 $query->where('so.support_status', $request->input('support_status'));
             }
 
+            if ($request->has('updated_since')) {
+                $query->where('so.updated_at', '>', $request->input('updated_since'));
+                // When fetching only updates, we typically want everything since the last sync
+                // instead of paged chunks, if limit isn't explicitly set low.
+                $limit = $request->input('limit', 1000);
+            }
+
+            $userRole = strtolower($request->query('user_role', ''));
+            $userEmail = $request->query('user_email', '');
+
+            if ($userRole === 'agent' && $userEmail) {
+                $user = DB::table('users')->where('email_address', $userEmail)->first();
+                if ($user) {
+                    $agentName = trim($user->first_name . ' ' . ($user->middle_initial ? $user->middle_initial . ' ' : '') . $user->last_name);
+
+                    $query->where(function ($q) use ($agentName) {
+                        $q->where('so.referred_by', 'LIKE', '%' . $agentName . '%');
+                    });
+
+                    \Log::info('Filtering service orders for agent role using referred_by column', [
+                        'agent_name' => $agentName,
+                        'agent_email' => $userEmail
+                    ]);
+                }
+            }
+
             // Handle Search
             if ($search) {
                 // Only join when strictly necessary for search
                 $query->leftJoin('billing_accounts as ba', 'so.account_no', '=', 'ba.account_no')
-                      ->leftJoin('customers as c', 'ba.customer_id', '=', 'c.id');
-                      
+                    ->leftJoin('customers as c', 'ba.customer_id', '=', 'c.id');
+
                 $query->where(function ($q) use ($search) {
                     $q->where('so.account_no', 'LIKE', "%{$search}%")
-                      ->orWhere('so.id', 'LIKE', "%{$search}%")
-                      ->orWhere('c.first_name', 'LIKE', "%{$search}%")
-                      ->orWhere('c.last_name', 'LIKE', "%{$search}%");
+                        ->orWhere('so.id', 'LIKE', "%{$search}%")
+                        ->orWhere('c.first_name', 'LIKE', "%{$search}%")
+                        ->orWhere('c.last_name', 'LIKE', "%{$search}%");
                 });
             }
 
-            $query->orderBy('so.created_at', 'desc');
+            // Get total count of filtered records before pagination
+            $totalCount = $query->count();
 
             // Fetch one extra record to check if there are more pages
             $serviceOrders = $query->skip(($page - 1) * $limit)
-                ->take($limit + 1)
+                ->take($limit)
                 ->get();
 
             // Check if there are more pages
-            $hasMore = $serviceOrders->count() > $limit;
+            $hasMore = ($page * $limit) < $totalCount;
 
-            // Remove the extra record if it exists
-            if ($hasMore) {
-                $serviceOrders = $serviceOrders->slice(0, $limit);
-            }
-            
             // Extract Account Numbers for eager loading
             $accountNos = $serviceOrders->pluck('account_no')->filter()->unique()->values();
-            
+
             // Eager load related data efficiently
             if ($accountNos->isNotEmpty()) {
                 $billingAccounts = \App\Models\BillingAccount::with('customer')
                     ->whereIn('account_no', $accountNos)
                     ->get()
                     ->keyBy('account_no');
-                    
+
                 $technicalDetails = \App\Models\TechnicalDetail::whereIn('account_no', $accountNos)
                     ->get()
                     ->keyBy('account_no');
-            } else {
+            }
+            else {
                 $billingAccounts = collect();
                 $technicalDetails = collect();
             }
-            
+
             // Map related data to service orders
             $mappedOrders = $serviceOrders->map(function ($so) use ($billingAccounts, $technicalDetails) {
                 $ba = $billingAccounts->get($so->account_no);
                 $c = $ba ? $ba->customer : null;
                 $td = $technicalDetails->get($so->account_no);
-                
+
                 // Manually populate fields that were previously joined
                 $so->account_id = $ba ? $ba->id : null;
                 $so->date_installed = $ba ? $ba->date_installed : null;
-                
+
                 // Customer details
                 $so->full_name = $c ? trim(($c->first_name ?? '') . ' ' . ($c->middle_initial ?? '') . ' ' . ($c->last_name ?? '')) : null;
                 $so->contact_number = $c ? $c->contact_number_primary : null;
@@ -106,7 +131,7 @@ class ServiceOrderApiController extends Controller
                 $so->email_address = $c ? $c->email_address : null;
                 $so->house_front_picture_url = $c ? $c->house_front_picture_url : null;
                 $so->plan = $c ? $c->desired_plan : null;
-                
+
                 // Technical details
                 $so->username = $td ? $td->username : null;
                 $so->connection_type = $td ? $td->connection_type : null;
@@ -115,25 +140,27 @@ class ServiceOrderApiController extends Controller
                 $so->nap = $td ? $td->nap : null;
                 $so->port = $td ? $td->port : null;
                 $so->vlan = $td ? $td->vlan : null;
-                
+
                 return $so;
             });
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $mappedOrders->values(),
                 'pagination' => [
-                    'current_page' => (int) $page,
-                    'per_page' => (int) $limit,
+                    'current_page' => (int)$page,
+                    'per_page' => (int)$limit,
                     'has_more' => $hasMore,
-                    'count' => $mappedOrders->count()
+                    'count' => $mappedOrders->count(),
+                    'total_count' => $totalCount
                 ]
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('Error fetching service orders: ' . $e->getMessage(), [
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch service orders',
@@ -141,12 +168,12 @@ class ServiceOrderApiController extends Controller
             ], 500);
         }
     }
-    
+
     public function store(Request $request): JsonResponse
     {
         try {
             Log::info('Service order creation request', ['data' => $request->all()]);
-            
+
             $validated = $request->validate([
                 'account_no' => 'required|string|max:255',
                 'timestamp' => 'nullable|date',
@@ -167,36 +194,73 @@ class ServiceOrderApiController extends Controller
                 'new_lcpnap' => 'nullable|string|max:255',
                 'new_plan' => 'nullable|string|max:255',
                 'status' => 'nullable|string|max:50',
+                'start_time' => 'nullable|date',
+                'end_time' => 'nullable|date',
                 'created_by_user' => 'nullable|string|max:255',
-                'updated_by_user' => 'nullable|string|max:255'
+                'updated_by_user' => 'nullable|string|max:255',
+                'proof_image_url' => 'nullable|string|max:255'
             ]);
-            
+
+            // Enforce limit: 5 tickets per day per account, with 1 hour interval
+            $today = Carbon::today();
+            $todayCount = DB::table('service_orders')
+                ->where('account_no', $validated['account_no'])
+                ->whereDate('created_at', $today)
+                ->count();
+
+            if ($todayCount >= 5) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Daily limit of 5 tickets reached. Please try again tomorrow.'
+                ], 422);
+            }
+
+            // Check 1 hour cooldown since last submission
+            $lastTicket = DB::table('service_orders')
+                ->where('account_no', $validated['account_no'])
+                ->orderBy('created_at', 'desc')
+                ->first();
+
+            if ($lastTicket && $lastTicket->created_at) {
+                $lastCreated = Carbon::parse($lastTicket->created_at);
+                $minutesSinceLast = $lastCreated->diffInMinutes(now());
+                if ($minutesSinceLast < 60) {
+                    $remaining = 60 - $minutesSinceLast;
+                    return response()->json([
+                        'success' => false,
+                        'message' => "Please wait {$remaining} minute(s) before submitting another ticket."
+                    ], 422);
+                }
+            }
+
             $ticketId = $this->generateTicketId();
             Log::info('Generated ticket_id: ' . $ticketId);
-            
+
             $timestamp = null;
             if (isset($validated['timestamp'])) {
                 try {
                     $timestamp = Carbon::parse($validated['timestamp'])->format('Y-m-d H:i:s');
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     Log::warning('Invalid timestamp format, using current time', ['timestamp' => $validated['timestamp']]);
                     $timestamp = now()->format('Y-m-d H:i:s');
                 }
-            } else {
+            }
+            else {
                 $timestamp = now()->format('Y-m-d H:i:s');
             }
-            
+
             $data = [
                 'ticket_id' => $ticketId,
                 'account_no' => $validated['account_no'],
                 'timestamp' => $timestamp,
-                'support_status' => $validated['support_status'] ?? 'Open',
+                'support_status' => $validated['support_status'] ?? 'In Progress',
                 'concern' => $validated['concern'],
                 'concern_remarks' => $validated['concern_remarks'] ?? null,
                 'priority_level' => $validated['priority_level'] ?? 'Medium',
                 'requested_by' => $validated['requested_by'] ?? null,
                 'assigned_email' => $validated['assigned_email'] ?? null,
-                'visit_status' => $validated['visit_status'] ?? 'Pending',
+                'visit_status' => $validated['visit_status'] ?? null,
                 'visit_by_user' => $validated['visit_by_user'] ?? null,
                 'visit_with' => $validated['visit_with'] ?? null,
                 'visit_remarks' => $validated['visit_remarks'] ?? null,
@@ -207,18 +271,21 @@ class ServiceOrderApiController extends Controller
                 'new_lcpnap' => $validated['new_lcpnap'] ?? null,
                 'new_plan' => $validated['new_plan'] ?? null,
                 'status' => $validated['status'] ?? 'unused',
+                'start_time' => $validated['start_time'] ?? null,
+                'end_time' => $validated['end_time'] ?? null,
                 'created_by_user' => $validated['created_by_user'] ?? null,
                 'updated_by_user' => $validated['updated_by_user'] ?? null,
+                'proof_image_url' => $request->input('proof_image_url'),
                 'created_at' => now(),
                 'updated_at' => now()
             ];
-            
+
             Log::info('Insert data: ', $data);
-            
+
             $id = DB::table('service_orders')->insertGetId($data);
-            
+
             $serviceOrder = DB::table('service_orders')->where('id', $id)->first();
-            
+
             Log::info('Service order created successfully', [
                 'id' => $id,
                 'ticket_id' => $ticketId,
@@ -241,33 +308,36 @@ class ServiceOrderApiController extends Controller
                     Log::info('Triggering auto-reconnect for NEW Service Order with Reconnect concern', [
                         'account_no' => $validated['account_no']
                     ]);
-                    $reconnectStatus = $this->attemptReconnection($billingAccount);
+                    $serviceOrderUpdatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
+                    $reconnectStatus = $this->attemptReconnection($billingAccount, $id, $serviceOrderUpdatedByUser);
                 }
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Service order created successfully',
                 'data' => $serviceOrder,
                 'reconnect_status' => $reconnectStatus
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        }
+        catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation error creating service order', [
                 'errors' => $e->errors(),
                 'input' => $request->all()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('Error creating service order', [
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create service order',
@@ -275,30 +345,31 @@ class ServiceOrderApiController extends Controller
             ], 500);
         }
     }
-    
+
     private function generateTicketId(): string
     {
         $currentYear = date('Y');
-        
+
         $lastTicket = DB::selectOne(
             "SELECT ticket_id FROM service_orders WHERE ticket_id LIKE ? ORDER BY ticket_id DESC LIMIT 1",
-            [$currentYear . '%']
+        [$currentYear . '%']
         );
-        
+
         if ($lastTicket && $lastTicket->ticket_id) {
-            $lastNumber = (int) substr($lastTicket->ticket_id, 4);
+            $lastNumber = (int)substr($lastTicket->ticket_id, 4);
             $newNumber = $lastNumber + 1;
-        } else {
+        }
+        else {
             $newNumber = 1;
         }
-        
+
         $ticketId = $currentYear . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
-        
+
         Log::info('Generated ticket ID: ' . $ticketId);
-        
+
         return $ticketId;
     }
-    
+
     public function show($id): JsonResponse
     {
         try {
@@ -307,79 +378,83 @@ class ServiceOrderApiController extends Controller
                 ->leftJoin('customers as c', 'ba.customer_id', '=', 'c.id')
                 ->leftJoin('technical_details as td', 'so.account_no', '=', 'td.account_no')
                 ->select(
-                    'so.id',
-                    'so.id as ticket_id',
-                    'so.account_no',
-                    'so.timestamp',
-                    'ba.id as account_id',
-                    'ba.date_installed',
-                    DB::raw("CONCAT(IFNULL(c.first_name, ''), ' ', IFNULL(c.middle_initial, ''), ' ', IFNULL(c.last_name, '')) as full_name"),
-                    'c.contact_number_primary as contact_number',
-                    DB::raw("CONCAT(IFNULL(c.address, ''), ', ', IFNULL(c.barangay, ''), ', ', IFNULL(c.city, ''), ', ', IFNULL(c.region, '')) as full_address"),
-                    'c.address as contact_address',
-                    'c.email_address',
-                    'c.house_front_picture_url',
-                    'c.desired_plan as plan',
-                    'td.username',
-                    'td.connection_type',
-                    'td.router_modem_sn',
-                    'td.lcp',
-                    'td.nap',
-                    'td.port',
-                    'td.vlan',
-                    'so.concern',
-                    'so.concern_remarks',
-                    'so.requested_by',
-                    'so.support_status',
-                    'so.assigned_email',
-                    'so.repair_category',
-                    'so.visit_status',
-                    'so.priority_level',
-                    'so.visit_by_user',
-                    'so.visit_with',
-                    'so.visit_remarks',
-                    'so.support_remarks',
-                    'so.service_charge',
-                    'so.new_router_modem_sn',
-                    'so.new_lcp',
-                    'so.new_nap',
-                    'so.new_port',
-                    'so.new_vlan',
-                    'so.router_model',
-                    'so.old_lcp',
-                    'so.old_nap',
-                    'so.old_port',
-                    'so.old_vlan',
-                    'so.old_router_modem_sn',
-                    'so.new_lcpnap',
-                    'so.new_plan',
-                    'so.client_signature_url',
-                    'so.image1_url',
-                    'so.image2_url',
-                    'so.image3_url',
-                    'so.status',
-                    'so.created_at',
-                    'so.created_by_user',
-                    'so.updated_at',
-                    'so.updated_by_user'
-                )
+                'so.id',
+                'so.id as ticket_id',
+                'so.account_no',
+                'so.timestamp',
+                'ba.id as account_id',
+                'ba.date_installed',
+                DB::raw("CONCAT(IFNULL(c.first_name, ''), ' ', IFNULL(c.middle_initial, ''), ' ', IFNULL(c.last_name, '')) as full_name"),
+                'c.contact_number_primary as contact_number',
+                DB::raw("CONCAT(IFNULL(c.address, ''), ', ', IFNULL(c.barangay, ''), ', ', IFNULL(c.city, ''), ', ', IFNULL(c.region, '')) as full_address"),
+                'c.address as contact_address',
+                'c.email_address',
+                'c.house_front_picture_url',
+                'c.desired_plan as plan',
+                'td.username',
+                'td.connection_type',
+                'td.router_modem_sn',
+                'td.lcp',
+                'td.nap',
+                'td.port',
+                'td.vlan',
+                'so.concern',
+                'so.concern_remarks',
+                'so.requested_by',
+                'so.support_status',
+                'so.assigned_email',
+                'so.repair_category',
+                'so.visit_status',
+                'so.priority_level',
+                'so.visit_by_user',
+                'so.visit_with',
+                'so.visit_remarks',
+                'so.support_remarks',
+                'so.service_charge',
+                'so.new_router_modem_sn',
+                'so.new_lcp',
+                'so.new_nap',
+                'so.new_port',
+                'so.new_vlan',
+                'so.router_model',
+                'so.old_lcp',
+                'so.old_nap',
+                'so.old_port',
+                'so.old_vlan',
+                'so.old_router_modem_sn',
+                'so.new_lcpnap',
+                'so.new_plan',
+                'so.client_signature_url',
+                'so.image1_url',
+                'so.image2_url',
+                'so.image3_url',
+                'so.proof_image_url',
+                'so.status',
+                'so.start_time',
+                'so.end_time',
+                'so.created_at',
+                'so.created_by_user',
+                'so.updated_at',
+                'so.updated_by_user'
+            )
                 ->where('so.id', $id)
                 ->first();
-            
+
             if (!$serviceOrder) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Service order not found'
                 ], 404);
             }
-            
+
             return response()->json([
                 'success' => true,
                 'data' => $serviceOrder
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('Error fetching service order details: ' . $e->getMessage());
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch service order',
@@ -387,7 +462,7 @@ class ServiceOrderApiController extends Controller
             ], 500);
         }
     }
-    
+
     public function update(Request $request, $id): JsonResponse
     {
         try {
@@ -395,16 +470,18 @@ class ServiceOrderApiController extends Controller
                 'id' => $id,
                 'data' => $request->all()
             ]);
-            
+
             $serviceOrder = DB::table('service_orders')->where('id', $id)->first();
-            
+
             if (!$serviceOrder) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Service order not found'
                 ], 404);
             }
-            
+
+            $updatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
+
             $allowedFields = [
                 'account_no',
                 'timestamp',
@@ -417,6 +494,7 @@ class ServiceOrderApiController extends Controller
                 'visit_status',
                 'visit_by_user',
                 'visit_with',
+                'visit_with_other',
                 'visit_remarks',
                 'repair_category',
                 'support_remarks',
@@ -440,37 +518,41 @@ class ServiceOrderApiController extends Controller
                 'image1_url',
                 'image2_url',
                 'image3_url',
-                'status'
+                'proof_image_url',
+                'status',
+                'start_time',
+                'end_time',
+                'updated_by_user'
             ];
-            
+
             $data = [];
             foreach ($allowedFields as $field) {
                 if ($request->has($field)) {
                     $data[$field] = $request->input($field);
                 }
             }
-            
+
             $data['updated_at'] = now();
-            
+
             Log::info('Filtered data for update', ['data' => $data]);
-            
+
             // Handle technical details update if new values are provided
-            $hasNewTechnicalDetails = 
-                $request->filled('new_lcp') || 
-                $request->filled('new_nap') || 
-                $request->filled('new_lcpnap') || 
-                $request->filled('new_port') || 
-                $request->filled('new_vlan') || 
+            $hasNewTechnicalDetails =
+                $request->filled('new_lcp') ||
+                $request->filled('new_nap') ||
+                $request->filled('new_lcpnap') ||
+                $request->filled('new_port') ||
+                $request->filled('new_vlan') ||
                 $request->filled('new_router_modem_sn');
-            
+
             if ($hasNewTechnicalDetails) {
                 Log::info('New technical details detected, updating technical_details table');
-                
+
                 // Get current technical details
                 $technicalDetails = DB::table('technical_details')
                     ->where('account_no', $serviceOrder->account_no)
                     ->first();
-                
+
                 if ($technicalDetails) {
                     // Store old values in service_orders
                     $data['old_lcp'] = $technicalDetails->lcp;
@@ -483,14 +565,15 @@ class ServiceOrderApiController extends Controller
                     // Prepare updates for technical_details
                     $newLcp = $request->input('new_lcp');
                     $newNap = $request->input('new_nap');
-                    
+
                     if ($request->filled('new_lcpnap')) {
                         $lcpnapValue = $request->input('new_lcpnap');
                         $parts = explode(' - ', $lcpnapValue);
                         if (count($parts) === 2) {
                             $newLcp = $parts[0];
                             $newNap = $parts[1];
-                        } else {
+                        }
+                        else {
                             $parts = explode('-', $lcpnapValue);
                             if (count($parts) === 2) {
                                 $newLcp = $parts[0];
@@ -499,15 +582,17 @@ class ServiceOrderApiController extends Controller
                         }
                     }
 
-                    if (!$newLcp) $newLcp = $technicalDetails->lcp;
-                    if (!$newNap) $newNap = $technicalDetails->nap;
-                    
+                    if (!$newLcp)
+                        $newLcp = $technicalDetails->lcp;
+                    if (!$newNap)
+                        $newNap = $technicalDetails->nap;
+
                     $newPort = $request->filled('new_port') ? $request->input('new_port') : $technicalDetails->port;
                     $newVlan = $request->filled('new_vlan') ? $request->input('new_vlan') : $technicalDetails->vlan;
                     $newSN = $request->filled('new_router_modem_sn') ? $request->input('new_router_modem_sn') : $technicalDetails->router_modem_sn;
-                    
+
                     // Calculate LCPNAP (LCP + NAP)
-                    $newLcpNap = trim(($newLcp ?? '') . ' - ' . ($newNap ?? ''), ' - ');
+                    $newLcpNap = trim(($newLcp ?? '') . ' ' . ($newNap ?? ''), ' ');
 
                     // Add new values to $data for service_orders
                     $data['new_lcp'] = $newLcp;
@@ -521,15 +606,40 @@ class ServiceOrderApiController extends Controller
                     DB::table('technical_details')
                         ->where('account_no', $serviceOrder->account_no)
                         ->update([
-                            'lcp' => $newLcp,
-                            'nap' => $newNap,
+                        'lcp' => $newLcp,
+                        'nap' => $newNap,
+                        'port' => $newPort,
+                        'vlan' => $newVlan,
+                        'router_modem_sn' => $newSN,
+                        'lcpnap' => $newLcpNap,
+                        'updated_at' => now(),
+                        'updated_by' => $updatedByUser
+                    ]);
+
+                    // Also update job_orders table to keep lcpnap/port/vlan in sync
+                    $billingAccountForJobOrder = DB::table('billing_accounts')
+                        ->where('account_no', $serviceOrder->account_no)
+                        ->first();
+
+                    if ($billingAccountForJobOrder) {
+                        $jobOrderSyncData = array_filter([
+                            'lcpnap' => $newLcpNap ?: null,
+                            'port' => $newPort ?: null,
+                            'vlan' => $newVlan ?: null,
+                            'updated_at' => now(),
+                        ], fn($v) => !is_null($v));
+
+                        $joAffected = DB::table('job_orders')
+                            ->where('account_id', $billingAccountForJobOrder->id)
+                            ->update($jobOrderSyncData);
+
+                        Log::info('[API SERVICE ORDER] Synced job_orders lcpnap/port/vlan for account_id ' . $billingAccountForJobOrder->id, [
+                            'rows_affected' => $joAffected,
+                            'lcpnap' => $newLcpNap,
                             'port' => $newPort,
                             'vlan' => $newVlan,
-                            'router_modem_sn' => $newSN,
-                            'lcpnap' => $newLcpNap,
-                            'updated_at' => now(),
-                            'updated_by' => Auth::user()->name ?? 'API'
                         ]);
+                    }
                 }
             }
 
@@ -538,71 +648,96 @@ class ServiceOrderApiController extends Controller
                 $billingAccount = DB::table('billing_accounts')
                     ->where('account_no', $serviceOrder->account_no)
                     ->first();
-                
+
                 if ($billingAccount) {
                     $oldPlan = DB::table('customers')
                         ->where('id', $billingAccount->customer_id)
                         ->value('desired_plan');
-                    
+
                     $data['old_plan'] = $oldPlan;
 
                     DB::table('customers')
                         ->where('id', $billingAccount->customer_id)
                         ->update([
-                            'desired_plan' => $request->input('new_plan'),
-                            'updated_at' => now()
-                        ]);
+                        'desired_plan' => $request->input('new_plan'),
+                        'updated_at' => now()
+                    ]);
                     Log::info('Updated customer desired_plan to ' . $request->input('new_plan'), [
                         'account_no' => $serviceOrder->account_no,
                         'customer_id' => $billingAccount->customer_id
                     ]);
                 }
             }
-            
+
             $shouldAddServiceCharge = false;
             $statusChanged = false;
-            
+
             if ($request->has('support_status') && $request->input('support_status') === 'Resolved' && $serviceOrder->support_status !== 'Resolved') {
                 $shouldAddServiceCharge = true;
                 $statusChanged = true;
                 Log::info('Support status changed to Resolved, will add service charge to account balance');
             }
-            
+
             if ($request->has('visit_status') && $request->input('visit_status') === 'Done' && $serviceOrder->visit_status !== 'Done') {
                 $shouldAddServiceCharge = true;
                 $statusChanged = true;
                 Log::info('Visit status changed to Done, will add service charge to account balance');
             }
-            
+
             if ($shouldAddServiceCharge && $statusChanged && $request->has('service_charge')) {
                 $serviceCharge = floatval($request->input('service_charge'));
                 if ($serviceCharge > 0) {
                     $billingAccount = DB::table('billing_accounts')
                         ->where('account_no', $serviceOrder->account_no)
                         ->first();
-                    
+
                     if ($billingAccount) {
                         $currentBalance = floatval($billingAccount->account_balance);
                         $newBalance = $currentBalance + $serviceCharge;
-                        
+
                         DB::table('billing_accounts')
                             ->where('account_no', $serviceOrder->account_no)
                             ->update([
-                                'account_balance' => $newBalance,
-                                'balance_update_date' => now()
-                            ]);
-                        
+                            'account_balance' => $newBalance,
+                            'balance_update_date' => now()
+                        ]);
+
                         $data['status'] = 'used';
-                        
+
                         Log::info("Updated account balance from {$currentBalance} to {$newBalance} (added service charge: {$serviceCharge}). Status changed to 'used'.");
-                    } else {
+                    }
+                    else {
                         Log::warning('Billing account not found for account_no: ' . $serviceOrder->account_no);
                     }
                 }
             }
-            
+
             DB::table('service_orders')->where('id', $id)->update($data);
-            
+
+            // Sync with job_orders table for timer fields
+            if ($request->has('start_time') || $request->has('end_time')) {
+                $billingAccountForJobOrder = DB::table('billing_accounts')
+                    ->where('account_no', $serviceOrder->account_no)
+                    ->first();
+
+                if ($billingAccountForJobOrder) {
+                    $syncData = [];
+                    if ($request->has('start_time'))
+                        $syncData['start_time'] = $request->input('start_time');
+                    if ($request->has('end_time'))
+                        $syncData['end_time'] = $request->input('end_time');
+                    $syncData['updated_at'] = now();
+
+                    DB::table('job_orders')
+                        ->where('account_id', $billingAccountForJobOrder->id)
+                        ->update($syncData);
+
+                    Log::info('[API SERVICE ORDER] Synced job_orders timer fields for account_id ' . $billingAccountForJobOrder->id);
+                }
+            }
+
+            $updatedByUser = $request->input('updated_by_user') ?: ($request->input('updated_by') ?: (Auth::user()->name ?? 'System'));
+
             // Trigger Reconnection if concern is 'Reconnect'
             $currentConcern = trim($request->input('concern'));
             if (!$currentConcern && isset($serviceOrder->concern)) {
@@ -627,9 +762,40 @@ class ServiceOrderApiController extends Controller
                     \Log::info("Triggering auto-reconnect for Service Order with {$currentConcern} concern", [
                         'account_no' => $serviceOrder->account_no
                     ]);
-                    $reconnectStatus = $this->attemptReconnection($billingAccount);
+                    $reconnectStatus = $this->attemptReconnection($billingAccount, $id, $updatedByUser);
+
+                    if ($reconnectStatus === 'success' && $normalizedConcern === 'upgrade/downgrade plan') {
+                        try {
+                            $oldPlanString = $data['old_plan'] ?? $serviceOrder->old_plan ?? null;
+                            $newPlanString = $data['new_plan'] ?? $serviceOrder->new_plan ?? null;
+
+                            $oldPlanName = trim(explode(' - ', (string)$oldPlanString)[0] ?: (string)$oldPlanString);
+                            $newPlanName = trim(explode(' - ', (string)$newPlanString)[0] ?: (string)$newPlanString);
+
+                            $oldPlanId = DB::table('plan_list')->where('plan_name', 'LIKE', $oldPlanName)->value('id');
+                            $newPlanId = DB::table('plan_list')->where('plan_name', 'LIKE', $newPlanName)->value('id');
+
+                            \App\Models\PlanChangeLog::create([
+                                'account_id' => $billingAccount->id,
+                                'old_plan_id' => $oldPlanId,
+                                'new_plan_id' => $newPlanId,
+                                'status' => 'success',
+                                'date_changed' => now(),
+                                'date_used' => now(),
+                                'remarks' => $data['concern_remarks'] ?? $serviceOrder->concern_remarks ?? 'Upgraded/Downgraded via Service Order',
+                                'created_by_user' => $updatedByUser,
+                                'updated_by_user' => $updatedByUser,
+                            ]);
+                            \Log::info("PlanChangeLog created successfully for account {$billingAccount->account_no}");
+                        }
+                        catch (\Exception $e) {
+                            \Log::error("Failed to create PlanChangeLog: " . $e->getMessage());
+                        }
+                    }
                 }
             }
+
+
 
             // Trigger Disconnection if concern is 'Disconnect' and support status is 'Resolved'
             $disconnectStatus = null;
@@ -639,18 +805,18 @@ class ServiceOrderApiController extends Controller
                     \Log::info('Triggering auto-disconnect for Service Order with Disconnect concern', [
                         'account_no' => $serviceOrder->account_no
                     ]);
-                    $disconnectStatus = $this->attemptDisconnection($billingAccount);
+                    $disconnectStatus = $this->attemptDisconnection($billingAccount, $updatedByUser);
                 }
             }
 
             // Trigger Pullout if repair category is 'Pullout' and visit status is 'Done'
             $pulloutStatus = null;
-            
+
             $visitStatus = strtolower(trim($request->input('visit_status') ?? ''));
             if (empty($visitStatus) && isset($serviceOrder->visit_status)) {
                 $visitStatus = strtolower(trim($serviceOrder->visit_status));
             }
-            
+
             $repairCategory = strtolower(trim($request->input('repair_category') ?? ''));
             if (empty($repairCategory) && isset($serviceOrder->repair_category)) {
                 $repairCategory = strtolower(trim($serviceOrder->repair_category));
@@ -662,28 +828,50 @@ class ServiceOrderApiController extends Controller
                     \Log::info('Triggering auto-pullout for Service Order with Pullout repair category', [
                         'account_no' => $serviceOrder->account_no
                     ]);
-                    $pulloutStatus = $this->attemptPullout($billingAccount);
+                    $pulloutStatus = $this->attemptPullout($billingAccount, $updatedByUser);
                 }
             }
 
-            // Trigger Migration if repair category is 'Migrate', 'Relocate', or 'Relocate Router' and visit status is 'Done'
+            // Trigger Migration if repair category is 'Migrate', 'Relocate', or 'Transfer LCP/NAP/PORT' and visit status is 'Done'
             $migrationStatus = null;
-            if (($repairCategory === 'migrate' || $repairCategory === 'relocate' || $repairCategory === 'relocate router' || $repairCategory === 'transfer lcp/nap/port') && $visitStatus === 'done') {
+            $relocateCategories = ['migrate', 'relocate', 'relocate router', 'transfer lcp/nap/port'];
+            if (in_array($repairCategory, $relocateCategories) && $visitStatus === 'done') {
                 $billingAccount = BillingAccount::where('account_no', $serviceOrder->account_no)->first();
                 if ($billingAccount) {
-                    $newRouterModemSN = $request->input('new_router_modem_sn');
-                    if ($newRouterModemSN) {
-                        \Log::info('Triggering auto-migration for Service Order', [
-                            'account_no' => $serviceOrder->account_no,
-                            'new_sn' => $newRouterModemSN
+                    \Log::info('Triggering auto-migration for Service Order', [
+                        'account_no' => $serviceOrder->account_no
+                    ]);
+                    $migrationStatus = $this->attemptMigration($billingAccount, $repairCategory, $updatedByUser);
+
+                    // Update job_orders table with new LCPNAP, port, and vlan for relocation categories
+                    $newLcpnap = $request->input('new_lcpnap');
+                    $newPort = $request->input('new_port');
+                    $newVlan = $request->input('new_vlan');
+
+                    if ($newLcpnap || $newPort || $newVlan) {
+                        $jobOrderUpdateData = array_filter([
+                            'lcpnap' => $newLcpnap ?: null,
+                            'port' => $newPort ?: null,
+                            'vlan' => $newVlan ?: null,
+                            'updated_at' => now(),
+                        ], fn($v) => !is_null($v));
+
+                        $affected = DB::table('job_orders')
+                            ->where('account_id', $billingAccount->id)
+                            ->update($jobOrderUpdateData);
+
+                        \Log::info('[API SERVICE ORDER RELOCATE] Updated job_orders for account_id ' . $billingAccount->id, [
+                            'rows_affected' => $affected,
+                            'new_lcpnap' => $newLcpnap,
+                            'new_port' => $newPort,
+                            'new_vlan' => $newVlan,
                         ]);
-                        $migrationStatus = $this->attemptMigration($billingAccount, $newRouterModemSN);
                     }
                 }
             }
 
             $updatedServiceOrder = DB::table('service_orders')->where('id', $id)->first();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Service order updated successfully',
@@ -693,13 +881,14 @@ class ServiceOrderApiController extends Controller
                 'pullout_status' => $pulloutStatus,
                 'migration_status' => $migrationStatus
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             Log::error('Failed to update service order', [
                 'id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update service order',
@@ -707,26 +896,27 @@ class ServiceOrderApiController extends Controller
             ], 500);
         }
     }
-    
+
     public function destroy($id): JsonResponse
     {
         try {
             $serviceOrder = DB::table('service_orders')->where('id', $id)->first();
-            
+
             if (!$serviceOrder) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Service order not found'
                 ], 404);
             }
-            
+
             DB::table('service_orders')->where('id', $id)->delete();
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Service order deleted successfully'
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete service order',
@@ -735,14 +925,29 @@ class ServiceOrderApiController extends Controller
         }
     }
 
-    private function attemptReconnection($billingAccount): string
+    private function attemptReconnection($billingAccount, $serviceOrderId = null, $updatedByUser = 'System'): string
     {
         try {
             // Reload billing account
             $billingAccount = BillingAccount::find($billingAccount->id);
             $accountNo = $billingAccount->account_no;
-            
+
             \Log::info('[API SERVICE ORDER RECONNECT] Force starting for account: ' . $accountNo);
+
+            // Step 2: Trigger RADIUS Reconnection
+            try {
+                $manualRadiusService = app(\App\Services\ManualRadiusOperationsService::class);
+                $radiusParams = [
+                    'accountNumber' => $accountNo,
+                    'remarks' => 'Reconnected via Service Order API',
+                    'updatedBy' => $updatedByUser
+                ];
+                $radiusResult = $manualRadiusService->reconnectUser($radiusParams);
+                \Log::info('[API SERVICE ORDER RECONNECT RADIUS] Result:', (array)$radiusResult);
+            }
+            catch (\Exception $radEx) {
+                \Log::error('[API SERVICE ORDER RECONNECT RADIUS EXCEPTION] ' . $radEx->getMessage());
+            }
 
             // Step 3: Get account details (PPPoE Username and Plan)
             $accountInfo = DB::table('billing_accounts')
@@ -772,105 +977,91 @@ class ServiceOrderApiController extends Controller
             $billingAccount->updated_at = now();
             $billingAccount->updated_by = Auth::id();
             $billingAccount->save();
-            
+
             \Log::info('[API SERVICE ORDER RECONNECT DB] Updated billing_status_id to 1 for Account: ' . $accountNo);
 
-            // Step 5: Prepare parameters for ManualRadiusOperationsService
-            $params = [
-                'accountNumber' => $accountNo,
-                'username' => $username,
-                'plan' => $plan,
-                'updatedBy' => 'API Service Order Auto-Reconnect'
-            ];
+            \Log::info('[API SERVICE ORDER RECONNECT SUCCESS] Reconnection (Local Status) completed successfully');
 
-            // Step 6: Call ManualRadiusOperationsService reconnectUser
-            \Log::info('[API SERVICE ORDER RECONNECT EXECUTE] Calling ManualRadiusOperationsService for ' . $username);
-            
-            $manualRadiusService = new ManualRadiusOperationsService();
-            $result = $manualRadiusService->reconnectUser($params);
+            // Send SMS Notification
+            try {
+                $smsTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Reconnect')
+                    ->where('is_active', 1)
+                    ->first();
 
-            if ($result['status'] === 'success') {
-                \Log::info('[API SERVICE ORDER RECONNECT SUCCESS] Reconnection completed successfully');
-
-                // Send SMS Notification
-                try {
-                    $smsTemplate = DB::table('sms_templates')
-                        ->where('template_type', 'Reconnect')
-                        ->where('is_active', 1)
+                if ($smsTemplate) {
+                    $customerInfo = DB::table('billing_accounts')
+                        ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                        ->where('billing_accounts.account_no', $accountNo)
+                        ->select(
+                        'customers.contact_number_primary',
+                        'customers.email_address',
+                        'customers.desired_plan as plan_name',
+                        DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
+                    )
                         ->first();
 
-                    if ($smsTemplate) {
-                        $customerInfo = DB::table('billing_accounts')
-                            ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
-                            ->where('billing_accounts.account_no', $accountNo)
-                            ->select(
-                                'customers.contact_number_primary',
-                                'customers.email_address',
-                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
-                            )
-                            ->first();
+                    if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
+                        $message = $smsTemplate->message_content;
+                        $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                        $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                        $message = str_replace('{{customer_name}}', $customerName, $message);
+                        $message = str_replace('{{account_no}}', $accountNo, $message);
+                        $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                        $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
-                        if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
-                            $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                        $smsService = new \App\Services\ItexmoSmsService();
+                        $smsResult = $smsService->send([
+                            'contact_no' => $customerInfo->contact_number_primary,
+                            'message' => $message
+                        ]);
 
-                            $smsService = new \App\Services\ItexmoSmsService();
-                            $smsResult = $smsService->send([
-                                'contact_no' => $customerInfo->contact_number_primary,
-                                'message' => $message
-                            ]);
-
-                            if ($smsResult['success']) {
-                                \Log::info('[API SERVICE ORDER RECONNECT SMS] SMS sent');
-                            }
+                        if ($smsResult['success']) {
+                            \Log::info('[API SERVICE ORDER RECONNECT SMS] SMS sent');
                         }
                     }
-                } catch (\Exception $e) {
-                    \Log::error('[API SERVICE ORDER RECONNECT SMS EXCEPTION] ' . $e->getMessage());
                 }
-
-                // Send Email Notification
-                try {
-                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
-                    
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             \Log::info('[API SERVICE ORDER RECONNECT EMAIL] Email queued');
-                         }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[API SERVICE ORDER RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
-                }
-
-                return 'success';
-            } else {
-                \Log::info('[API SERVICE ORDER RECONNECT FAILED] ' . $result['message']);
-                return 'failed';
+            }
+            catch (\Exception $e) {
+                \Log::error('[API SERVICE ORDER RECONNECT SMS EXCEPTION] ' . $e->getMessage());
             }
 
-        } catch (\Exception $e) {
+            // Email Notification
+            try {
+                $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
+
+                if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
+                    $emailService = app(\App\Services\EmailQueueService::class);
+                    $emailData = [
+                        'customer_name' => $customerInfo->full_name,
+                        'account_no' => $accountNo,
+                        'plan_name' => $customerInfo->plan_name,
+                        'recipient_email' => $customerInfo->email_address,
+                    ];
+                    $emailService->queueFromTemplate('RECONNECT', $emailData);
+                    \Log::info('[API SERVICE ORDER RECONNECT EMAIL] Email queued');
+                }
+            }
+            catch (\Exception $e) {
+                \Log::error('[API SERVICE ORDER RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
+            }
+
+            return 'success';
+
+        }
+        catch (\Exception $e) {
             \Log::error('[API SERVICE ORDER RECONNECT EXCEPTION] ' . $e->getMessage());
             return 'exception';
         }
     }
 
-    private function attemptDisconnection($billingAccount): string
+    private function attemptDisconnection($billingAccount, $updatedByUser = 'System'): string
     {
         try {
             // Reload billing account
             $billingAccount = BillingAccount::find($billingAccount->id);
             $accountNo = $billingAccount->account_no;
-            
+
             \Log::info('[API SERVICE ORDER DISCONNECT] Force starting for account: ' . $accountNo);
 
             // Get account details (PPPoE Username)
@@ -890,114 +1081,115 @@ class ServiceOrderApiController extends Controller
 
             \Log::info('[API SERVICE ORDER DISCONNECT PROCEED] Disconnecting user for account: ' . $accountNo);
 
-            // Prepare parameters for ManualRadiusOperationsService
-            $params = [
-                'accountNumber' => $accountNo,
-                'username' => $username,
-                'remarks' => 'Disconnect',
-                'updatedBy' => 'API Service Order Auto-Disconnect'
-            ];
-
-            // Call ManualRadiusOperationsService disconnectUser
-            \Log::info('[API SERVICE ORDER DISCONNECT EXECUTE] Calling ManualRadiusOperationsService for ' . $username);
-            
-            $manualRadiusService = new ManualRadiusOperationsService();
-            $result = $manualRadiusService->disconnectUser($params);
-
-            if ($result['status'] === 'success') {
-                \Log::info('[API SERVICE ORDER DISCONNECT SUCCESS] Disconnection completed successfully');
-
-                // Update billing_status_id to 4 (Disconnected) AFTER successful RADIUS disconnect
-                $billingAccount->billing_status_id = 4;
-                $billingAccount->updated_at = now();
-                $billingAccount->updated_by = Auth::id();
-                $billingAccount->save();
-                
-                \Log::info('[API SERVICE ORDER DISCONNECT DB] Updated billing_status_id to 4 (Disconnected) for Account: ' . $accountNo);
-
-                // Send SMS Notification
-                try {
-                    $smsTemplate = DB::table('sms_templates')
-                        ->where('template_type', 'Disconnected')
-                        ->where('is_active', 1)
-                        ->first();
-
-                    if ($smsTemplate) {
-                        $customerInfo = DB::table('billing_accounts')
-                            ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
-                            ->where('billing_accounts.account_no', $accountNo)
-                            ->select(
-                                'customers.contact_number_primary',
-                                'customers.email_address',
-                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
-                                'billing_accounts.account_balance'
-                            )
-                            ->first();
-
-                        if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
-                            $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
-                            $message = str_replace('{{account_no}}', $accountNo, $message);
-                            $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
-                            $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
-
-                            $smsService = new \App\Services\ItexmoSmsService();
-                            $smsResult = $smsService->send([
-                                'contact_no' => $customerInfo->contact_number_primary,
-                                'message' => $message
-                            ]);
-
-                            if ($smsResult['success']) {
-                                \Log::info('[API SERVICE ORDER DISCONNECT SMS] SMS sent');
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[API SERVICE ORDER DISCONNECT SMS EXCEPTION] ' . $e->getMessage());
-                }
-
-                // Send Email Notification
-                try {
-                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
-                    
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Disconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             \Log::info('[API SERVICE ORDER DISCONNECT EMAIL] Email queued');
-                         }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[API SERVICE ORDER DISCONNECT EMAIL EXCEPTION] ' . $e->getMessage());
-                }
-
-                return 'success';
-            } else {
-                \Log::info('[API SERVICE ORDER DISCONNECT FAILED] ' . $result['message']);
-                return 'failed';
+            // Step 2: Trigger RADIUS Disconnection
+            try {
+                $radiusOps = app(\App\Services\ManualRadiusOperationsService::class);
+                $radiusOps->disconnectUser([
+                    'accountNumber' => $accountNo,
+                    'username' => $username,
+                    'remarks' => 'Disconnected via Service Order API',
+                    'updatedBy' => $updatedByUser
+                ]);
+                \Log::info('[API SERVICE ORDER DISCONNECT RADIUS] disconnectUser called for: ' . $username . ' by ' . $updatedByUser);
+            }
+            catch (\Exception $radEx) {
+                \Log::error('[API SERVICE ORDER DISCONNECT RADIUS ERROR] ' . $radEx->getMessage());
             }
 
-        } catch (\Exception $e) {
+            \Log::info('[API SERVICE ORDER DISCONNECT SUCCESS] Disconnection (Local Status) completed successfully');
+
+            // Update billing_status_id to 4 (Disconnected)
+            $billingAccount->billing_status_id = 4;
+            $billingAccount->updated_at = now();
+            $billingAccount->updated_by = Auth::id();
+            $billingAccount->save();
+
+            \Log::info('[API SERVICE ORDER DISCONNECT DB] Updated billing_status_id to 4 (Disconnected) for Account: ' . $accountNo);
+
+            // Send SMS Notification
+            try {
+                $smsTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Disconnected')
+                    ->where('is_active', 1)
+                    ->first();
+
+                if ($smsTemplate) {
+                    $customerInfo = DB::table('billing_accounts')
+                        ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                        ->where('billing_accounts.account_no', $accountNo)
+                        ->select(
+                        'customers.contact_number_primary',
+                        'customers.email_address',
+                        'customers.desired_plan as plan_name',
+                        DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
+                        'billing_accounts.account_balance'
+                    )
+                        ->first();
+
+                    if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
+                        $message = $smsTemplate->message_content;
+                        $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                        $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                        $message = str_replace('{{customer_name}}', $customerName, $message);
+                        $message = str_replace('{{account_no}}', $accountNo, $message);
+                        $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                        $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
+                        $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
+                        $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
+
+                        $smsService = new \App\Services\ItexmoSmsService();
+                        $smsResult = $smsService->send([
+                            'contact_no' => $customerInfo->contact_number_primary,
+                            'message' => $message
+                        ]);
+
+                        if ($smsResult['success']) {
+                            \Log::info('[API SERVICE ORDER DISCONNECT SMS] SMS sent');
+                        }
+                    }
+                }
+            }
+            catch (\Exception $e) {
+                \Log::error('[API SERVICE ORDER DISCONNECT SMS EXCEPTION] ' . $e->getMessage());
+            }
+
+            // Send Email Notification
+            try {
+                $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
+
+                if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
+                    $emailService = app(\App\Services\EmailQueueService::class);
+                    $emailData = [
+                        'customer_name' => $customerInfo->full_name,
+                        'account_no' => $accountNo,
+                        'amount_due' => number_format($customerInfo->account_balance, 2),
+                        'balance' => number_format($customerInfo->account_balance, 2),
+                        'recipient_email' => $customerInfo->email_address,
+                    ];
+                    $emailService->queueFromTemplate('DISCONNECTED', $emailData);
+                    \Log::info('[API SERVICE ORDER DISCONNECT EMAIL] Email queued');
+                }
+            }
+            catch (\Exception $e) {
+                \Log::error('[API SERVICE ORDER DISCONNECT EMAIL EXCEPTION] ' . $e->getMessage());
+            }
+
+            return 'success';
+
+        }
+        catch (\Exception $e) {
             \Log::error('[API SERVICE ORDER DISCONNECT EXCEPTION] ' . $e->getMessage());
             return 'exception';
         }
     }
 
-    private function attemptPullout($billingAccount): string
+    private function attemptPullout($billingAccount, $updatedByUser = 'System'): string
     {
         try {
             // Reload billing account
             $billingAccount = BillingAccount::find($billingAccount->id);
             $accountNo = $billingAccount->account_no;
-            
+
             \Log::info('[API SERVICE ORDER PULLOUT] Force starting for account: ' . $accountNo);
 
             // Get account details (PPPoE Username)
@@ -1017,131 +1209,142 @@ class ServiceOrderApiController extends Controller
 
             \Log::info('[API SERVICE ORDER PULLOUT PROCEED] Executing pullout for account: ' . $accountNo);
 
-            // Prepare parameters for ManualRadiusOperationsService
-            $params = [
-                'accountNumber' => $accountNo,
-                'username' => $username,
-                'remarks' => 'Pullout',
-                'updatedBy' => 'API Service Order Auto-Pullout'
-            ];
-
-            // Call ManualRadiusOperationsService disconnectUser
-            \Log::info('[API SERVICE ORDER PULLOUT EXECUTE] Calling ManualRadiusOperationsService for ' . $username);
-            
-            $manualRadiusService = new ManualRadiusOperationsService();
-            $result = $manualRadiusService->disconnectUser($params);
-
-            if ($result['status'] === 'success') {
-                \Log::info('[API SERVICE ORDER PULLOUT SUCCESS] Disconnection completed successfully');
-
-                // Update billing_status_id to 5 (Pullout) AFTER successful RADIUS disconnect
-                $billingAccount->billing_status_id = 5;
-                $billingAccount->updated_at = now();
-                $billingAccount->updated_by = Auth::id();
-                $billingAccount->save();
-                
-                \Log::info('[API SERVICE ORDER PULLOUT DB] Updated billing_status_id to 5 (Pullout) for Account: ' . $accountNo);
-
-                // Clear technical details
-                DB::table('technical_details')
-                    ->where('account_no', $accountNo)
-                    ->update([
-                        'connection_type' => null,
-                        'router_model' => null,
-                        'router_modem_sn' => null,
-                        'ip_address' => null,
-                        'lcp' => null,
-                        'nap' => null,
-                        'port' => null,
-                        'vlan' => null,
-                        'lcpnap' => null,
-                        'usage_type' => null,
-                        'updated_at' => now()
-                    ]);
-
-                \Log::info('[API SERVICE ORDER PULLOUT DB] Cleared technical details for Account: ' . $accountNo);
-
-                // Send SMS Notification
-                try {
-                    $smsTemplate = DB::table('sms_templates')
-                        ->where('template_type', 'Disconnected')
-                        ->where('is_active', 1)
-                        ->first();
-
-                    if ($smsTemplate) {
-                        $customerInfo = DB::table('billing_accounts')
-                            ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
-                            ->where('billing_accounts.account_no', $accountNo)
-                            ->select(
-                                'customers.contact_number_primary',
-                                'customers.email_address',
-                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
-                                'billing_accounts.account_balance'
-                            )
-                            ->first();
-
-                        if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
-                            $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
-                            $message = str_replace('{{account_no}}', $accountNo, $message);
-                            $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
-                            $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
-
-                            $smsService = new \App\Services\ItexmoSmsService();
-                            $smsResult = $smsService->send([
-                                'contact_no' => $customerInfo->contact_number_primary,
-                                'message' => $message
-                            ]);
-
-                            if ($smsResult['success']) {
-                                \Log::info('[API SERVICE ORDER PULLOUT SMS] SMS sent');
-                            }
-                        }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[API SERVICE ORDER PULLOUT SMS EXCEPTION] ' . $e->getMessage());
-                }
-
-                // Send Email Notification
-                try {
-                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
-                    
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Disconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             \Log::info('[API SERVICE ORDER PULLOUT EMAIL] Email queued');
-                         }
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[API SERVICE ORDER PULLOUT EMAIL EXCEPTION] ' . $e->getMessage());
-                }
-
-                return 'success';
-            } else {
-                \Log::info('[API SERVICE ORDER PULLOUT FAILED] ' . $result['message']);
-                return 'failed';
+            // Step 2: Trigger RADIUS Disconnection/Pullout
+            try {
+                $radiusOps = app(\App\Services\ManualRadiusOperationsService::class);
+                $radiusOps->disconnectUser([
+                    'accountNumber' => $accountNo,
+                    'username' => $username,
+                    'remarks' => 'Pullout',
+                    'updatedBy' => $updatedByUser
+                ]);
+                \Log::info('[API SERVICE ORDER PULLOUT RADIUS] disconnectUser (Pullout) called for: ' . $username . ' by ' . $updatedByUser);
+            }
+            catch (\Exception $radEx) {
+                \Log::error('[API SERVICE ORDER PULLOUT RADIUS ERROR] ' . $radEx->getMessage());
             }
 
-        } catch (\Exception $e) {
+            \Log::info('[API SERVICE ORDER PULLOUT SUCCESS] Disconnection (Local Status) completed successfully');
+
+            // Update billing_status_id to 5 (Pullout)
+            $billingAccount->billing_status_id = 5;
+            $billingAccount->updated_at = now();
+            $billingAccount->updated_by = Auth::id();
+            $billingAccount->save();
+
+            \Log::info('[API SERVICE ORDER PULLOUT DB] Updated billing_status_id to 5 (Pullout) for Account: ' . $accountNo);
+
+            // Clear technical details
+            DB::table('technical_details')
+                ->where('account_no', $accountNo)
+                ->update([
+                'connection_type' => null,
+                'router_model' => null,
+                'router_modem_sn' => null,
+                'ip_address' => null,
+                'lcp' => null,
+                'nap' => null,
+                'port' => null,
+                'vlan' => null,
+                'lcpnap' => null,
+                'usage_type' => null,
+                'updated_at' => now()
+            ]);
+
+            \Log::info('[API SERVICE ORDER PULLOUT DB] Cleared technical details for Account: ' . $accountNo);
+
+            // Clear port in job_orders table using account_id (referencing billing_accounts id)
+            DB::table('job_orders')
+                ->where('account_id', $billingAccount->id)
+                ->update([
+                'port' => null,
+                'updated_at' => now()
+            ]);
+
+            \Log::info('[API SERVICE ORDER PULLOUT DB] Cleared port in job_orders for Account ID: ' . $billingAccount->id);
+
+            // Send SMS Notification
+            try {
+                $smsTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Disconnected')
+                    ->where('is_active', 1)
+                    ->first();
+
+                if ($smsTemplate) {
+                    $customerInfo = DB::table('billing_accounts')
+                        ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                        ->where('billing_accounts.account_no', $accountNo)
+                        ->select(
+                        'customers.contact_number_primary',
+                        'customers.email_address',
+                        'customers.desired_plan as plan_name',
+                        DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name"),
+                        'billing_accounts.account_balance'
+                    )
+                        ->first();
+
+                    if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
+                        $message = $smsTemplate->message_content;
+                        $planNameFormatted = str_replace('₱', 'P', $customerInfo->plan_name ?? '');
+                        $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                        $message = str_replace('{{customer_name}}', $customerName, $message);
+                        $message = str_replace('{{account_no}}', $accountNo, $message);
+                        $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                        $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
+                        $message = str_replace('{{amount_due}}', number_format($customerInfo->account_balance, 2), $message);
+                        $message = str_replace('{{balance}}', number_format($customerInfo->account_balance, 2), $message);
+
+                        $smsService = new \App\Services\ItexmoSmsService();
+                        $smsResult = $smsService->send([
+                            'contact_no' => $customerInfo->contact_number_primary,
+                            'message' => $message
+                        ]);
+
+                        if ($smsResult['success']) {
+                            \Log::info('[API SERVICE ORDER PULLOUT SMS] SMS sent');
+                        }
+                    }
+                }
+            }
+            catch (\Exception $e) {
+                \Log::error('[API SERVICE ORDER PULLOUT SMS EXCEPTION] ' . $e->getMessage());
+            }
+
+            // Send Email Notification
+            try {
+                $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'DISCONNECTED')->first();
+
+                if (!empty($emailTemplate) && !empty($customerInfo->email_address)) {
+                    $emailService = app(\App\Services\EmailQueueService::class);
+                    $emailData = [
+                        'customer_name' => $customerInfo->full_name,
+                        'account_no' => $accountNo,
+                        'amount_due' => number_format($customerInfo->account_balance, 2),
+                        'balance' => number_format($customerInfo->account_balance, 2),
+                        'recipient_email' => $customerInfo->email_address,
+                    ];
+                    $emailService->queueFromTemplate('DISCONNECTED', $emailData);
+                    \Log::info('[API SERVICE ORDER PULLOUT EMAIL] Email queued');
+                }
+            }
+            catch (\Exception $e) {
+                \Log::error('[API SERVICE ORDER PULLOUT EMAIL EXCEPTION] ' . $e->getMessage());
+            }
+
+            return 'success';
+
+        }
+        catch (\Exception $e) {
             \Log::error('[API SERVICE ORDER PULLOUT EXCEPTION] ' . $e->getMessage());
             return 'exception';
         }
     }
 
-    private function attemptMigration($billingAccount, $newRouterModemSN): string
+    private function attemptMigration($billingAccount, $repairCategory = null, $updatedByUser = 'System'): string
     {
         try {
             $accountNo = $billingAccount->account_no;
-            
+
             \Log::info('[API SERVICE ORDER MIGRATION] Force starting for account: ' . $accountNo);
 
             // Get data for username generation
@@ -1150,15 +1353,16 @@ class ServiceOrderApiController extends Controller
                 ->leftJoin('technical_details', 'billing_accounts.id', '=', 'technical_details.account_id')
                 ->where('billing_accounts.account_no', $accountNo)
                 ->select(
-                    'customers.first_name',
-                    'customers.middle_initial',
-                    'customers.last_name',
-                    'customers.contact_number_primary as mobile_number',
-                    'technical_details.lcp',
-                    'technical_details.nap',
-                    'technical_details.port',
-                    'technical_details.username as pppoe_username'
-                )
+                'customers.first_name',
+                'customers.middle_initial',
+                'customers.last_name',
+                'customers.contact_number_primary as mobile_number',
+                'customers.desired_plan',
+                'technical_details.lcp',
+                'technical_details.nap',
+                'technical_details.port',
+                'technical_details.username as pppoe_username'
+            )
                 ->first();
 
             $oldUsername = $fullInfo->pppoe_username ?? null;
@@ -1178,29 +1382,130 @@ class ServiceOrderApiController extends Controller
                 'new' => $newUsername
             ]);
 
-            // Prepare parameters for ManualRadiusOperationsService
-            // Password is NOT changed during migration
-            $params = [
-                'accountNumber' => $accountNo,
-                'username' => $oldUsername,
-                'newUsername' => $newUsername,
-                'updatedBy' => 'API Service Order Auto-Migration'
-            ];
-
-            \Log::info('[API SERVICE ORDER MIGRATION EXECUTE] Calling ManualRadiusOperationsService for ' . $oldUsername);
-            
-            $manualRadiusService = new ManualRadiusOperationsService();
-            $result = $manualRadiusService->updateCredentials($params);
-
-            if ($result['status'] === 'success') {
-                \Log::info('[API SERVICE ORDER MIGRATION SUCCESS] Migration completed successfully');
-                return 'success';
-            } else {
-                \Log::info('[API SERVICE ORDER MIGRATION FAILED] ' . $result['message']);
-                return 'failed';
+            if ($oldUsername === $newUsername) {
+                \Log::info('[API SERVICE ORDER MIGRATION SKIP] Username did not change');
+                return 'no_change';
             }
 
-        } catch (\Exception $e) {
+            // RADIUS ACCOUNT CREATION LOGIC
+            $normalizedCategory = $repairCategory ? strtolower(trim($repairCategory)) : '';
+            $targetCategories = ['relocate', 'transfer lcp/nap/port', 'relocate router', 'transfer lcp nap vlan'];
+
+            if (in_array($normalizedCategory, $targetCategories)) {
+                \Log::info('[API SERVICE ORDER] RADIUS Account Deletion/Creation starting for category: ' . $normalizedCategory);
+
+                // STEP 1: DELETE THE OLD ACCOUNT
+                try {
+                    $radiusOps = app(ManualRadiusOperationsService::class);
+                    \Log::info('Triggering deleteAccount for old username: ' . $oldUsername);
+                    $radiusOps->deleteAccount($oldUsername);
+                }
+                catch (\Exception $delEx) {
+                    \Log::error('Exception during old RADIUS account deletion: ' . $delEx->getMessage());
+                // We continue anyway so the new account can be created
+                }
+
+                $radiusConfig = RadiusConfig::first();
+                if ($radiusConfig) {
+                    $radiusUrl = $radiusConfig->ssl_type . '://' . $radiusConfig->ip . ':' . $radiusConfig->port . '/rest/user-manage/user';
+
+                    // Generate new password for relocation/transfer
+                    $newPassword = $pppoeService->generatePassword($customerData);
+
+                    // Get plan
+                    $desiredPlan = $fullInfo->desired_plan ?? '';
+                    $planName = $desiredPlan;
+                    if ($desiredPlan && strpos($desiredPlan, ' - ') !== false) {
+                        $planName = trim(explode(' - ', $desiredPlan)[0]);
+                    }
+
+                    $payload = [
+                        'name' => $newUsername,
+                        'group' => $planName,
+                        'password' => $newPassword
+                    ];
+
+                    \Log::info('Submitting to RADIUS API via Service Order (Relocate/Transfer)', [
+                        'url' => $radiusUrl,
+                        'name' => $newUsername,
+                        'group' => $planName
+                    ]);
+
+                    try {
+                        $response = Http::withOptions(['verify' => false])
+                            ->withBasicAuth($radiusConfig->username, $radiusConfig->password)
+                            ->put($radiusUrl, $payload);
+
+                        if ($response->status() === 204 || $response->successful()) {
+                            \Log::info('RADIUS account created successfully. Proceeding with DB updates.');
+
+                            // Update technical_details
+                            DB::table('technical_details')
+                                ->where('account_id', $billingAccount->id)
+                                ->update([
+                                'username' => $newUsername,
+                                'updated_at' => now(),
+                                'updated_by' => $updatedByUser
+                            ]);
+
+                            // Update job_orders: username, pppoe_username, and pppoe_password
+                            DB::table('job_orders')
+                                ->where('account_id', $billingAccount->id)
+                                ->update([
+                                'pppoe_username' => $newUsername,
+                                'username' => $newUsername,
+                                'pppoe_password' => $newPassword,
+                                'updated_at' => now()
+                            ]);
+
+                            \Log::info('[API SERVICE ORDER MIGRATION SUCCESS] Migration synced successfully after RADIUS success');
+                            return 'success';
+                        }
+                        else {
+                            \Log::error('RADIUS account creation failed. DB will NOT be updated for relocation.', [
+                                'status' => $response->status(),
+                                'body' => $response->body()
+                            ]);
+                            return 'radius_failed';
+                        }
+                    }
+                    catch (\Exception $radiusEx) {
+                        \Log::error('Exception during RADIUS account creation: ' . $radiusEx->getMessage());
+                        return 'exception';
+                    }
+                }
+                else {
+                    \Log::error('Radius config not found');
+                    return 'radius_config_missing';
+                }
+            }
+            else {
+                // For other categories like plain 'migrate', we update DB without RADIUS as before
+                \Log::info('[API SERVICE ORDER MIGRATION PROCEED] Updating database credentials (DB ONLY) for ' . $oldUsername);
+
+                DB::table('technical_details')
+                    ->where('account_id', $billingAccount->id)
+                    ->update([
+                    'username' => $newUsername,
+                    'updated_at' => now(),
+                    'updated_by' => $updatedByUser
+                ]);
+
+                DB::table('job_orders')
+                    ->where('account_id', $billingAccount->id)
+                    ->update([
+                    'pppoe_username' => $newUsername,
+                    'username' => $newUsername,
+                    'updated_at' => now()
+                ]);
+
+                \Log::info('[API SERVICE ORDER MIGRATION SUCCESS] DB Only migration completed');
+                return 'success';
+            }
+
+
+        }
+        catch (\Exception $e) {
             \Log::error('[API SERVICE ORDER MIGRATION EXCEPTION] ' . $e->getMessage());
             return 'exception';
         }

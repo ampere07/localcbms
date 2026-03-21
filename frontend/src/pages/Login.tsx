@@ -3,7 +3,7 @@ import { login, forgotPassword } from '../services/api';
 import { UserData } from '../types/api';
 import { formUIService } from '../services/formUIService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff } from 'lucide-react';
 
 interface LoginProps {
   onLogin: (userData: UserData) => void;
@@ -19,6 +19,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const [forgotMessage, setForgotMessage] = useState('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
@@ -89,7 +90,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!forgotEmail) {
-      setError('Please enter your email address');
+      setError('Please enter your email or account number');
       return;
     }
 
@@ -102,7 +103,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         setForgotMessage(response.message);
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to send reset instructions.');
+      setError(err.response?.data?.message || 'Failed to send credentials.');
     } finally {
       setIsLoading(false);
     }
@@ -131,12 +132,12 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             marginBottom: '30px'
           }}>
             <h2 style={{
-              color: colorPalette?.primary || '#6d28d9',
+              color: colorPalette?.primary || '#7c3aed',
               fontSize: '24px',
               marginBottom: '10px',
               fontWeight: '600'
             }}>
-              Reset Password
+              Retrieve Credentials
             </h2>
           </div>
 
@@ -163,7 +164,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 style={{
                   width: '100%',
                   padding: '14px',
-                  backgroundColor: colorPalette?.primary || '#6d28d9',
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
                   color: '#ffffff',
                   border: 'none',
                   borderRadius: '30px',
@@ -179,7 +180,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
             <form onSubmit={handleForgotPassword}>
               <div style={{ marginBottom: '20px' }}>
                 <input
-                  type="email"
+                  type="text"
                   value={forgotEmail}
                   onChange={(e) => setForgotEmail(e.target.value)}
                   style={{
@@ -191,7 +192,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     color: '#111827',
                     fontSize: '16px'
                   }}
-                  placeholder="Enter your email address"
+                  placeholder="Enter your email or account number"
                 />
               </div>
 
@@ -222,7 +223,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   fontWeight: '600'
                 }}
               >
-                {isLoading ? 'Sending...' : 'Send Reset Instructions'}
+                {isLoading ? 'Sending...' : 'Send Credentials'}
               </button>
 
               <button
@@ -235,8 +236,8 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '14px',
                   backgroundColor: 'transparent',
-                  color: colorPalette?.primary || '#6d28d9',
-                  border: `1px solid ${colorPalette?.primary || '#6d28d9'}`,
+                  color: colorPalette?.primary || '#7c3aed',
+                  border: `1px solid ${colorPalette?.primary || '#7c3aed'}`,
                   borderRadius: '8px',
                   fontSize: '16px',
                   cursor: 'pointer',
@@ -292,7 +293,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
         }} className="login-container">
           <div style={{
             flex: 1,
-            background: `linear-gradient(135deg, ${colorPalette?.primary || '#6d28d9'} 0%, ${colorPalette?.secondary || '#7c3aed'} 100%)`,
+            background: `linear-gradient(135deg, ${colorPalette?.primary || '#7c3aed'} 0%, ${colorPalette?.secondary || '#7c3aed'} 100%)`,
             padding: '60px 50px',
             display: 'flex',
             flexDirection: 'column',
@@ -337,18 +338,20 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     outline: 'none',
                     fontWeight: '600'
                   }}
-                  placeholder="Username or Email"
+                  placeholder="Account No. / Username / Email"
                 />
               </div>
 
-              <div style={{ marginBottom: '32px' }}>
+              <div style={{ marginBottom: '32px', position: 'relative' }}>
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={mobileNo}
                   onChange={(e) => setMobileNo(e.target.value)}
+                  inputMode="tel"
                   style={{
                     width: '100%',
                     padding: '14px',
+                    paddingRight: '50px',
                     backgroundColor: '#ffffff',
                     border: '1px solid #d1d5db',
                     borderRadius: '8px',
@@ -357,8 +360,28 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     outline: 'none',
                     fontWeight: '600'
                   }}
-                  placeholder="Password"
+                  placeholder="Mobile Number / Password"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '15px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#6b7280',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 10
+                  }}
+                >
+                  {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                </button>
               </div>
 
               {error && (
@@ -381,7 +404,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                   width: '100%',
                   padding: '16px',
                   backgroundColor: isLoading ? '#6b7280' : '#ffffff',
-                  color: isLoading ? '#ffffff' : (colorPalette?.primary || '#6d28d9'),
+                  color: isLoading ? '#ffffff' : (colorPalette?.primary || '#7c3aed'),
                   border: 'none',
                   borderRadius: '30px',
                   fontSize: '16px',
@@ -438,7 +461,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                     margin: '0 auto'
                   }}
                 >
-                  Forgot Password?
+                  Retrieve Credentials?
                 </button>
               </div>
             </form>
@@ -479,7 +502,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 color: '#6b7280',
                 marginTop: '10px'
               }}>
-                Powered by <span style={{ color: '#7c3aed' }}>Sync</span>
+                Powered by <span style={{ color: '#7c3aed' }}>SYNC</span>
               </p>
             </div>
 
@@ -491,7 +514,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
                 fontSize: '36px',
                 fontWeight: '700',
                 marginBottom: '15px',
-                color: colorPalette?.primary || '#6d28d9'
+                color: colorPalette?.primary || '#7c3aed'
               }}>
                 New Here?
               </h2>
@@ -510,7 +533,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               }}
               style={{
                 padding: '16px 48px',
-                backgroundColor: colorPalette?.primary || '#6d28d9',
+                backgroundColor: colorPalette?.primary || '#7c3aed',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: '30px',
@@ -530,7 +553,7 @@ const Login: React.FC<LoginProps> = ({ onLogin }) => {
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)';
                 e.currentTarget.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#6d28d9';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               APPLY NOW

@@ -174,10 +174,11 @@ class PaymentWorkerService
                     'reference_no' => $ref,
                     'account_id' => $account->account_id,
                     'total_amount' => $amount,
+                    'account_balance_before' => $account->account_balance,
                     'date_time' => now(),
                     'checkout_id' => $checkoutID,
                     'status' => $status,
-                    'transaction_status' => 'COMPLETED',
+                    'transaction_status' => 'PAID',
                     'ewallet_type' => $ewalletType,
                     'payment_channel' => $paymentChannel,
                     'type' => $type,
@@ -206,89 +207,9 @@ class PaymentWorkerService
 
                 DB::commit();
 
-                // Send Paid SMS
-                try {
-                    $paidInvoices = $result['invoices_paid'] ?? [];
-                    
-                    if (!empty($paidInvoices) && !empty($account->contact_number_primary)) {
-                        $paidTemplate = DB::table('sms_templates')
-                            ->where('template_type', 'Paid')
-                            ->where('is_active', 1)
-                            ->first();
-
-                        if ($paidTemplate) {
-                            $smsService = new \App\Services\ItexmoSmsService();
-
-                            foreach ($paidInvoices as $paidInvoice) {
-                                $message = $paidTemplate->message_content;
-                                
-                                $message = str_replace('{{customer_name}}', $account->full_name, $message);
-                                $message = str_replace('{{account_no}}', $account->account_no, $message);
-                                $message = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $message);
-                                $message = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $message);
-                                $message = str_replace('{{date}}', date('Y-m-d'), $message);
-
-                                $smsResult = $smsService->send([
-                                    'contact_no' => $account->contact_number_primary,
-                                    'message' => $message
-                                ]);
-
-                                if ($smsResult['success']) {
-                                    $this->workerLog("Paid Invoice SMS sent for Invoice #{$paidInvoice['invoice_id']}");
-                                } else {
-                                    $this->workerLog("Paid Invoice SMS Failed: " . ($smsResult['error'] ?? 'Unknown error'));
-                                }
-                            }
-                        }
-                    }
-                } catch (Exception $e) {
-                    $this->workerLog("Paid Invoice SMS Exception: " . $e->getMessage());
-                }
-
-                // Send Paid Email
-                try {
-                    $paidInvoices = $result['invoices_paid'] ?? [];
-                    
-                    if (!empty($paidInvoices) && !empty($account->email_address)) {
-                         $paidEmailTemplate = DB::table('email_templates')
-                             ->where('Template_Code', 'PAID')
-                             ->where('Is_Active', 1)
-                             ->first();
-                         
-                         if ($paidEmailTemplate) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             
-                             foreach ($paidInvoices as $paidInvoice) {
-                                  $emailBody = $paidEmailTemplate->email_body;
-                                  
-                                  // Replace variables
-                                  $emailBody = str_replace('{{customer_name}}', $account->full_name, $emailBody);
-                                  $emailBody = str_replace('{{account_no}}', $account->account_no, $emailBody);
-                                  $emailBody = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $emailBody);
-                                  $emailBody = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $emailBody);
-                                  $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
-
-                                  if (!empty($emailBody)) {
-                                       $emailService->queueEmail([
-                                           'account_no' => $account->account_no,
-                                           'recipient_email' => $account->email_address,
-                                           'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
-                                           'body_html' => nl2br($emailBody), 
-                                           'attachment_path' => null
-                                       ]);
-                                       
-                                       $this->workerLog("Paid Invoice Email queued for Invoice #{$paidInvoice['invoice_id']} to {$account->email_address}");
-                                  } else {
-                                      $this->workerLog("Paid Invoice Email Body is empty");
-                                  }
-                             }
-                         } else {
-                             $this->workerLog("Paid Email (WELCOME) template not found or inactive");
-                         }
-                    }
-                } catch (Exception $e) {
-                    $this->workerLog("Paid Invoice Email Exception: " . $e->getMessage());
-                }
+                // Send Approval Notifications
+                $this->sendApprovalSms($account, $result['invoices_paid'] ?? [], $amount, $ref);
+                $this->sendApprovalEmail($account, $result['invoices_paid'] ?? [], $amount, $ref);
                 
             } else {
                 // Billing update failed
@@ -308,6 +229,17 @@ class PaymentWorkerService
                 ->where('id', $payment->id)
                 ->update(['status' => 'API_RETRY', 'updated_at' => now()]);
         }
+    }
+
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
     }
 
     /**
@@ -503,7 +435,8 @@ class PaymentWorkerService
                 'accountNumber' => $accountNo,
                 'username' => $username,
                 'plan' => $plan,
-                'updatedBy' => 'Payment Worker Auto-Reconnect'
+                'updatedBy' => 'Payment Worker Auto-Reconnect',
+                'remarks' => 'Payment Worker Auto-Reconnect'
             ];
 
             // Step 6: Call ManualRadiusOperationsService reconnectUser
@@ -536,7 +469,13 @@ class PaymentWorkerService
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             // Replace variables
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             // Send SMS
                             $smsService = new \App\Services\ItexmoSmsService();
@@ -560,37 +499,7 @@ class PaymentWorkerService
                     $this->workerLog("[RECONNECT SMS EXCEPTION] " . $e->getMessage());
                 }
 
-                // Send Email Notification
-                try {
-                    $emailTemplate = DB::table('email_templates')->where('Template_Code', 'RECONNECT')->first();
-
-                    if ($emailTemplate && !empty($emailAddress)) {
-                        // Use email_body as the content (body) as requested
-                        $body = $emailTemplate->email_body;
-
-                        if (!empty($body)) {
-                            // Resolve EmailQueueService from container since it serves dependencies
-                            $emailService = app(\App\Services\EmailQueueService::class);
-
-                            $emailService->queueEmail([
-                                'account_no' => $accountNo,
-                                'recipient_email' => $emailAddress,
-                                'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice',
-                                'body_html' => nl2br($body),
-                                'attachment_path' => null
-                            ]);
-
-                            $this->workerLog("[RECONNECT EMAIL] Email queued for {$emailAddress}");
-                        } else {
-                            $this->workerLog("[RECONNECT EMAIL SKIP] email_body is empty");
-                        }
-                    } else {
-                        if (!$emailTemplate) $this->workerLog("[RECONNECT EMAIL SKIP] RECONNECT template not found");
-                        if (empty($emailAddress)) $this->workerLog("[RECONNECT EMAIL SKIP] No email address for customer");
-                    }
-                } catch (Exception $e) {
-                    $this->workerLog("[RECONNECT EMAIL EXCEPTION] " . $e->getMessage());
-                }
+                // Email Notification is now handled by ManualRadiusOperationsService
 
                 return 'success';
             } else {
@@ -602,6 +511,133 @@ class PaymentWorkerService
             $this->workerLog("[RECONNECT EXCEPTION] Failed for {$account->account_no}: {$e->getMessage()}");
             $this->workerLog("[RECONNECT EXCEPTION] Trace: {$e->getTraceAsString()}");
             return 'exception';
+        }
+    }
+
+    /**
+     * Send Transaction Approval SMS notification
+     */
+    private function sendApprovalSms($account, $invoicesPaid, $totalPaidAmount, $referenceNo = null)
+    {
+        try {
+            if ($account && !empty($account->contact_number_primary)) {
+                $paymentLogDate = date('Y-m-d');
+                $finalAmount = $totalPaidAmount;
+                
+                if ($referenceNo) {
+                    $logEntry = DB::table('payment_portal_logs')->where('reference_no', $referenceNo)->first();
+                    if ($logEntry) {
+                        $finalAmount = $logEntry->total_amount;
+                        $paymentLogDate = date('Y-m-d', strtotime($logEntry->date_time));
+                    }
+                }
+
+                $paidTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Paid')
+                    ->where('is_active', 1)
+                    ->first();
+                    
+                if ($paidTemplate) {
+                    $smsService = new \App\Services\ItexmoSmsService();
+                    
+                    // Consolidate invoice IDs or use N/A if none
+                    $invoiceIds = !empty($invoicesPaid) 
+                        ? collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ')
+                        : 'N/A';
+                    
+                    $message = $paidTemplate->message_content;
+                    
+                    // Replace variables
+                    $customerName = preg_replace('/\s+/', ' ', trim($account->full_name));
+                    $planNameFormatted = str_replace('₱', 'P', $account->desired_plan ?? 'N/A');
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
+                    $message = str_replace('{{account_no}}', $account->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
+                    $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
+                    
+                    // Support multiple variations of placeholders
+                    $formattedAmount = number_format($finalAmount, 2);
+                    
+                    $message = str_replace('{{amount_paid}}', $formattedAmount, $message);
+                    $message = str_replace('{{amount}}', $formattedAmount, $message);
+                    $message = str_replace('{{date}}', $paymentLogDate, $message);
+                    $message = str_replace('{{payment_date}}', $paymentLogDate, $message);
+                    
+                    $message = $this->replaceGlobalVariables($message);
+                    
+                    $result = $smsService->send([
+                        'contact_no' => $account->contact_number_primary,
+                        'message' => $message
+                    ]);
+                    
+                    if ($result['success']) {
+                        $this->workerLog("Approval SMS sent to {$account->contact_number_primary}");
+                    } else {
+                        $this->workerLog("Approval SMS Failed: " . ($result['error'] ?? 'Unknown error'));
+                    }
+                }
+            }
+        } catch (Exception $e) {
+            $this->workerLog("Approval SMS Exception: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send Transaction Approval Email notification
+     */
+    private function sendApprovalEmail($account, $invoicesPaid, $totalPaidAmount, $referenceNo = null)
+    {
+        try {
+            if ($account && !empty($account->email_address)) {
+                $emailService = app(\App\Services\EmailQueueService::class);
+                
+                $paymentLogDate = date('Y-m-d');
+                $finalAmount = $totalPaidAmount;
+                
+                if ($referenceNo) {
+                    $logEntry = DB::table('payment_portal_logs')->where('reference_no', $referenceNo)->first();
+                    if ($logEntry) {
+                        $finalAmount = $logEntry->total_amount;
+                        $paymentLogDate = date('Y-m-d', strtotime($logEntry->date_time));
+                    }
+                }
+                
+                // Consolidate invoice IDs or use N/A
+                $invoiceIds = !empty($invoicesPaid) 
+                    ? collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ')
+                    : 'N/A';
+                    
+                $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+                
+                $customerName = preg_replace('/\s+/', ' ', trim($account->full_name));
+                $planNameFormatted = str_replace('₱', 'P', $account->desired_plan ?? 'N/A');
+
+                $formattedAmount = number_format($finalAmount, 2);
+
+                $emailData = [
+                    'Amount' => $formattedAmount,
+                    'amount' => $formattedAmount,
+                    'amount_paid' => $formattedAmount,
+                    'Company_Name' => $brandName,
+                    'Account_No' => $account->account_no,
+                    'account_no' => $account->account_no,
+                    'Date' => $paymentLogDate,
+                    'date' => $paymentLogDate,
+                    'payment_date' => $paymentLogDate,
+                    'Full_Name' => $customerName,
+                    'Plan' => $planNameFormatted,
+                    'invoice_ids' => $invoiceIds,
+                    'recipient_email' => $account->email_address,
+                ];
+
+                $emailService->queueFromTemplate('PAID', $emailData);
+                
+                $this->workerLog("Approval Email queued via template PAID to {$account->email_address}");
+            }
+        } catch (Exception $e) {
+            $this->workerLog("Approval Email Exception: " . $e->getMessage());
         }
     }
 
@@ -735,4 +771,6 @@ class PaymentWorkerService
         return $retryPayments->count();
     }
 }
+
+
 

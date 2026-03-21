@@ -45,15 +45,15 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark');
     };
-    
+
     checkDarkMode();
-    
+
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -74,7 +74,7 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    
+
     if (name === 'org_id') {
       const numericValue = value && value !== '' ? parseInt(value, 10) : undefined;
       setFormData(prev => ({
@@ -126,18 +126,18 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
         email: formData.email.trim() || null,
         org_id: formData.org_id && formData.org_id > 0 ? formData.org_id : null
       };
-      
+
       const response = await groupService.createGroup(dataToSend);
-      
+
       if (response.success && response.data) {
         console.log('Affiliate creation response:', response.data);
-        
+
         if (!response.data || typeof response.data !== 'object') {
           console.error('Invalid response data:', response.data);
           setErrors({ general: 'Failed to create Affiliate. Please try again.' });
           return;
         }
-        
+
         onGroupCreated(response.data);
         onCancel();
       } else {
@@ -145,12 +145,12 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
       }
     } catch (error: any) {
       console.error('Create Affiliate error:', error);
-      
+
       if (error.response?.status === 422) {
         if (error.response?.data?.errors) {
           const backendErrors: Record<string, string> = {};
           const errorData = error.response.data.errors;
-          
+
           Object.keys(errorData).forEach(key => {
             if (Array.isArray(errorData[key])) {
               backendErrors[key] = errorData[key][0];
@@ -158,7 +158,7 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
               backendErrors[key] = errorData[key];
             }
           });
-          
+
           setErrors(backendErrors);
         } else if (error.response?.data?.message) {
           setErrors({ general: error.response.data.message });
@@ -166,7 +166,7 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
           setErrors({ general: 'Validation error: Please check all required fields' });
         }
       } else {
-        setErrors({ 
+        setErrors({
           general: error.response?.data?.message || error.message || 'Failed to create Affiliate'
         });
       }
@@ -181,29 +181,25 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
         { label: 'Affiliate', onClick: onCancel },
         { label: 'Add Affiliate' }
       ]} />
-      <div className={`rounded-lg border overflow-hidden ${
-        isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'
-      }`}>
+      <div className={`rounded-lg border overflow-hidden ${isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'
+        }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className={`text-2xl font-semibold mb-2 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               Add New Affiliate
             </h2>
-            <p className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               Create a new Affiliate in the system
             </p>
           </div>
 
           {errors.general && (
-            <div className={`mb-6 p-4 rounded ${
-              isDarkMode 
+            <div className={`mb-6 p-4 rounded ${isDarkMode
                 ? 'bg-red-900 border border-red-600 text-red-200'
                 : 'bg-red-100 border border-red-300 text-red-700'
-            }`}>
+              }`}>
               {errors.general}
             </div>
           )}
@@ -211,9 +207,8 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Affiliate Name *
                 </label>
                 <input
@@ -221,40 +216,35 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="group_name"
                   value={formData.group_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.group_name 
-                      ? 'border-red-600' 
+                    } ${errors.group_name
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter Affiliate name"
                   required
                 />
                 {errors.group_name && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.group_name}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.group_name}</p>
                 )}
               </div>
 
               <div className="md:col-span-2">
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Organization (Optional)
                 </label>
                 <select
                   name="org_id"
                   value={formData.org_id || ''}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 border border-gray-600 text-white focus:border-gray-400'
                       : 'bg-white border border-gray-300 text-gray-900 focus:border-gray-500'
-                  }`}
+                    }`}
                 >
                   <option value="">No Organization</option>
                   {organizations.map(org => (
@@ -266,9 +256,8 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Company Name
                 </label>
                 <input
@@ -276,21 +265,18 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="company_name"
                   value={formData.company_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.company_name 
-                      ? 'border-red-600' 
+                    } ${errors.company_name
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter company name"
                 />
                 {errors.company_name && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.company_name}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.company_name}</p>
                 )}
               </div>
 
@@ -303,15 +289,13 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.email ? 'border-red-600' : 'border-gray-600'
-                  }`}
+                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${errors.email ? 'border-red-600' : 'border-gray-600'
+                    }`}
                   placeholder="Enter email address"
                 />
                 {errors.email && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.email}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.email}</p>
                 )}
               </div>
 
@@ -324,15 +308,13 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="hotline"
                   value={formData.hotline}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.hotline ? 'border-red-600' : 'border-gray-600'
-                  }`}
+                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${errors.hotline ? 'border-red-600' : 'border-gray-600'
+                    }`}
                   placeholder="Enter hotline number"
                 />
                 {errors.hotline && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.hotline}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.hotline}</p>
                 )}
               </div>
 
@@ -345,15 +327,13 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="portal_url"
                   value={formData.portal_url}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.portal_url ? 'border-red-600' : 'border-gray-600'
-                  }`}
+                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${errors.portal_url ? 'border-red-600' : 'border-gray-600'
+                    }`}
                   placeholder="Enter portal URL"
                 />
                 {errors.portal_url && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.portal_url}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.portal_url}</p>
                 )}
               </div>
 
@@ -366,15 +346,13 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="fb_page_link"
                   value={formData.fb_page_link}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.fb_page_link ? 'border-red-600' : 'border-gray-600'
-                  }`}
+                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${errors.fb_page_link ? 'border-red-600' : 'border-gray-600'
+                    }`}
                   placeholder="Enter Facebook page link"
                 />
                 {errors.fb_page_link && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.fb_page_link}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.fb_page_link}</p>
                 )}
               </div>
 
@@ -387,15 +365,13 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   name="fb_messenger_link"
                   value={formData.fb_messenger_link}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${
-                    errors.fb_messenger_link ? 'border-red-600' : 'border-gray-600'
-                  }`}
+                  className={`w-full px-4 py-3 bg-gray-900 border rounded text-white placeholder-gray-500 focus:outline-none focus:border-gray-400 ${errors.fb_messenger_link ? 'border-red-600' : 'border-gray-600'
+                    }`}
                   placeholder="Enter Facebook Messenger link"
                 />
                 {errors.fb_messenger_link && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.fb_messenger_link}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.fb_messenger_link}</p>
                 )}
               </div>
 
@@ -408,21 +384,18 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                   value={formData.template}
                   onChange={handleInputChange}
                   rows={3}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.template 
-                      ? 'border-red-600' 
+                    } ${errors.template
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter template content"
                 />
                 {errors.template && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.template}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.template}</p>
                 )}
               </div>
             </div>
@@ -431,11 +404,10 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
-                  isDarkMode 
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${isDarkMode
                     ? 'border-gray-600 text-white hover:bg-gray-800'
                     : 'border-gray-300 text-gray-900 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -444,7 +416,7 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                 disabled={loading}
                 className="px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 text-white"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -453,7 +425,7 @@ const AddNewGroupForm: React.FC<AddNewGroupFormProps> = ({ onCancel, onGroupCrea
                 }}
                 onMouseLeave={(e) => {
                   if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }
                 }}
               >

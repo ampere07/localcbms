@@ -6,11 +6,14 @@ use App\Models\Customer;
 use App\Models\BillingAccount;
 use App\Models\TechnicalDetail;
 use App\Models\Plan;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Http;
+use App\Models\ActivityLog;
 
 class CustomerDetailUpdateController extends Controller
 {
@@ -73,6 +76,9 @@ class CustomerDetailUpdateController extends Controller
                 $houseFrontPictureUrl = $this->uploadToGoogleDrive($file, $accountNo);
             }
 
+            $oldContact = $customer->contact_number_primary;
+            $oldEmail = $customer->email_address;
+
             // Update customer record
             $customer->update([
                 'first_name' => $validated['firstName'],
@@ -94,12 +100,57 @@ class CustomerDetailUpdateController extends Controller
                 'updated_by' => $request->user()->id ?? 1,
             ]);
 
+            // Sync with users table if found
+            $user = User::where('username', $accountNo)->first();
+            if ($user) {
+                $userUpdate = [];
+                
+                // If contact number changed, update contact_number and password_hash
+                if ($oldContact !== $validated['contactNumberPrimary']) {
+                    $userUpdate['contact_number'] = $validated['contactNumberPrimary'];
+                    $userUpdate['password_hash'] = $validated['contactNumberPrimary'];
+                }
+                
+                // If email address changed, update email_address and password_hash 
+                if ($oldEmail !== $validated['emailAddress']) {
+                    $userUpdate['email_address'] = $validated['emailAddress'];
+                    $userUpdate['password_hash'] = $validated['emailAddress'];
+                }
+                
+                if (!empty($userUpdate)) {
+                    // This update on Eloquent model will trigger the setPasswordHashAttribute mutator
+                    $user->update($userUpdate);
+                    
+                    Log::info('User account synced with updated customer details', [
+                        'username' => $accountNo,
+                        'updated_fields' => array_keys($userUpdate)
+                    ]);
+                }
+            }
+
+            // Log Activity
+            ActivityLog::log(
+                'Customer Details Updated',
+                "Customer details updated for Account: {$accountNo}",
+                'info',
+                [
+                    'resource_type' => 'Customer',
+                    'resource_id' => $customer->id,
+                    'additional_data' => [
+                        'account_no' => $accountNo,
+                        'updated_fields' => $validated
+                    ]
+                ]
+            );
+
             DB::commit();
 
             Log::info('Customer details updated', [
                 'account_no' => $accountNo,
                 'customer_id' => $customer->id
             ]);
+
+            $this->broadcastCustomerUpdated($accountNo, 'customer_details');
 
             return response()->json([
                 'success' => true,
@@ -137,7 +188,8 @@ class CustomerDetailUpdateController extends Controller
     {
         try {
             $validated = $request->validate([
-                'billingStatus' => 'nullable'
+                'billingStatus' => 'nullable',
+                'billingDay' => 'nullable|integer|min:1|max:31'
             ]);
 
             DB::beginTransaction();
@@ -168,10 +220,31 @@ class CustomerDetailUpdateController extends Controller
                 }
             }
 
-            $billingAccount->update([
+            $updateData = [
                 'billing_status_id' => $billingStatusId,
                 'updated_by' => $request->user()->id ?? 1,
-            ]);
+            ];
+
+            if ($request->has('billingDay')) {
+                $updateData['billing_day'] = $validated['billingDay'];
+            }
+
+            $billingAccount->update($updateData);
+
+            // Log Activity
+            ActivityLog::log(
+                'Billing Details Updated',
+                "Billing details updated for Account: {$accountNo}",
+                'info',
+                [
+                    'resource_type' => 'BillingAccount',
+                    'resource_id' => $billingAccount->id,
+                    'additional_data' => [
+                        'account_no' => $accountNo,
+                        'updated_fields' => $updateData
+                    ]
+                ]
+            );
 
             DB::commit();
 
@@ -179,6 +252,8 @@ class CustomerDetailUpdateController extends Controller
                 'account_no' => $accountNo,
                 'billing_account_id' => $billingAccount->id
             ]);
+
+            $this->broadcastCustomerUpdated($accountNo, 'billing_details');
 
             return response()->json([
                 'success' => true,
@@ -278,12 +353,29 @@ class CustomerDetailUpdateController extends Controller
             
             $technicalDetail->save();
 
+            // Log Activity
+            ActivityLog::log(
+                'Technical Details Updated',
+                "Technical details updated for Account: {$accountNo}",
+                'info',
+                [
+                    'resource_type' => 'TechnicalDetail',
+                    'resource_id' => $technicalDetail->id,
+                    'additional_data' => [
+                        'account_no' => $accountNo,
+                        'updated_fields' => $validated
+                    ]
+                ]
+            );
+
             DB::commit();
 
             Log::info('Technical details updated', [
                 'account_no' => $accountNo,
                 'technical_detail_id' => $technicalDetail->id
             ]);
+
+            $this->broadcastCustomerUpdated($accountNo, 'technical_details');
 
             return response()->json([
                 'success' => true,
@@ -315,6 +407,29 @@ class CustomerDetailUpdateController extends Controller
     }
 
     /**
+     * Broadcast customer-updated event via Soketi
+     */
+    private function broadcastCustomerUpdated($accountNo, $editType = 'customer_details')
+    {
+        try {
+            event(new \App\Events\CustomerUpdated([
+                'account_no' => $accountNo,
+                'type' => 'customer_updated',
+                'edit_type' => $editType,
+                'title' => 'Customer Updated',
+                'message' => "Customer data updated for account {$accountNo}",
+                'timestamp' => now()->timestamp,
+                'formatted_date' => now()->format('Y-m-d h:i:s A')
+            ]));
+        } catch (\Exception $e) {
+            Log::warning('Failed to broadcast customer update via Soketi', [
+                'account_no' => $accountNo,
+                'error' => $e->getMessage()
+            ]);
+        }
+    }
+
+    /**
      * Upload file to Google Drive (placeholder - implement based on your setup)
      */
     private function uploadToGoogleDrive($file, $accountNo)
@@ -324,4 +439,5 @@ class CustomerDetailUpdateController extends Controller
         return 'https://drive.google.com/file/d/placeholder';
     }
 }
+
 

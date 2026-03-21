@@ -3,6 +3,20 @@ import { Mail, ExternalLink, Check, ChevronLeft, ChevronRight, Maximize2, X, Inf
 import { update } from '../services/discountService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface DiscountRecord {
   id?: string;
   fullName: string;
@@ -168,14 +182,14 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
   return (
     <div className={`h-full flex flex-col border-l relative ${isDarkMode
-        ? 'bg-gray-900 text-white border-white border-opacity-30'
-        : 'bg-white text-gray-900 border-gray-300'
+      ? 'bg-gray-900 text-white border-white border-opacity-30'
+      : 'bg-white text-gray-900 border-gray-300'
       }`} style={{ width: `${detailsWidth}px` }}>
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         onMouseDown={handleMouseDownResize}
         style={{
-          backgroundColor: isResizing ? (colorPalette?.primary || '#f97316') : 'transparent'
+          backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
         }}
         onMouseEnter={(e) => {
           if (!isResizing && colorPalette?.accent) {
@@ -189,8 +203,8 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
         }}
       />
       <div className={`px-4 py-3 flex items-center justify-between border-b ${isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-200'
+        ? 'bg-gray-800 border-gray-700'
+        : 'bg-gray-100 border-gray-200'
         }`}>
         <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
           }`}>
@@ -202,7 +216,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
               onClick={handleApprove}
               className="px-3 py-1 rounded text-sm transition-colors flex items-center space-x-1 text-white"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -221,8 +235,8 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
           )}
           {onClose && (
             <button onClick={onClose} className={`p-2 rounded transition-colors ${isDarkMode
-                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}>
               <X size={18} />
             </button>
@@ -299,7 +313,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Date Created</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.dateCreated}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.dateCreated)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -313,7 +327,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Processed Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.processedDate}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.processedDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -336,7 +350,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Modified Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{discountRecord.modifiedDate}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.modifiedDate)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -381,8 +395,8 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
       {showConfirmModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-200'
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center justify-between mb-4">
               <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -391,8 +405,8 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
                 onClick={handleCancelApprove}
                 disabled={isApproving}
                 className={`transition-colors disabled:opacity-50 ${isDarkMode
-                    ? 'text-gray-400 hover:text-white'
-                    : 'text-gray-600 hover:text-gray-900'
+                  ? 'text-gray-400 hover:text-white'
+                  : 'text-gray-600 hover:text-gray-900'
                   }`}
               >
                 <X size={20} />
@@ -405,8 +419,8 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
                 Are you sure you want to approve this discount?
               </p>
               <div className={`p-4 rounded border space-y-2 ${isDarkMode
-                  ? 'bg-gray-900 border-gray-700'
-                  : 'bg-gray-100 border-gray-200'
+                ? 'bg-gray-900 border-gray-700'
+                : 'bg-gray-100 border-gray-200'
                 }`}>
                 <div className="flex justify-between">
                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Account No:</span>
@@ -436,8 +450,8 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
                 onClick={handleCancelApprove}
                 disabled={isApproving}
                 className={`flex-1 px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
                   }`}
               >
                 Cancel
@@ -447,7 +461,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
                 disabled={isApproving}
                 className="flex-1 px-4 py-2 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center text-white"
                 style={{
-                  backgroundColor: isApproving ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: isApproving ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!isApproving && colorPalette?.accent) {

@@ -1,11 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { Trash2, Edit, ChevronLeft, ChevronRight, Maximize2, X } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Edit, X } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
 
 interface SMSBlastRecord {
   id?: string;
   title?: string;
   message: string;
+  billing_day?: number | null;
+  message_count?: number | null;
+  credit_used?: string | null;
   modifiedDate: string;
   modifiedEmail: string;
   userEmail?: string;
@@ -25,15 +42,23 @@ interface SMSBlastRecord {
   remarks?: string;
   barangay?: string;
   city?: string;
+  target_name?: string;
+  target_type?: string;
 }
 
 interface SMSBlastDetailsProps {
   smsBlastRecord: SMSBlastRecord;
+  onClose: () => void;
+  isMobile?: boolean;
 }
 
-const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => {
+const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord, onClose, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -55,201 +80,129 @@ const SMSBlastDetails: React.FC<SMSBlastDetailsProps> = ({ smsBlastRecord }) => 
     fetchColorPalette();
   }, []);
 
-  return (
-    <div className={`h-full flex flex-col ${
-      isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-    }`}>
-      <div className={`px-4 py-3 flex items-center justify-between border-b ${
-        isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-200'
-      }`}>
-        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${
-          isDarkMode ? 'text-white' : 'text-gray-900'
-        }`}>
-          {smsBlastRecord.title || "NOTICE TO THE PUBLIC"}
-        </h1>
-        <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <Trash2 size={18} />
-          </button>
-          <button 
-            className="px-3 py-1 text-white rounded text-sm transition-colors flex items-center space-x-1"
-            style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
-            }}
-          >
-            <Edit size={16} />
-            <span>Edit</span>
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <ChevronRight size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <Maximize2 size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${
-            isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-          }`}>
-            <X size={18} />
-          </button>
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+      const diff = startXRef.current - e.clientX;
+      const newWidth = Math.max(400, Math.min(1000, startWidthRef.current + diff));
+      setDetailsWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = detailsWidth;
+  };
+
+  const renderField = (label: string, value: any) => {
+    if (value === null || value === undefined || value === '') return null;
+
+    return (
+      <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+        <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{label}:</div>
+        <div className={`flex-1 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'} break-words whitespace-pre-wrap`}>
+          {value}
         </div>
       </div>
+    );
+  };
 
-      {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4">
-        <div className="space-y-4">
-          <div className="mb-6">
-            <h3 className={`text-sm uppercase mb-2 ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>message</h3>
-            <div className={`whitespace-pre-wrap break-words ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
+  return (
+    <div
+      className={`h-full flex relative ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+      style={{ width: isMobile ? '100%' : `${detailsWidth}px` }}
+    >
+      {!isMobile && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize z-50 transition-colors"
+          onMouseDown={handleMouseDownResize}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '';
+          }}
+        />
+      )}
+
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className={`px-4 py-3 flex items-center justify-between border-b ${isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
+          }`}>
+          <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>
-              <p className="font-medium mb-3">{smsBlastRecord.title || "NOTICE TO THE PUBLIC"}</p>
-              <p className="mb-4">
-                {smsBlastRecord.message || 
-                "This is to inform everyone that Mr. ELMER F. SOLIMAN, former Sales Agent is no longer employed to our company. He's NOT AUTHORIZED to transact any business, impose any fees, or pull out modems and other peripherals on behalf of Switch Fiber.\n\nReport immediately if you encountered any transactions from Mr. Elmer Soliman. Contact us at (Globe) 0915 407 7565 or (Smart) 0919 486 9998"}
-              </p>
+            {smsBlastRecord.target_name && smsBlastRecord.target_name !== 'N/A'
+              ? `${smsBlastRecord.target_name} (${smsBlastRecord.target_type})`
+              : (smsBlastRecord.title || "SMS BLAST LOG")}
+          </h1>
+          <div className="flex items-center space-x-3 flex-shrink-0">
+            <button
+              className="px-3 py-1 text-white rounded text-sm transition-colors flex items-center space-x-1"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+              }}
+            >
+              <Edit size={16} />
+              <span>Edit</span>
+            </button>
+
+
+
+            <button
+              onClick={onClose}
+              className={`p-1 rounded transition-colors ${isDarkMode
+                ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                }`}
+            >
+              <X size={20} />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto">
+          <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+            <div className="space-y-4">
+              {renderField('Message', smsBlastRecord.message)}
+              {renderField('Target Name', smsBlastRecord.target_name)}
+              {renderField('Target Type', smsBlastRecord.target_type)}
+              {renderField('Barangay', smsBlastRecord.barangay)}
+              {renderField('City', smsBlastRecord.city)}
+              {renderField('Billing Day', smsBlastRecord.billing_day)}
+              {renderField('Recipient Count', smsBlastRecord.message_count)}
+              {renderField('Credit Used', smsBlastRecord.credit_used)}
+              {renderField('Modified Date', formatDate(smsBlastRecord.modifiedDate))}
+              {renderField('Modified Email', smsBlastRecord.modifiedEmail)}
+              {renderField('Created By', smsBlastRecord.userEmail)}
             </div>
           </div>
-          
-          <div>
-            <h3 className={`text-sm uppercase mb-2 ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>modified date</h3>
-            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {smsBlastRecord.modifiedDate || "6/28/2024 9:38:30 AM"}
-            </p>
-          </div>
-          
-          <div>
-            <h3 className={`text-sm uppercase mb-2 ${
-              isDarkMode ? 'text-gray-500' : 'text-gray-600'
-            }`}>modified email</h3>
-            <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>
-              {smsBlastRecord.modifiedEmail || "heatherlynn.hernandez@switchfiber.ph"}
-            </p>
-          </div>
-          
-          {smsBlastRecord.recipients && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>recipients</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.recipients}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.status && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>status</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.status}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.barangay && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>barangay</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.barangay}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.city && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>city</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.city}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.messageType && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>message type</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.messageType}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.targetGroup && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>target group</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.targetGroup}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.deliveryStatus && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>delivery status</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.deliveryStatus}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.deliveryRate !== undefined && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>delivery rate</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.deliveryRate}%</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.failedCount !== undefined && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>failed count</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.failedCount}</p>
-            </div>
-          )}
-          
-          {smsBlastRecord.remarks && (
-            <div>
-              <h3 className={`text-sm uppercase mb-2 ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-600'
-              }`}>remarks</h3>
-              <p className={isDarkMode ? 'text-white' : 'text-gray-900'}>{smsBlastRecord.remarks}</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

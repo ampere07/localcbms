@@ -1,9 +1,82 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, ExternalLink, Edit, Settings
+  X, ExternalLink, Edit, Settings, CircleArrowRight, Loader
 } from 'lucide-react';
 import ServiceOrderEditModal from '../modals/ServiceOrderEditModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import BillingDetails from './CustomerDetails';
+import { BillingDetailRecord } from '../types/billing';
+import { planService, Plan } from '../services/planService';
+import { userService } from '../services/userService';
+import { User as UserType } from '../types/api';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
+import { getAllInventoryItems } from '../services/inventoryItemService';
+
+const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
+const UserDetails = React.lazy(() => import('./UserDetails'));
+const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
+
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
+};
 
 interface ServiceOrderDetailsProps {
   serviceOrder: {
@@ -49,6 +122,8 @@ interface ServiceOrderDetailsProps {
     image1Url?: string;
     image2Url?: string;
     image3Url?: string;
+    start_time?: string | null;
+    end_time?: string | null;
   };
   onClose: () => void;
   onRefresh?: () => void;
@@ -63,8 +138,20 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
+
+  const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
+  const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
+  const [selectedUserForOverlay, setSelectedUserForOverlay] = useState<UserType | null>(null);
+  const [loadingUserOverlay, setLoadingUserOverlay] = useState(false);
+  const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
+  const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
+  const [selectedInventoryForOverlay, setSelectedInventoryForOverlay] = useState<any | null>(null);
+  const [loadingInventoryOverlay, setLoadingInventoryOverlay] = useState(false);
+
+  const hasActiveOverlay = !!selectedPlanForOverlay || !!selectedUserForOverlay || loadingPlanOverlay || loadingUserOverlay || !!selectedCustomerForOverlay || loadingCustomerOverlay || !!selectedInventoryForOverlay || loadingInventoryOverlay;
 
   const FIELD_VISIBILITY_KEY = 'serviceOrderDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'serviceOrderDetailsFieldOrder';
@@ -109,20 +196,38 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     'image2Url',
     'image3Url',
     'clientSignatureUrl',
+    'startTime',
+    'endTime',
+    'duration',
     'serviceCharge'
   ];
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    const initialVisibility = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...initialVisibility, ...parsed };
+      } catch (e) {
+        return initialVisibility;
+      }
     }
-    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    return initialVisibility;
   });
 
   const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem(FIELD_ORDER_KEY);
-    return saved ? JSON.parse(saved) : defaultFields;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        const missingFields = defaultFields.filter(f => !parsed.includes(f));
+        return [...parsed, ...missingFields];
+      } catch (e) {
+        return defaultFields;
+      }
+    }
+    return defaultFields;
   });
 
   useEffect(() => {
@@ -204,6 +309,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     }, 100);
   };
 
+
   const getFieldLabel = (fieldKey: string): string => {
     const labels: Record<string, string> = {
       ticketId: 'Ticket ID',
@@ -245,6 +351,9 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       image2Url: 'Modem Setup Image',
       image3Url: 'Time Out Image',
       clientSignatureUrl: 'Client Signature',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      duration: 'Duration',
       serviceCharge: 'Service Charge'
     };
     return labels[fieldKey] || fieldKey;
@@ -291,6 +400,39 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     setFieldOrder(defaultFields);
   };
 
+  const formatDateTime = (dateStr?: string | null): string => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleString();
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return 'N/A';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+      
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
+    } catch (e) {
+      return 'N/A';
+    }
+  };
+
   const getStatusColor = (status: string | undefined, type: 'support' | 'visit'): string => {
     if (!status) return 'text-gray-400';
 
@@ -329,29 +471,42 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
     }
   };
 
-  const renderField = (label: string, value: any) => (
-    <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-      }`}>
-      <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-        }`}>{label}</div>
-      <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+  const renderField = (label: string, value: any) => {
+    if (!value ||
+      value === '-' ||
+      value === 'Not assigned' ||
+      value === 'Not provided' ||
+      value === 'None' ||
+      value === 'Not specified' ||
+      value === 'Unknown Client' ||
+      value === 'No address provided' ||
+      value === 'Not Set' ||
+      value === 'Not scheduled') return null;
+    return (
+      <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
         }`}>
-        {value || '-'}
+        <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>{label}</div>
+        <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+          {value}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
-  const renderImageField = (label: string, url: string | undefined, displayText: string) => (
-    <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
-      }`}>
-      <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-        }`}>{label}</div>
-      <div className={`flex-1 flex items-center min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+  const renderImageField = (label: string, url: string | undefined, displayText: string) => {
+    if (!url) return null;
+    return (
+      <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
         }`}>
-        <span className="truncate mr-2" title={url}>
-          {url ? displayText : '-'}
-        </span>
-        {url && (
+        <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+          }`}>{label}</div>
+        <div className={`flex-1 flex items-center min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
+          }`}>
+          <span className="truncate mr-2" title={url}>
+            {displayText}
+          </span>
           <button
             className={`flex-shrink-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}
@@ -359,10 +514,10 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           >
             <ExternalLink size={16} />
           </button>
-        )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderFieldContent = (fieldKey: string) => {
     if (!fieldVisibility[fieldKey]) return null;
@@ -371,20 +526,56 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'ticketId':
         return renderField('Ticket ID', serviceOrder.ticketId);
       case 'timestamp':
-        return renderField('Timestamp', serviceOrder.timestamp);
+        return renderField('Timestamp', formatDate(serviceOrder.timestamp));
       case 'accountNumber':
+        const accInfo = [serviceOrder.accountNumber, serviceOrder.fullName, serviceOrder.fullAddress].filter(val =>
+          val &&
+          val !== 'Not provided' &&
+          val !== 'Unknown Client' &&
+          val !== 'No address provided' &&
+          val !== '-'
+        );
+        if (accInfo.length === 0) return null;
         return (
           <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Account No.</div>
-            <div className="text-red-500 flex-1">
-              {serviceOrder.accountNumber} | {serviceOrder.fullName} | {serviceOrder.fullAddress}
+            <div className="text-red-500 flex-1 flex items-center">
+              <span>{accInfo.join(' | ')}</span>
+              <button 
+                onClick={async () => {
+                  if (!serviceOrder.accountNumber || serviceOrder.accountNumber === 'Not provided') {
+                    alert('No valid account number available.');
+                    return;
+                  }
+                  try {
+                    setLoadingCustomerOverlay(true);
+                    const details = await getCustomerDetail(serviceOrder.accountNumber);
+                    
+                    if (details) {
+                      setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
+                    } else {
+                      alert('Customer details not found for this account.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding customer', err);
+                    alert('Error loading customer details.');
+                  } finally {
+                    setLoadingCustomerOverlay(false);
+                  }
+                }}
+                className={`ml-2 p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${selectedCustomerForOverlay ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                title="View Customer Details"
+                disabled={loadingCustomerOverlay}
+              >
+                {loadingCustomerOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
             </div>
           </div>
         );
       case 'dateInstalled':
-        return renderField('Date Installed', serviceOrder.dateInstalled);
+        return renderField('Date Installed', formatDate(serviceOrder.dateInstalled));
       case 'fullName':
         return renderField('Full Name', serviceOrder.fullName);
       case 'contactNumber':
@@ -396,7 +587,43 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'emailAddress':
         return renderField('Email Address', serviceOrder.emailAddress);
       case 'plan':
-        return renderField('Plan', serviceOrder.plan);
+        const valuePlan = serviceOrder.plan;
+        if (!valuePlan || valuePlan === '-' || valuePlan === 'None' || valuePlan === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Plan</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valuePlan}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingPlanOverlay(true);
+                    const allPlans = await planService.getAllPlans();
+                    const desiredPlanStr = typeof valuePlan === 'string' ? valuePlan.split('-')[0].trim().toLowerCase() : '';
+                    const match = allPlans.find(p => 
+                      p.name.toLowerCase() === desiredPlanStr ||
+                      (typeof valuePlan === 'string' && valuePlan.toLowerCase().includes(p.name.toLowerCase()))
+                    );
+                    if (match) {
+                      setSelectedPlanForOverlay(match);
+                    } else {
+                      alert('Plan details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding plan', err);
+                  } finally {
+                    setLoadingPlanOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Plan Details"
+                disabled={loadingPlanOverlay}
+              >
+                {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'affiliate':
         return renderField('Affiliate', serviceOrder.affiliate);
       case 'username':
@@ -404,7 +631,51 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'connectionType':
         return renderField('Connection Type', serviceOrder.connectionType);
       case 'routerModemSN':
-        return renderField('Router/Modem SN', serviceOrder.routerModemSN);
+        const valueRouterSN = serviceOrder.routerModemSN;
+        if (!valueRouterSN || valueRouterSN === '-' || valueRouterSN === 'None' || valueRouterSN === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Router/Modem SN</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valueRouterSN}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingInventoryOverlay(true);
+                    const allInventoryRes = await getAllInventoryItems('', 1, 1000);
+                    const allInventory = allInventoryRes.data || [];
+                    const match = allInventory.find(inv => 
+                      inv.item_name.toLowerCase() === valueRouterSN.toLowerCase() ||
+                      inv.item_name.toLowerCase().includes(valueRouterSN.toLowerCase()) ||
+                      valueRouterSN.toLowerCase().includes(inv.item_name.toLowerCase())
+                    );
+                    if (match) {
+                      setSelectedInventoryForOverlay({
+                        item_id: match.id,
+                        item_name: match.item_name,
+                        item_description: match.item_description,
+                        category: match.category_id ? String(match.category_id) : 'Item',
+                        quantity_alert: match.quantity_alert,
+                        image: match.image_url,
+                      });
+                    } else {
+                      alert('Inventory details not found for this router/modem SN.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding inventory', err);
+                  } finally {
+                    setLoadingInventoryOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingInventoryOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Inventory Details"
+                disabled={loadingInventoryOverlay}
+              >
+                {loadingInventoryOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'lcp':
         return renderField('LCP', serviceOrder.lcp);
       case 'nap':
@@ -418,55 +689,214 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
       case 'concernRemarks':
         return renderField('Concern Remarks', serviceOrder.concernRemarks);
       case 'visitStatus':
+        const vStatus = serviceOrder.visitStatus;
+        if (!vStatus || vStatus === '-' || vStatus === 'Not set') return null;
         return (
           <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Visit Status</div>
-            <div className={`flex-1 font-bold uppercase ${getStatusColor(serviceOrder.visitStatus, 'visit')
+            <div className={`flex-1 font-bold uppercase ${getStatusColor(vStatus, 'visit')
               }`}>
-              {serviceOrder.visitStatus || '-'}
+              {vStatus}
             </div>
           </div>
         );
       case 'visitBy':
-        return renderField('Visit By', serviceOrder.visitBy);
       case 'visitWith':
-        return renderField('Visit With', serviceOrder.visitWith);
       case 'visitWithOther':
-        return renderField('Visit With Other', serviceOrder.visitWithOther);
+        let visitValue = '';
+        let visitLabel = '';
+        if (fieldKey === 'visitBy') { visitValue = serviceOrder.visitBy; visitLabel = 'Visit By'; }
+        if (fieldKey === 'visitWith') { visitValue = serviceOrder.visitWith; visitLabel = 'Visit With'; }
+        if (fieldKey === 'visitWithOther') { visitValue = serviceOrder.visitWithOther; visitLabel = 'Visit With Other'; }
+        
+        if (!visitValue || visitValue === '-' || visitValue === 'None' || visitValue === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{visitLabel}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitValue}</span>
+              <button
+                onClick={async () => {
+                  if (!serviceOrder.accountNumber || serviceOrder.accountNumber === 'Not provided') {
+                    alert('No valid account number available to fetch customer details.');
+                    return;
+                  }
+                  try {
+                    setLoadingCustomerOverlay(true);
+                    const details = await getCustomerDetail(serviceOrder.accountNumber);
+                    
+                    if (details) {
+                      setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
+                    } else {
+                      alert('Customer details not found for this service order.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding customer', err);
+                    alert('Error loading customer details.');
+                  } finally {
+                    setLoadingCustomerOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Customer Details"
+                disabled={loadingCustomerOverlay}
+              >
+                {loadingCustomerOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'visitRemarks':
         return renderField('Visit Remarks', serviceOrder.visitRemarks);
       case 'modifiedBy':
         return renderField('Modified By', serviceOrder.modifiedBy);
       case 'modifiedDate':
-        return renderField('Modified Date', serviceOrder.modifiedDate);
+        return renderField('Modified Date', formatDate(serviceOrder.modifiedDate));
       case 'requestedBy':
         return renderField('Requested by', serviceOrder.requestedBy);
       case 'assignedEmail':
-        return renderField('Assigned Email', serviceOrder.assignedEmail);
+        const assignedEmail = serviceOrder.assignedEmail;
+        if (!assignedEmail || assignedEmail === '-' || assignedEmail === 'Not set' || assignedEmail === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Assigned Email</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{assignedEmail}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      u.email_address?.toLowerCase() === assignedEmail.toLowerCase()
+                    );
+                    
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found for this email.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'supportRemarks':
         return renderField('Support Remarks', serviceOrder.supportRemarks);
       case 'supportStatus':
+        const sStatus = serviceOrder.supportStatus;
+        if (!sStatus || sStatus === '-' || sStatus === 'Not set') return null;
         return (
           <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
             }`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Support Status</div>
-            <div className={`flex-1 font-bold uppercase ${getStatusColor(serviceOrder.supportStatus, 'support')
+            <div className={`flex-1 font-bold uppercase ${getStatusColor(sStatus, 'support')
               }`}>
-              {serviceOrder.supportStatus || '-'}
+              {sStatus}
             </div>
           </div>
         );
       case 'repairCategory':
         return renderField('Repair Category', serviceOrder.repairCategory);
       case 'newRouterSn':
-        return renderField('New Router SN', serviceOrder.newRouterSn);
+        const valueNewRouterSn = serviceOrder.newRouterSn;
+        if (!valueNewRouterSn || valueNewRouterSn === '-' || valueNewRouterSn === 'None' || valueNewRouterSn === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>New Router SN</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valueNewRouterSn}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingInventoryOverlay(true);
+                    const allInventoryRes = await getAllInventoryItems('', 1, 1000);
+                    const allInventory = allInventoryRes.data || [];
+                    const match = allInventory.find(inv => 
+                      inv.item_name.toLowerCase() === valueNewRouterSn.toLowerCase() ||
+                      inv.item_name.toLowerCase().includes(valueNewRouterSn.toLowerCase()) ||
+                      valueNewRouterSn.toLowerCase().includes(inv.item_name.toLowerCase())
+                    );
+                    if (match) {
+                      setSelectedInventoryForOverlay({
+                        item_id: match.id,
+                        item_name: match.item_name,
+                        item_description: match.item_description,
+                        category: match.category_id ? String(match.category_id) : 'Item',
+                        quantity_alert: match.quantity_alert,
+                        image: match.image_url,
+                      });
+                    } else {
+                      alert('Inventory details not found for this router SN.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding inventory', err);
+                  } finally {
+                    setLoadingInventoryOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingInventoryOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Inventory Details"
+                disabled={loadingInventoryOverlay}
+              >
+                {loadingInventoryOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'newLcpnap':
         return renderField('New LCP/NAP', serviceOrder.newLcpnap);
       case 'newPlan':
-        return renderField('New Plan', serviceOrder.newPlan);
+        const valueNewPlan = serviceOrder.newPlan;
+        if (!valueNewPlan || valueNewPlan === '-' || valueNewPlan === 'None' || valueNewPlan === 'Not specified') return null;
+        return (
+          <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>New Plan</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{valueNewPlan}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingPlanOverlay(true);
+                    const allPlans = await planService.getAllPlans();
+                    const desiredPlanStr = typeof valueNewPlan === 'string' ? valueNewPlan.split('-')[0].trim().toLowerCase() : '';
+                    const match = allPlans.find(p => 
+                      p.name.toLowerCase() === desiredPlanStr ||
+                      (typeof valueNewPlan === 'string' && valueNewPlan.toLowerCase().includes(p.name.toLowerCase()))
+                    );
+                    if (match) {
+                      setSelectedPlanForOverlay(match);
+                    } else {
+                      alert('Plan details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding plan', err);
+                  } finally {
+                    setLoadingPlanOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Plan Details"
+                disabled={loadingPlanOverlay}
+              >
+                {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+              </button>
+            </div>
+          </div>
+        );
       case 'image1Url':
         return renderImageField('Time In Image', serviceOrder.image1Url, 'View Image');
       case 'image2Url':
@@ -475,19 +905,56 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         return renderImageField('Time Out Image', serviceOrder.image3Url, 'View Image');
       case 'clientSignatureUrl':
         return renderImageField('Client Signature', serviceOrder.clientSignatureUrl, 'View Signature');
+      case 'startTime':
+        return renderField('Start Time', formatDateTime(serviceOrder.start_time));
+      case 'endTime':
+        return renderField('End Time', formatDateTime(serviceOrder.end_time));
+      case 'duration':
+        if (!serviceOrder.start_time || !serviceOrder.end_time) return null;
+        return renderField('Duration', calculateDuration(serviceOrder.start_time, serviceOrder.end_time));
       case 'serviceCharge':
+        const sCharge = serviceOrder.serviceCharge;
+        if (!sCharge || sCharge === '-' || sCharge === '0' || sCharge === '0.00' || sCharge === '₱0.00') return null;
         return (
           <div className="flex py-2">
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
               }`}>Service Charge</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{serviceOrder.serviceCharge}</div>
+              }`}>{sCharge}</div>
           </div>
         );
       default:
         return null;
     }
   };
+
+  if (showCustomerDetails) {
+    return (
+      <BillingDetails
+        billingRecord={{
+          id: serviceOrder.id,
+          applicationId: serviceOrder.accountNumber,
+          customerName: serviceOrder.fullName,
+          address: serviceOrder.fullAddress,
+          status: 'Unknown',
+          balance: 0,
+          onlineStatus: 'Unknown',
+          contactNumber: serviceOrder.contactNumber,
+          emailAddress: serviceOrder.emailAddress,
+          plan: serviceOrder.plan,
+          username: serviceOrder.username,
+          connectionType: serviceOrder.connectionType,
+          routerModemSN: serviceOrder.routerModemSN,
+          lcp: serviceOrder.lcp,
+          nap: serviceOrder.nap,
+          port: serviceOrder.port,
+          vlan: serviceOrder.vlan,
+          houseFrontPicture: serviceOrder.houseFrontPicture
+        } as BillingDetailRecord}
+        onClose={() => setShowCustomerDetails(false)}
+      />
+    );
+  }
 
   return (
     <div className={`h-full flex flex-col overflow-hidden relative ${!isMobile ? 'border-l' : ''} ${isDarkMode
@@ -511,10 +978,11 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
         </div>
 
         <div className="flex items-center space-x-3">
+
           <button
-            className="text-white px-3 py-1 rounded-sm flex items-center"
+            className="text-white px-3 py-1 rounded-sm flex items-center disabled:opacity-50"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -522,7 +990,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
             }}
             onClick={handleEditClick}
           >
@@ -631,6 +1099,107 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           </div>
         </div>
       </div>
+      {hasActiveOverlay && (
+        <div className="absolute inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden flex flex-col h-full w-full">
+          {loadingPlanOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-orange-500" />
+                <p>Loading plan details...</p>
+              </div>
+            </div>
+          )}
+          {loadingUserOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-blue-500" />
+                <p>Loading user details...</p>
+              </div>
+            </div>
+          )}
+          {loadingCustomerOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-green-500" />
+                <p>Loading customer details...</p>
+              </div>
+            </div>
+          )}
+          {loadingInventoryOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-yellow-500" />
+                <p>Loading inventory details...</p>
+              </div>
+            </div>
+          )}
+          {selectedPlanForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading plan overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <PlanListDetails
+                  plan={selectedPlanForOverlay}
+                  onClose={() => setSelectedPlanForOverlay(null)}
+                  isMobile={isMobile}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <UserDetails
+                  user={selectedUserForOverlay}
+                  onClose={() => setSelectedUserForOverlay(null)}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  isMobile={isMobile}
+                  isDarkMode={isDarkMode}
+                  colorPalette={colorPalette}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedCustomerForOverlay && (
+            <div className="w-full h-full relative border-0">
+              <BillingDetails
+                billingRecord={selectedCustomerForOverlay}
+                onClose={() => setSelectedCustomerForOverlay(null)}
+              />
+            </div>
+          )}
+          {selectedInventoryForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  <p>Loading inventory overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <InventoryDetails
+                  item={selectedInventoryForOverlay}
+                  onClose={() => setSelectedInventoryForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+        </div>
+      )}
 
       {isEditModalOpen && (
         <ServiceOrderEditModal

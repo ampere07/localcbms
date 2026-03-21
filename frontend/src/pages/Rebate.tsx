@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
 import RebateFormModal from '../modals/RebateFormModal';
 import RebateDetails from '../components/RebateDetails';
 import apiClient from '../config/api';
+import pusher from '../services/pusherService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
@@ -82,17 +83,63 @@ const Rebate: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
-  const dateItems = [
-    { date: 'All', id: '' },
-  ];
+  // 1. Initial search filtering (Global filtered set for sidebar counts)
+  const globalFilteredRecords = React.useMemo(() => {
+    let filtered = rebateRecords;
+
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      filtered = filtered.filter(record => checkValue(record));
+    }
+
+    return filtered;
+  }, [rebateRecords, searchQuery]);
+
+  // Derive date items from context data instead of fetching separately or static
+  const dateItems = React.useMemo(() => {
+    const monthCounts: Record<string, number> = {};
+    const months = new Set<string>();
+
+    globalFilteredRecords.forEach(record => {
+      if (record.month) {
+        monthCounts[record.month] = (monthCounts[record.month] || 0) + 1;
+        months.add(record.month);
+      }
+    });
+
+    // Sort months (assuming standard month/year format or chronological)
+    const sortedMonths = Array.from(months)
+      .sort((a, b) => {
+        // Simple sort, could be improved if months are in specific formats
+        return b.localeCompare(a);
+      })
+      .map(month => ({
+        date: month,
+        count: monthCounts[month]
+      }));
+
+    return {
+      all: globalFilteredRecords.length,
+      dates: sortedMonths
+    };
+  }, [globalFilteredRecords]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -131,6 +178,28 @@ const Rebate: React.FC = () => {
     fetchColorPalette();
   }, []);
 
+  // Pusher/Soketi connection for real-time rebate updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Rebate Soketi] Update received, refreshing:', data);
+      try {
+        await fetchRebateData();
+        console.log('[Rebate Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Rebate Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const rebateChannel = pusher.subscribe('rebates');
+
+    rebateChannel.bind('rebate-updated', handleUpdate);
+
+    return () => {
+      rebateChannel.unbind('rebate-updated', handleUpdate);
+      pusher.unsubscribe('rebates');
+    };
+  }, []);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -156,7 +225,7 @@ const Rebate: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -211,24 +280,29 @@ const Rebate: React.FC = () => {
     }
   };
 
-  const filteredRecords = rebateRecords.filter(record => {
-    const matchesSearch = searchQuery === '' ||
-      record.selected_rebate.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.rebate_type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.month.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredRecords = React.useMemo(() => {
+    return globalFilteredRecords.filter(record => {
+      if (selectedDate === 'All') return true;
+      return record.month === selectedDate;
+    });
+  }, [globalFilteredRecords, selectedDate]);
 
   // Reset page when search or date filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedDate]);
+  }, [searchQuery, selectedDate, itemsPerPage]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = React.useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredRecords.length / itemsPerPage);
 
@@ -243,10 +317,38 @@ const Rebate: React.FC = () => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredRecords.length)}</span> of <span className="font-medium">{filteredRecords.length}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            className={`p-1 rounded transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="First Page"
+          >
+            <ChevronsLeft className="h-5 w-5" />
+          </button>
+
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -257,11 +359,13 @@ const Rebate: React.FC = () => {
           >
             Previous
           </button>
+
           <div className="flex items-center space-x-1">
             <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Page {currentPage} of {totalPages}
             </span>
           </div>
+
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -271,6 +375,18 @@ const Rebate: React.FC = () => {
               }`}
           >
             Next
+          </button>
+
+          <button
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className={`p-1 rounded transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="Last Page"
+          >
+            <ChevronsRight className="h-5 w-5" />
           </button>
         </div>
       </div>
@@ -324,7 +440,7 @@ const Rebate: React.FC = () => {
                 className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
                 onClick={() => setIsModalOpen(true)}
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -344,26 +460,67 @@ const Rebate: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {dateItems.map((item, index) => (
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedDate('All')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedDate === 'All'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedDate === 'All' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#7c3aed'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              {dateItems.all}
+            </span>
+          </button>
+
+          {/* Date Levels */}
+          {dateItems.dates.map((item, index) => (
             <button
               key={index}
               onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${selectedDate === item.date
                   ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               style={selectedDate === item.date ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
-              <span className="text-sm font-medium flex items-center">
+              <div className="flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
-                {item.date}
+                <span>{item.date}</span>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                  }`}
+                style={selectedDate === item.date ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
+                {item.count}
               </span>
             </button>
           ))}
@@ -374,7 +531,7 @@ const Rebate: React.FC = () => {
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           onMouseDown={handleMouseDownSidebarResize}
           style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#f97316') : 'transparent'
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizingSidebar && colorPalette?.primary) {
@@ -402,12 +559,12 @@ const Rebate: React.FC = () => {
                     placeholder="Search Rebate records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                    className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
                       ? 'bg-gray-800 text-white border border-gray-700'
                       : 'bg-white text-gray-900 border border-gray-300'
                       }`}
                     style={{
-                      '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                     } as React.CSSProperties}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
@@ -420,13 +577,22 @@ const Rebate: React.FC = () => {
                   />
                   <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                     }`} />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -446,7 +612,7 @@ const Rebate: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" ref={scrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -527,7 +693,7 @@ const Rebate: React.FC = () => {
               ) : (
                 <div className={`h-full flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
                   }`}>
-                  <h1 className="text-2xl mb-4" style={{ color: colorPalette?.primary || '#f97316' }}>Rebate Component</h1>
+                  <h1 className="text-2xl mb-4" style={{ color: colorPalette?.primary || '#7c3aed' }}>Rebate Component</h1>
                   <p className="text-lg">No Rebate records found</p>
                 </div>
               )}
@@ -560,7 +726,7 @@ const Rebate: React.FC = () => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>

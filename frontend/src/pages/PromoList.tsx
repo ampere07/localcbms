@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Filter, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Filter, Loader2, X } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import PromoFormModal from '../modals/PromoFormModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -86,7 +86,7 @@ const PromoList: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -194,14 +194,16 @@ const PromoList: React.FC = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-PH', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const getFilteredPromos = () => {
@@ -290,7 +292,7 @@ const PromoList: React.FC = () => {
                 }}
                 className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -326,26 +328,35 @@ const PromoList: React.FC = () => {
           <div className="relative">
             <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
               }`} />
-            <input
-              type="text"
-              placeholder="Search Promo List"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 rounded-lg border focus:outline-none ${isDarkMode
-                ? 'bg-gray-800 text-white border-gray-700'
-                : 'bg-white text-gray-900 border-gray-300'
-                }`}
-              onFocus={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.borderColor = colorPalette.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                }
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
+              <input
+                type="text"
+                placeholder="Search Promo List"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className={`w-full pl-10 pr-10 py-2 rounded-lg border focus:outline-none ${isDarkMode
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
+                  }`}
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                >
+                  <X size={16} />
+                </button>
+              )}
           </div>
         </div>
       </div>

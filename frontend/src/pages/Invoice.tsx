@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, ArrowUp, ArrowDown, ListFilter } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, Columns3, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter } from 'lucide-react';
 import InvoiceDetails from '../components/InvoiceDetails';
 
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -8,8 +8,13 @@ import { useInvoiceStore, InvoiceRecordUI } from '../store/invoiceStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
-import InvoiceFunnelFilter, { FilterValues } from '../filter/InvoiceFunnelFilter';
-import { Filter } from 'lucide-react';
+import InvoiceFunnelFilter, { FilterValues, allColumns as filterColumns } from '../filter/InvoiceFunnelFilter';
+import pusher from '../services/pusherService';
+
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
 // Removed local InvoiceRecordUI interface
 
@@ -64,8 +69,107 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`p-1 rounded transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`p-1 rounded transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 const Invoice: React.FC = () => {
-  const { invoiceRecords, totalCount, isLoading, error, fetchInvoiceRecords, refreshInvoiceRecords } = useInvoiceStore();
+  const { invoiceRecords, totalCount, isLoading, error, fetchInvoiceRecords, refreshInvoiceRecords, silentRefresh } = useInvoiceStore();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -73,6 +177,7 @@ const Invoice: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedRecord, setSelectedRecord] = useState<InvoiceRecordUI | null>(null);
   // Removed local invoiceRecords, isLoading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -93,7 +198,7 @@ const Invoice: React.FC = () => {
 
   // Table State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -118,21 +223,35 @@ const Invoice: React.FC = () => {
     }
     return {};
   });
+
+  const [invoiceDateFrom, setInvoiceDateFrom] = useState<string>('');
+  const [invoiceDateTo, setInvoiceDateTo] = useState<string>('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+
+  const removeFilter = (key: string) => {
+    const newFilters = { ...activeFilters };
+    delete newFilters[key];
+    setActiveFilters(newFilters);
+    localStorage.setItem('invoiceFunnelFilters', JSON.stringify(newFilters));
+  };
   const filterDropdownRef = useRef<HTMLDivElement>(null);
 
   const allColumns = [
-    { key: 'id', label: 'ID', width: 'min-w-20' },
-    { key: 'accountNo', label: 'Account Number', width: 'min-w-36' },
     { key: 'invoiceDate', label: 'Invoice Date', width: 'min-w-36' },
+    { key: 'status', label: 'Invoice Status', width: 'min-w-36' },
+    { key: 'accountNo', label: 'Account No', width: 'min-w-36' },
     { key: 'invoiceBalance', label: 'Invoice Balance', width: 'min-w-36' },
+    { key: 'totalAmount', label: 'Total Amount', width: 'min-w-36' },
+    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
+    { key: 'paymentMethod', label: 'Payment Method', width: 'min-w-40' },
+    { key: 'dateProcessed', label: 'Date Processed', width: 'min-w-40' },
+    { key: 'processedBy', label: 'Processed By', width: 'min-w-40' },
     { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
     { key: 'rebate', label: 'Rebate', width: 'min-w-28' },
     { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
     { key: 'staggered', label: 'Staggered', width: 'min-w-28' },
-    { key: 'totalAmount', label: 'Total Amount', width: 'min-w-32' },
     { key: 'receivedPayment', label: 'Received Payment', width: 'min-w-36' },
-    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
-    { key: 'status', label: 'Status', width: 'min-w-28' },
     { key: 'paymentPortalLogRef', label: 'Payment Portal Log Ref', width: 'min-w-44' },
     { key: 'transactionId', label: 'Transaction ID', width: 'min-w-36' },
     { key: 'createdAt', label: 'Created At', width: 'min-w-40' },
@@ -160,12 +279,121 @@ const Invoice: React.FC = () => {
 
   const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
 
+  // Centralized search and funnel filtering - for sidebar synchronization
+  const globalFilteredInvoices = useMemo(() => {
+    let filtered = invoiceRecords;
+
+    // Search query filtering
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+      filtered = filtered.filter(record => checkValue(record));
+    }
+
+    // Funnel filtering
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          // Helper to resolve property names if needed
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'accountNo': return item.accountNo ?? item.account_no;
+              case 'fullName': return item.fullName ?? item.full_name;
+              case 'invoiceDateRaw': return item.invoiceDateRaw ?? item.invoice_date;
+              case 'invoiceBalance': return item.invoiceBalance ?? item.invoice_balance;
+              default: return item[k];
+            }
+          };
+
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+
+            const valStr = String(val || '').toLowerCase().trim();
+
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+              const directVal = String((record as any)[key] || '').toLowerCase().trim();
+              const address = String(record.address || '').toLowerCase();
+
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
+            }
+
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(val);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    // Apply sidebar date range filters for invoice date
+    if (invoiceDateFrom || invoiceDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.invoiceDateRaw && !record.invoiceDate) return false;
+
+        const dateStr = record.invoiceDateRaw || record.invoiceDate;
+        const dateValue = new Date(dateStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (invoiceDateFrom) {
+          const fromDate = new Date(invoiceDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (invoiceDateTo) {
+          const toDate = new Date(invoiceDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [invoiceRecords, searchQuery, activeFilters, invoiceDateFrom, invoiceDateTo]);
+
   // Derive date items from context data instead of fetching separately or static
-  const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
+  const dateItems = useMemo(() => {
+    const dateCounts: Record<string, number> = {};
     const dates = new Map<string, string>();
-    invoiceRecords.forEach(record => {
+
+    globalFilteredInvoices.forEach(record => {
       if (record.invoiceDate && record.invoiceDate !== 'N/A') {
-        // Map formatted date to raw date for sorting
+        dateCounts[record.invoiceDate] = (dateCounts[record.invoiceDate] || 0) + 1;
         dates.set(record.invoiceDate, record.invoiceDateRaw || record.invoiceDate);
       }
     });
@@ -176,10 +404,16 @@ const Invoice: React.FC = () => {
         const timeB = new Date(b[1]).getTime();
         return timeB - timeA;
       })
-      .map(([formatted]) => formatted);
+      .map(([formatted]) => ({
+        date: formatted,
+        count: dateCounts[formatted]
+      }));
 
-    return [{ date: 'All', id: '' }, ...sortedDates.map(d => ({ date: d, id: d }))];
-  }, [invoiceRecords]);
+    return {
+      all: globalFilteredInvoices.length,
+      dates: sortedDates
+    };
+  }, [globalFilteredInvoices]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -236,6 +470,62 @@ const Invoice: React.FC = () => {
     fetchInvoiceRecords();
   }, [fetchInvoiceRecords]);
 
+  // Pusher/Soketi connection for real-time invoice updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Invoice Soketi] Update received, refreshing:', data);
+      try {
+        await fetchInvoiceRecords(true);
+        console.log('[Invoice Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Invoice Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const invoiceChannel = pusher.subscribe('invoices');
+
+    invoiceChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[Invoice Soketi] Successfully subscribed to invoices channel');
+    });
+    invoiceChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[Invoice Soketi] Subscription error:', error);
+    });
+
+    invoiceChannel.bind('invoice-updated', handleUpdate);
+
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[Invoice Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && invoiceChannel.subscribed !== true) {
+        pusher.subscribe('invoices');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
+    return () => {
+      invoiceChannel.unbind('pusher:subscription_succeeded');
+      invoiceChannel.unbind('pusher:subscription_error');
+      invoiceChannel.unbind('invoice-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
+      pusher.unsubscribe('invoices');
+    };
+  }, [fetchInvoiceRecords]);
+
+  // Polling for updates every 3 seconds
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[Invoice Page] Polling for updates...');
+      try {
+        await silentRefresh();
+      } catch (err) {
+        console.error('[Invoice Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [silentRefresh]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -261,7 +551,7 @@ const Invoice: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -285,14 +575,10 @@ const Invoice: React.FC = () => {
   // Initialize column order and visibility
   useEffect(() => {
     if (displayColumns.length > 0) {
-      if (columnOrder.length === 0) {
-        setColumnOrder(displayColumns.map(col => col.key));
-      }
-      if (visibleColumns.length === 0) {
-        setVisibleColumns(displayColumns.map(col => col.key));
-      }
+      setColumnOrder(displayColumns.map(col => col.key));
+      setVisibleColumns(displayColumns.map(col => col.key));
     }
-  }, [displayColumns, columnOrder.length, visibleColumns.length]);
+  }, [displayColumns]);
 
   // Handle click outside for filter dropdown
   useEffect(() => {
@@ -310,52 +596,25 @@ const Invoice: React.FC = () => {
 
 
 
-  const filteredRecords = useMemo(() => {
-    let filtered = invoiceRecords.filter(record => {
-      const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
-      const matchesSearch = searchQuery === '' ||
-        record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.accountNo.includes(searchQuery) ||
-        record.id.includes(searchQuery) ||
-        record.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (record.transactionId && record.transactionId.toLowerCase().includes(searchQuery.toLowerCase()));
-
-      return matchesDate && matchesSearch;
-    });
-
-    // Apply funnel filters
-    if (activeFilters && Object.keys(activeFilters).length > 0) {
-      filtered = filtered.filter(record => {
-        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          const recordValue = (record as any)[key];
-
-          if (filter.type === 'text') {
-            if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
-          }
-
-          if (filter.type === 'number') {
-            const numValue = Number(recordValue);
-            if (isNaN(numValue)) return false;
-            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-            return true;
-          }
-
-          if (filter.type === 'date') {
-            if (!recordValue) return false;
-            const dateValue = new Date(recordValue).getTime();
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-            return true;
-          }
-
-          return true;
-        });
-      });
+  const formatDate = (dateString?: string) => {
+    if (!dateString || dateString === 'N/A' || dateString === '-') return dateString || '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
     }
+  };
+
+  const filteredRecords = useMemo(() => {
+    let filtered = globalFilteredInvoices.filter(record => {
+      const matchesDate = selectedDate === 'All' || record.invoiceDate === selectedDate;
+      return matchesDate;
+    });
 
     // Sorting logic
     if (sortColumn) {
@@ -391,17 +650,24 @@ const Invoice: React.FC = () => {
     }
 
     return filtered;
-  }, [invoiceRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
+  }, [globalFilteredInvoices, selectedDate, sortColumn, sortDirection, invoiceDateFrom, invoiceDateTo]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, searchQuery]);
+  }, [selectedDate, searchQuery, itemsPerPage, invoiceDateFrom, invoiceDateTo, activeFilters]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   const totalDisplayCount = useMemo(() => {
     if (selectedDate === 'All' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
@@ -418,46 +684,6 @@ const Invoice: React.FC = () => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (record: InvoiceRecordUI) => {
     if (userRole !== 'customer') {
@@ -748,7 +974,7 @@ const Invoice: React.FC = () => {
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'invoiceDate':
-        return record.invoiceDate;
+        return formatDate(record.invoiceDate);
       case 'invoiceBalance':
         return `₱ ${(record.invoiceBalance ?? 0).toFixed(2)}`;
       case 'serviceCharge':
@@ -764,17 +990,23 @@ const Invoice: React.FC = () => {
       case 'receivedPayment':
         return `₱ ${(record.receivedPayment ?? 0).toFixed(2)}`;
       case 'dueDate':
-        return record.dueDate || '-';
+        return formatDate(record.dueDate) || '-';
+      case 'paymentMethod':
+        return record.paymentMethod || 'N/A';
+      case 'dateProcessed':
+        return formatDate(record.dateProcessed) || 'N/A';
+      case 'processedBy':
+        return record.processedBy || 'N/A';
       case 'paymentPortalLogRef':
         return record.paymentPortalLogRef || 'NULL';
       case 'transactionId':
         return record.transactionId || 'NULL';
       case 'createdAt':
-        return record.createdAt || '-';
+        return formatDate(record.createdAt) || '-';
       case 'createdBy':
         return record.createdBy || '-';
       case 'updatedAt':
-        return record.updatedAt || '-';
+        return formatDate(record.updatedAt) || '-';
       case 'updatedBy':
         return record.updatedBy || '-';
       case 'fullName':
@@ -788,7 +1020,7 @@ const Invoice: React.FC = () => {
       case 'plan':
         return record.plan || '-';
       case 'dateInstalled':
-        return record.dateInstalled || '-';
+        return formatDate(record.dateInstalled) || '-';
       case 'barangay':
         return record.barangay || '-';
       case 'city':
@@ -814,35 +1046,150 @@ const Invoice: React.FC = () => {
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {dateItems.map((item, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedDate(item.date)}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                  } ${selectedDate === item.date
-                    ? ''
-                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            {/* Date Range Filter Section */}
+            <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Invoice Date Range
+                </span>
+                {(invoiceDateFrom || invoiceDateTo) && (
+                  <button
+                    onClick={() => {
+                      setInvoiceDateFrom('');
+                      setInvoiceDateTo('');
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                  <input
+                    type="date"
+                    value={invoiceDateFrom}
+                    onChange={(e) => setInvoiceDateFrom(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={invoiceDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                  <input
+                    type="date"
+                    value={invoiceDateTo}
+                    onChange={(e) => setInvoiceDateTo(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={invoiceDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* All Level */}
+            <button
+              onClick={() => setSelectedDate('All')}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${selectedDate === 'All'
+                  ? ''
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              <div className="flex items-center">
+                <span>All Records</span>
+              </div>
+              <span
+                className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                   }`}
-                style={selectedDate === item.date ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
-                <span className="text-sm font-medium flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                  {item.date}
-                </span>
+                {dateItems.all}
+              </span>
+            </button>
+
+            {/* Invoice Month Dropdown */}
+            <div className={`p-0 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'}`}>
+              <button
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                <div className="flex items-center">
+                  <span className="font-medium">Invoice Month</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                      }`}
+                  >
+                    {dateItems.dates.length}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </div>
               </button>
-            ))}
+
+              {isDateDropdownOpen && (
+                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50 shadow-inner'}`}>
+                  {dateItems.dates.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedDate(item.date)}
+                      className={`w-full flex items-center justify-between px-6 py-2.5 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedDate === item.date
+                          ? ''
+                          : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}
+                      style={selectedDate === item.date ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                        color: colorPalette?.primary || '#7c3aed',
+                        fontWeight: 500
+                      } : {}}
+                    >
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-3 opacity-60" />
+                        <span className="truncate">{item.date}</span>
+                      </div>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedDate === item.date
+                          ? 'text-white'
+                          : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-500'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        } : {}}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
             style={{
-              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isResizingSidebar && colorPalette?.primary) {
@@ -865,18 +1212,27 @@ const Invoice: React.FC = () => {
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
+              {userRole !== 'customer' && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
               <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Search Invoice records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
                     ? 'bg-gray-800 text-white border border-gray-700'
                     : 'bg-white text-gray-900 border border-gray-300'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
@@ -889,12 +1245,44 @@ const Invoice: React.FC = () => {
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setIsFunnelFilterOpen(true)}
-                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                  ? 'hover:bg-gray-700 text-white'
-                  : 'hover:bg-gray-200 text-gray-900'
+                title={Object.keys(activeFilters).length > 0
+                  ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                    const colName = filterColumns.find(c => c.key === key)?.label || key;
+                    if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                    if (filter.type === 'checklist') {
+                      return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
+                    }
+                    if (filter.type === 'number') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                      if (filter.from) return `${colName}: > ${filter.from}`;
+                      if (filter.to) return `${colName}: < ${filter.to}`;
+                    }
+                    if (filter.type === 'date') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                      if (filter.from) return `${colName}: After ${filter.from}`;
+                      if (filter.to) return `${colName}: Before ${filter.to}`;
+                    }
+                    return colName;
+                  }).join('\n')}`
+                  : "Filter Invoice Records"
+                }
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(activeFilters).length > 0
+                  ? 'text-red-500 hover:bg-red-500/10'
+                  : isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900'
                   }`}
               >
                 <Filter className="h-5 w-5" />
@@ -908,8 +1296,9 @@ const Invoice: React.FC = () => {
                       : 'hover:bg-gray-200 text-gray-900'
                       }`}
                     onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                    title="Column Visibility"
                   >
-                    <ListFilter className="h-5 w-5" />
+                    <Columns3 className="h-5 w-5" />
                   </button>
                   {filterDropdownOpen && (
                     <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-[70vh] flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -922,7 +1311,7 @@ const Invoice: React.FC = () => {
                           <button
                             onClick={handleSelectAllColumns}
                             className="text-xs"
-                            style={{ color: colorPalette?.primary || '#f97316' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             Select All
                           </button>
@@ -930,7 +1319,7 @@ const Invoice: React.FC = () => {
                           <button
                             onClick={handleDeselectAllColumns}
                             className="text-xs"
-                            style={{ color: colorPalette?.primary || '#f97316' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             Deselect All
                           </button>
@@ -954,7 +1343,7 @@ const Invoice: React.FC = () => {
                                 : 'border-gray-300 bg-white focus:ring-offset-white'
                                 }`}
                               style={{
-                                accentColor: colorPalette?.primary || '#ea580c'
+                                accentColor: colorPalette?.primary || '#7c3aed'
                               }}
                             />
                             <span>{column.label}</span>
@@ -972,7 +1361,7 @@ const Invoice: React.FC = () => {
                   disabled={isPaymentProcessing}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    backgroundColor: isPaymentProcessing ? '#6b7280' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isPaymentProcessing ? '#6b7280' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isPaymentProcessing && colorPalette?.accent) {
@@ -993,7 +1382,7 @@ const Invoice: React.FC = () => {
                 disabled={isLoading}
                 className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                 style={{
-                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading && colorPalette?.accent) {
@@ -1010,6 +1399,81 @@ const Invoice: React.FC = () => {
               </button>
             </div>
           </div>
+
+          {/* Active Funnel Filters Row */}
+          {Object.keys(activeFilters || {}).length > 0 && (
+            <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Active Filters:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(activeFilters || {}).map(([key, filter]: [string, any]) => {
+                  const column = filterColumns.find(c => (c as any).key === key);
+                  const label = column?.label || key;
+
+                  let displayValue = '';
+                  if (filter.type === 'text' || filter.type === 'boolean') {
+                    displayValue = String(filter.value);
+                  } else if (filter.type === 'checklist') {
+                    displayValue = Array.isArray(filter.value)
+                      ? filter.value.join(', ')
+                      : String(filter.value);
+                  } else if (filter.type === 'number' || filter.type === 'date') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                    else if (filter.from) displayValue = `> ${filter.from}`;
+                    else if (filter.to) displayValue = `< ${filter.to}`;
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                      style={{
+                        backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                        color: colorPalette?.primary || '#7c3aed',
+                        border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                      }}
+                    >
+                      <span className="opacity-70 mr-1">{label}:</span>
+                      <span className="truncate max-w-[150px]">{displayValue}</span>
+                      <button
+                        onClick={() => removeFilter(key)}
+                        className={`ml-1 p-0.5 rounded-full transition-colors`}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.primary) {
+                            e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    setActiveFilters({});
+                    localStorage.removeItem('invoiceFunnelFilters');
+                  }}
+                  className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-hidden">
@@ -1040,7 +1504,7 @@ const Invoice: React.FC = () => {
               ) : (
                 <>
                   <div className="h-full relative flex flex-col">
-                    <div className="flex-1 overflow-auto">
+                    <div className="flex-1 overflow-auto" ref={scrollRef}>
                       <table className="w-max min-w-full text-sm border-separate border-spacing-0">
                         <thead>
                           <tr className={`border-b sticky top-0 z-10 ${isDarkMode
@@ -1059,7 +1523,7 @@ const Invoice: React.FC = () => {
                                 onClick={() => handleSort(column.key)}
                                 className={`group relative text-left py-3 px-3 font-normal whitespace-nowrap cursor-pointer select-none transition-colors ${isDarkMode ? 'text-gray-400 bg-gray-800 hover:bg-gray-700' : 'text-gray-600 bg-gray-100 hover:bg-gray-200'
                                   } ${index < filteredColumns.length - 1 ? (isDarkMode ? 'border-r border-gray-700' : 'border-r border-gray-200') : ''
-                                  } ${dragOverColumn === column.key ? (isDarkMode ? 'border-l-2 border-orange-500' : 'border-l-2 border-orange-600') : ''
+                                  } ${dragOverColumn === column.key ? 'border-l-2 border-[#7c3aed]' : ''
                                   } ${draggedColumn === column.key ? 'opacity-50' : ''}`}
                                 style={{
                                   width: columnWidths[column.key] ? `${columnWidths[column.key]}px` : undefined,
@@ -1129,192 +1593,390 @@ const Invoice: React.FC = () => {
                 </>
               )}
             </div>
-            {!isLoading && !error && filteredRecords.length > 0 && <PaginationControls />}
+            {!isLoading && !error && filteredRecords.length > 0 && (
+              <PaginationControls
+                totalPages={totalPages}
+                itemsPerPage={itemsPerPage}
+                setItemsPerPage={setItemsPerPage}
+                isDarkMode={isDarkMode}
+                currentPage={currentPage}
+                totalDisplayCount={totalDisplayCount}
+                handlePageChange={handlePageChange}
+              />
+            )}
           </div>
         </div>
-      </div>
 
-      {selectedRecord && userRole !== 'customer' && (
-        <div className="flex-shrink-0 overflow-hidden">
-          <InvoiceDetails
-            invoiceRecord={selectedRecord as any}
-            onViewCustomer={handleViewCustomer}
-            onClose={handleCloseDetails}
-          />
-        </div>
-      )}
-
-      {(selectedCustomer || isLoadingDetails) && (
-        <div className="flex-shrink-0 overflow-hidden">
-          {isLoadingDetails ? (
-            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
-              ? 'bg-gray-900 text-white border-white border-opacity-30'
-              : 'bg-white text-gray-900 border-gray-300'
+        {/* Mobile Overlay Menu */}
+        {mobileMenuOpen && userRole !== 'customer' && (
+          <div className="fixed inset-0 z-50 md:hidden">
+            <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+            <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
               }`}>
-              <div className="text-center">
-                <div
-                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
-                ></div>
-                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
-              </div>
-            </div>
-          ) : selectedCustomer ? (
-            <BillingDetails
-              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
-              onlineStatusRecords={[]}
-              onClose={() => setSelectedCustomer(null)}
-            />
-          ) : null}
-        </div>
-      )}
-
-      {showPaymentVerifyModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div
-            className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-              }`}
-          >
-            <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
-              <h3 className="text-xl font-bold text-center">Confirm Payment</h3>
-            </div>
-
-            <div className="p-6">
-              <div className={`p-4 rounded mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+              <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                 }`}>
-                <div className="flex justify-between mb-2">
-                  <span>Account:</span>
-                  <span className="font-bold">{fullName}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Current Balance:</span>
-                  <span className={`font-bold ${accountBalance > 0 ? 'text-red-500' : 'text-green-500'
-                    }`}>₱{accountBalance.toFixed(2)}</span>
-                </div>
-              </div>
-
-              {errorMessage && (
-                <div className={`p-3 rounded mb-4 ${isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
-                  }`}>
-                  <p className="text-red-500 text-sm text-center">{errorMessage}</p>
-                </div>
-              )}
-
-              <div className="mb-4">
-                <label className="block font-bold mb-2">Payment Amount</label>
-                <input
-                  type="number"
-                  value={paymentAmount}
-                  onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
-                  min="1"
-                  step="0.01"
-                  className={`w-full px-4 py-3 rounded text-lg font-bold ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                    } border focus:outline-none focus:ring-2`}
-                  style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
-                  } as React.CSSProperties}
-                />
-                <div className={`text-sm text-right mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>
-                  {accountBalance > 0 ? (
-                    <span>Outstanding balance: ₱{accountBalance.toFixed(2)}</span>
-                  ) : (
-                    <span>Minimum: ₱1.00</span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex gap-3">
+                <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Categories</h2>
                 <button
-                  onClick={handleCloseVerifyModal}
-                  disabled={isPaymentProcessing}
-                  className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
                 >
-                  Cancel
+                  <X className="h-6 w-6" />
                 </button>
+              </div>
+              <div className="flex-1 overflow-y-auto">
+                {/* All Level */}
                 <button
-                  onClick={handleProceedToCheckout}
-                  disabled={isPaymentProcessing || paymentAmount < 1}
-                  className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  style={{
-                    backgroundColor: (isPaymentProcessing || paymentAmount < 1)
-                      ? '#6b7280'
-                      : (colorPalette?.primary || '#ea580c')
+                  onClick={() => {
+                    setSelectedDate('All');
+                    setMobileMenuOpen(false);
                   }}
-                  onMouseEnter={(e) => {
-                    if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
-                    }
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                  style={selectedDate === 'All' ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#7c3aed',
+                    fontWeight: 500
+                  } : {
+                    color: isDarkMode ? '#d1d5db' : '#374151'
                   }}
                 >
-                  {isPaymentProcessing ? (
-                    <span className="flex items-center justify-center">
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
+                  <div className="flex items-center">
+                    <Globe className="h-4 w-4 mr-2" />
+                    <span>All Records</span>
+                  </div>
+                  <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                    {dateItems.all}
+                  </span>
+                </button>
+
+                {/* Mobile Date Range Filter Section */}
+                <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                      Invoice Date Range
                     </span>
-                  ) : (
-                    'PROCEED TO CHECKOUT →'
+                    {(invoiceDateFrom || invoiceDateTo) && (
+                      <button
+                        onClick={() => {
+                          setInvoiceDateFrom('');
+                          setInvoiceDateTo('');
+                        }}
+                        className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                        style={{ color: colorPalette?.primary || '#7c3aed' }}
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="relative">
+                      <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                      <input
+                        type="date"
+                        value={invoiceDateFrom}
+                        onChange={(e) => setInvoiceDateFrom(e.target.value)}
+                        className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        style={invoiceDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                      />
+                    </div>
+                    <div className="relative">
+                      <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                      <input
+                        type="date"
+                        value={invoiceDateTo}
+                        onChange={(e) => setInvoiceDateTo(e.target.value)}
+                        className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                          ? 'bg-gray-800 border-gray-700 text-white'
+                          : 'bg-white border-gray-300 text-gray-900'
+                          }`}
+                        style={invoiceDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Mobile Invoice Month Dropdown */}
+                <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                  <button
+                    onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                    className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                      }`}
+                  >
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-2" />
+                      <span className="font-medium">Invoice Month</span>
+                    </div>
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {isDateDropdownOpen && (
+                    <div className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50'}>
+                      {dateItems.dates.map((item, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            setSelectedDate(item.date);
+                            setMobileMenuOpen(false);
+                          }}
+                          className={`w-full flex items-center justify-between px-6 py-3 text-sm transition-colors border-b last:border-0 ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                            }`}
+                          style={selectedDate === item.date ? {
+                            backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                            color: colorPalette?.primary || '#7c3aed',
+                            fontWeight: 500
+                          } : {
+                            color: isDarkMode ? '#9ca3af' : '#4b5563'
+                          }}
+                        >
+                          <div className="flex items-center">
+                            <Calendar className="h-4 w-4 mr-2 opacity-60" />
+                            <span>{item.date}</span>
+                          </div>
+                          <span className="px-2 py-1 rounded-full text-[10px] bg-gray-700 text-gray-300">
+                            {item.count}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )
-      }
+        )}
 
-      {
-        showPendingPaymentModal && pendingPayment && (
+        {selectedRecord && userRole !== 'customer' && (
+          <div className="flex-shrink-0 overflow-hidden">
+            <InvoiceDetails
+              invoiceRecord={selectedRecord as any}
+              onViewCustomer={handleViewCustomer}
+              onClose={handleCloseDetails}
+            />
+          </div>
+        )}
+
+        {(selectedCustomer || isLoadingDetails) && (
+          <div className="flex-shrink-0 overflow-hidden">
+            {isLoadingDetails ? (
+              <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+                ? 'bg-gray-900 text-white border-white border-opacity-30'
+                : 'bg-white text-gray-900 border-gray-300'
+                }`}>
+                <div className="text-center">
+                  <div
+                    className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                    style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
+                  ></div>
+                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+                </div>
+              </div>
+            ) : selectedCustomer ? (
+              <BillingDetails
+                billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+                onlineStatusRecords={[]}
+                onClose={() => setSelectedCustomer(null)}
+              />
+            ) : null}
+          </div>
+        )}
+
+        {showPaymentVerifyModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
             <div
-              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
+                }`}
             >
-              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
+              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
+                <h3 className="text-xl font-bold text-center">Confirm Payment</h3>
               </div>
 
               <div className="p-6">
-                <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  <p className="text-center mb-4">
-                    You have a pending payment (<b>{pendingPayment?.reference_no}</b>).
-                    <br />The link is still active.
-                  </p>
-                  <div className="flex justify-between mt-4">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                    <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
-                      ₱{pendingPayment?.amount?.toFixed(2) || '0.00'}
-                    </span>
+                <div className={`p-4 rounded mb-4 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'
+                  }`}>
+                  <div className="flex justify-between mb-2">
+                    <span>Account:</span>
+                    <span className="font-bold">{fullName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Current Balance:</span>
+                    <span className={`font-bold ${accountBalance > 0 ? 'text-red-500' : 'text-green-500'
+                      }`}>₱{accountBalance.toFixed(2)}</span>
+                  </div>
+                </div>
+
+                {errorMessage && (
+                  <div className={`p-3 rounded mb-4 ${isDarkMode ? 'bg-red-900/20 border border-red-800' : 'bg-red-50 border border-red-200'
+                    }`}>
+                    <p className="text-red-500 text-sm text-center">{errorMessage}</p>
+                  </div>
+                )}
+
+                <div className="mb-4">
+                  <label className="block font-bold mb-2">Payment Amount</label>
+                  <input
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(parseFloat(e.target.value) || 0)}
+                    min="1"
+                    step="0.01"
+                    className={`w-full px-4 py-3 rounded text-lg font-bold ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      } border focus:outline-none focus:ring-2`}
+                    style={{
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+                    } as React.CSSProperties}
+                  />
+                  <div className={`text-sm text-right mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>
+                    {accountBalance > 0 ? (
+                      <span>Outstanding balance: ₱{accountBalance.toFixed(2)}</span>
+                    ) : (
+                      <span>Minimum: ₱1.00</span>
+                    )}
                   </div>
                 </div>
 
                 <div className="flex gap-3">
                   <button
-                    onClick={handleCancelPendingPayment}
+                    onClick={handleCloseVerifyModal}
+                    disabled={isPaymentProcessing}
                     className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
                       ? 'bg-gray-700 hover:bg-gray-600 text-white'
                       : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                      }`}
+                      } disabled:opacity-50 disabled:cursor-not-allowed`}
                   >
                     Cancel
                   </button>
                   <button
-                    onClick={handleResumePendingPayment}
-                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    onClick={handleProceedToCheckout}
+                    disabled={isPaymentProcessing || paymentAmount < 1}
+                    className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{
+                      backgroundColor: (isPaymentProcessing || paymentAmount < 1)
+                        ? '#6b7280'
+                        : (colorPalette?.primary || '#7c3aed')
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.primary) {
+                        e.currentTarget.style.backgroundColor = colorPalette.primary;
+                      }
+                    }}
+                  >
+                    {isPaymentProcessing ? (
+                      <span className="flex items-center justify-center">
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </span>
+                    ) : (
+                      'PROCEED TO CHECKOUT →'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
+        }
+
+        {
+          showPendingPaymentModal && pendingPayment && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div
+                className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+              >
+                <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className="text-xl font-bold text-center">Transaction In Progress</h3>
+                </div>
+
+                <div className="p-6">
+                  <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <p className="text-center mb-4">
+                      You have a pending payment (<b>{pendingPayment?.reference_no}</b>).
+                      <br />The link is still active.
+                    </p>
+                    <div className="flex justify-between mt-4">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                      <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
+                        ₱{pendingPayment?.amount?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleCancelPendingPayment}
+                      className={`flex-1 px-4 py-3 rounded font-bold transition-colors ${isDarkMode
+                        ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                        }`}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleResumePendingPayment}
+                      className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
+                      style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (colorPalette?.primary) {
+                          e.currentTarget.style.backgroundColor = colorPalette.primary;
+                        }
+                      }}
+                    >
+                      Pay Now →
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )
+        }
+
+        {
+          showPaymentLinkModal && paymentLinkData && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+              <div
+                className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
+              >
+                <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
+                </div>
+
+                <div className="p-6">
+                  <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                    <div className="flex justify-between mb-3">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
+                      <span className="font-mono font-bold">{paymentLinkData?.referenceNo}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
+                      <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
+                        ₱{paymentLinkData?.amount?.toFixed(2) || '0.00'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleOpenPaymentLink}
+                    className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
                         e.currentTarget.style.backgroundColor = colorPalette.accent;
@@ -1326,71 +1988,24 @@ const Invoice: React.FC = () => {
                       }
                     }}
                   >
-                    Pay Now →
+                    PROCEED
                   </button>
                 </div>
               </div>
             </div>
-          </div>
-        )
-      }
-
-      {
-        showPaymentLinkModal && paymentLinkData && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div
-              className={`rounded-lg shadow-xl max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'}`}
-            >
-              <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                <h3 className="text-xl font-bold text-center">Proceed to Payment Portal</h3>
-              </div>
-
-              <div className="p-6">
-                <div className={`p-4 rounded mb-6 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-100'}`}>
-                  <div className="flex justify-between mb-3">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Reference:</span>
-                    <span className="font-mono font-bold">{paymentLinkData?.referenceNo}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                    <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
-                      ₱{paymentLinkData?.amount?.toFixed(2) || '0.00'}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleOpenPaymentLink}
-                  className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                  onMouseEnter={(e) => {
-                    if (colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.backgroundColor = colorPalette.primary;
-                    }
-                  }}
-                >
-                  PROCEED
-                </button>
-              </div>
-            </div>
-          </div>
-        )
-      }
-      <InvoiceFunnelFilter
-        isOpen={isFunnelFilterOpen}
-        onClose={() => setIsFunnelFilterOpen(false)}
-        onApplyFilters={(filters) => {
-          setActiveFilters(filters);
-          localStorage.setItem('invoiceFunnelFilters', JSON.stringify(filters));
-          setIsFunnelFilterOpen(false);
-        }}
-        currentFilters={activeFilters}
-      />
+          )
+        }
+        <InvoiceFunnelFilter
+          isOpen={isFunnelFilterOpen}
+          onClose={() => setIsFunnelFilterOpen(false)}
+          onApplyFilters={(filters) => {
+            setActiveFilters(filters);
+            localStorage.setItem('invoiceFunnelFilters', JSON.stringify(filters));
+            setIsFunnelFilterOpen(false);
+          }}
+          currentFilters={activeFilters}
+        />
+      </div>
     </div>
   );
 };

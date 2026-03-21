@@ -220,3 +220,4 @@ class InventoryRelatedDataController extends Controller
         }
     }
 }
+

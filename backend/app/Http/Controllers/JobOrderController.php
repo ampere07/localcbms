@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Services\GoogleDriveService;
 use App\Services\PppoeUsernameService;
 use App\Models\RadiusConfig;
+use App\Models\ActivityLog;
 
 class JobOrderController extends Controller
 {
@@ -45,7 +46,7 @@ class JobOrderController extends Controller
                 'fast_mode' => $fastMode
             ]);
 
-            $query = JobOrder::with('application')->orderBy('id', 'desc');
+            $query = JobOrder::with(['application', 'items'])->orderBy('id', 'desc');
             
             if ($request->has('assigned_email')) {
                 $assignedEmail = $request->query('assigned_email');
@@ -61,12 +62,19 @@ class JobOrderController extends Controller
                 ]);
             }
 
+            if ($request->has('updated_since')) {
+                $query->where('updated_at', '>', $request->input('updated_since'));
+                // Increase limit for updates to ensure we get all recent changes
+                $limit = $request->input('limit', 1000);
+            }
+
             // Apply search filter
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('assigned_email', 'LIKE', "%{$search}%")
                       ->orWhere('onsite_status', 'LIKE', "%{$search}%")
                       ->orWhere('username', 'LIKE', "%{$search}%")
+                      ->orWhere('modem_router_sn', 'LIKE', "%{$search}%")
                       ->orWhereHas('application', function ($appQuery) use ($search) {
                           $appQuery->where('first_name', 'LIKE', "%{$search}%")
                                    ->orWhere('last_name', 'LIKE', "%{$search}%")
@@ -105,7 +113,11 @@ class JobOrderController extends Controller
                         'Username' => $jobOrder->username,
                         'First_Name' => $application ? $application->first_name : null,
                         'Last_Name' => $application ? $application->last_name : null,
+                        'Status' => $jobOrder->status,
+                        'status' => $jobOrder->status,
                         'updated_at' => $jobOrder->updated_at ? $jobOrder->updated_at->format('Y-m-d H:i:s') : null,
+                        'start_time' => $jobOrder->start_time,
+                        'end_time' => $jobOrder->end_time,
                     ];
                 });
 
@@ -132,6 +144,8 @@ class JobOrderController extends Controller
                     'Installation_Fee' => $jobOrder->installation_fee,
                     'Billing_Day' => $jobOrder->billing_day,
                     'Onsite_Status' => $jobOrder->onsite_status,
+                    'Status' => $jobOrder->status,
+                    'status' => $jobOrder->status,
                     'billing_status' => $jobOrder->billing_status,
                     'Status_Remarks' => $jobOrder->status_remarks,
                     'Assigned_Email' => $jobOrder->assigned_email,
@@ -145,6 +159,8 @@ class JobOrderController extends Controller
                     'pppoe_password' => $jobOrder->pppoe_password,
                     
                     'date_installed' => $jobOrder->date_installed,
+                    'start_time' => $jobOrder->start_time,
+                    'end_time' => $jobOrder->end_time,
                     'usage_type' => $jobOrder->usage_type,
                     'connection_type' => $jobOrder->connection_type,
                     'router_model' => $jobOrder->router_model,
@@ -192,6 +208,7 @@ class JobOrderController extends Controller
                     'Desired_Plan' => $application ? $application->desired_plan : null,
                     'Referred_By' => $application ? $application->referred_by : null,
                     'Billing_Status' => $jobOrder->billing_status,
+                    'job_order_items' => $jobOrder->items,
                 ];
             });
 
@@ -224,6 +241,7 @@ class JobOrderController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'application_id' => 'required|integer|exists:applications,id',
+                'status' => 'nullable|string|max:100',
                 'timestamp' => 'nullable|date',
                 'installation_fee' => 'nullable|numeric|min:0',
                 'billing_day' => 'nullable|integer|min:0|max:31',
@@ -274,6 +292,28 @@ class JobOrderController extends Controller
             ]);
             
             $jobOrder = JobOrder::create($data);
+            $jobOrder->load('application');
+
+            // Create Activity Log using helper
+            $customerName = trim(($jobOrder->application->first_name ?? '') . ' ' . ($jobOrder->application->last_name ?? ''));
+            ActivityLog::log(
+                'Job Order Assigned',
+                "New Job Order assigned for {$customerName} (Application #{$jobOrder->application_id}). Assigned to: " . ($jobOrder->assigned_email ?? 'Nobody'),
+                'info',
+                [
+                    'user_email' => $data['created_by_user_email'] ?? null,
+                    'target_user_email' => $jobOrder->assigned_email,
+                    'resource_type' => 'JobOrder',
+                    'resource_id' => $jobOrder->id,
+                    'additional_data' => [
+                        'customer_name' => $customerName,
+                        'application_id' => $jobOrder->application_id,
+                        'assigned_email' => $jobOrder->assigned_email,
+                        'installation_fee' => $jobOrder->installation_fee,
+                        'onsite_status' => $jobOrder->onsite_status
+                    ]
+                ]
+            );
 
             $jobOrder->load('application');
 
@@ -305,7 +345,7 @@ class JobOrderController extends Controller
     public function show($id): JsonResponse
     {
         try {
-            $jobOrder = JobOrder::with('application')->findOrFail($id);
+            $jobOrder = JobOrder::with(['application', 'items'])->findOrFail($id);
 
             return response()->json([
                 'success' => true,
@@ -322,6 +362,7 @@ class JobOrderController extends Controller
 
     public function update(Request $request, $id): JsonResponse
     {
+        DB::beginTransaction();
         try {
             \Log::info('JobOrder Update Request', [
                 'id' => $id,
@@ -475,11 +516,13 @@ class JobOrderController extends Controller
 
             $validator = Validator::make($request->all(), [
                 'application_id' => 'nullable|integer|exists:applications,id',
+                'status' => 'nullable|string|max:100',
                 'timestamp' => 'nullable|date',
                 'date_installed' => 'nullable|date',
                 'installation_fee' => 'nullable|numeric|min:0',
                 'billing_day' => 'nullable|integer|min:0',
                 'onsite_status' => 'nullable|string|max:100',
+                'billing_status' => 'nullable|string|max:255',
                 'assigned_email' => 'nullable|email|max:255',
                 'onsite_remarks' => 'nullable|string',
                 'status_remarks' => 'nullable|string|max:255',
@@ -503,6 +546,8 @@ class JobOrderController extends Controller
                 'custom_password' => 'nullable|string|max:255',
                 'created_by_user_email' => 'nullable|email|max:255',
                 'updated_by_user_email' => 'nullable|email|max:255',
+                'start_time' => 'nullable|date',
+                'end_time' => 'nullable|date',
             ]);
 
             if ($validator->fails()) {
@@ -535,9 +580,32 @@ class JobOrderController extends Controller
 
             $oldStatus = $jobOrder->onsite_status;
             $jobOrder->update($data);
+
+            // Create Activity Log using helper
+            ActivityLog::log(
+                'Job Order Updated',
+                "Job Order #{$id} updated by " . ($data['updated_by_user_email'] ?? 'Technician') . " (Status: {$jobOrder->onsite_status})",
+                'info',
+                [
+                    'user_email' => $data['updated_by_user_email'] ?? null,
+                    'resource_type' => 'JobOrder',
+                    'resource_id' => $jobOrder->id,
+                    'additional_data' => [
+                        'onsite_status' => $jobOrder->onsite_status,
+                        'assigned_email' => $jobOrder->assigned_email,
+                        'updated_by' => $data['updated_by_user_email'] ?? null
+                    ]
+                ]
+            );
             
             if (($data['onsite_status'] ?? null) === 'Done' && $oldStatus !== 'Done') {
                 $this->broadcastJobOrderDone($jobOrder);
+                
+                // Trigger RADIUS account creation
+                $radiusResult = $this->createRadiusAccountInternal($jobOrder);
+                if (!$radiusResult['success']) {
+                    throw new \Exception('radius api error occured contact support');
+                }
             }
             
             \Log::info('JobOrder After Update', [
@@ -592,6 +660,9 @@ class JobOrderController extends Controller
                     if (isset($data['vlan'])) {
                         $technicalUpdateData['vlan'] = $data['vlan'];
                     }
+                    if ($jobOrder->pppoe_username) {
+                        $technicalUpdateData['username'] = $jobOrder->pppoe_username;
+                    }
                     
                     if (!empty($technicalUpdateData)) {
                         $technicalDetail->update($technicalUpdateData);
@@ -611,17 +682,28 @@ class JobOrderController extends Controller
 
             $jobOrder->load('application');
 
+            DB::commit();
+
             return response()->json([
                 'success' => true,
                 'message' => 'Job order updated successfully',
                 'data' => $jobOrder,
             ]);
         } catch (\Exception $e) {
+            DB::rollBack();
             \Log::error('JobOrder Update Failed', [
                 'id' => $id,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString()
             ]);
+
+            $errorMessage = $e->getMessage();
+            if ($errorMessage === 'radius api error occured contact support') {
+                return response()->json([
+                    'success' => false,
+                    'message' => $errorMessage,
+                ], 400);
+            }
 
             return response()->json([
                 'success' => false,
@@ -643,13 +725,13 @@ class JobOrderController extends Controller
                 'title' => 'Job Order Completed',
                 'message' => 'Onsite status marked as Done',
                 'timestamp' => now()->timestamp,
-                'formatted_date' => now()->format('Y-m-d h:i:s A') // e.g. 2026-02-11 05:53:42 PM
+                'formatted_date' => now()->format('Y-m-d h:i:s A')
             ];
 
-            Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/job-order-done', $data);
+            event(new \App\Events\JobOrderDone($data));
             \Log::info('Real-time broadcast sent for Job Order Done', ['id' => $jobOrder->id]);
         } catch (\Exception $e) {
-            \Log::warning('Failed to broadcast Job Order Done to socket server', [
+            \Log::warning('Failed to broadcast Job Order Done via Soketi', [
                 'error' => $e->getMessage()
             ]);
         }
@@ -659,7 +741,22 @@ class JobOrderController extends Controller
     {
         try {
             $jobOrder = JobOrder::findOrFail($id);
+            $jobOrderData = $jobOrder->toArray();
             $jobOrder->delete();
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Job Order Deleted',
+                "Job Order #{$id} deleted by " . (auth()->user()->email ?? 'System'),
+                'warning',
+                [
+                    'resource_type' => 'JobOrder',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'job_order_data' => $jobOrderData
+                    ]
+                ]
+            );
 
             return response()->json([
                 'success' => true,
@@ -874,7 +971,7 @@ class JobOrderController extends Controller
 
             // Check if online status already exists for this username
             if (OnlineStatus::where('username', $generatedUsername)->exists()) {
-                throw new \Exception('theirs already a data in database');
+                throw new \Exception('there\'s already data in database');
             }
 
             OnlineStatus::create([
@@ -941,40 +1038,26 @@ class JobOrderController extends Controller
 
             DB::commit();
 
+            // Create Activity Log using helper
+            ActivityLog::log(
+                'Job Order Approved',
+                "Job Order #{$id} approved. Created Billing Account: {$accountNumber} for {$application->first_name} {$application->last_name}",
+                'info',
+                [
+                    'resource_type' => 'JobOrder',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'account_number' => $accountNumber,
+                        'customer_id' => $customer->id,
+                        'application_id' => $application->id,
+                        'plan' => $application->desired_plan
+                    ]
+                ]
+            );
+
             // Send Welcome SMS
-            try {
-                if (!empty($customer->contact_number_primary)) {
-                    $welcomeTemplate = \App\Models\SMSTemplate::where('template_type', 'Welcome')
-                        ->where('is_active', 1)
-                        ->first();
-                        
-                    if ($welcomeTemplate) {
-                        $message = $welcomeTemplate->message_content;
-                        
-                        // Replace variables
-                        $message = str_replace('{{customer_name}}', $customer->full_name, $message);
-                        $message = str_replace('{{account_no}}', $accountNumber, $message);
-                        $message = str_replace('{{username}}', $generatedUsername, $message);
-                        $message = str_replace('{{password}}', $generatedPassword, $message);
-                        
-                        $smsService = new \App\Services\ItexmoSmsService();
-                        $smsService->send([
-                            'contact_no' => $customer->contact_number_primary,
-                            'message' => $message
-                        ]);
-                        
-                        \Log::info('Welcome SMS sent successfully', [
-                             'customer_id' => $customer->id,
-                             'account_no' => $accountNumber
-                        ]);
-                    } else {
-                        \Log::warning('Welcome SMS template not found');
-                    }
-                }
-            } catch (\Exception $e) {
-                // Log but don't fail the request since approval is committed
-                \Log::error('Failed to send Welcome SMS: ' . $e->getMessage()); 
-            }
+            $this->sendWelcomeSms($customer, $accountNumber, $generatedUsername, $generatedPassword, $application->desired_plan);
+
 
             // Send Welcome Email
             try {
@@ -987,10 +1070,21 @@ class JobOrderController extends Controller
                         $emailBody = $welcomeEmailTemplate->email_body;
 
                         // Replace variables in email body
-                        $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
+                        $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                        $emailBody = str_replace('{{customer_name}}', $customerName, $emailBody);
+                        $emailBody = str_replace('{{customer_tag}}', $customerName, $emailBody);
+                        $emailBody = str_replace('{{company_name}}', 'ATSS Fiber', $emailBody);
+                        $emailBody = str_replace('{{fb_username}}', 'https://www.facebook.com/atssfiber', $emailBody);
                         $emailBody = str_replace('{{account_no}}', $accountNumber, $emailBody);
                         $emailBody = str_replace('{{username}}', $generatedUsername, $emailBody);
                         $emailBody = str_replace('{{password}}', $generatedPassword, $emailBody);
+
+                        $displayPlan = $application->desired_plan ?? 'N/A';
+                        if (strpos($displayPlan, ' - P') !== false) {
+                            $displayPlan = trim(explode(' - P', $displayPlan)[0]);
+                        }
+                        $displayPlan = str_replace('₱', 'P', $displayPlan);
+                        $emailBody = str_replace('{{plan_name}}', $displayPlan, $emailBody);
 
                          if (!empty($emailBody)) {
                              $emailService = app(\App\Services\EmailQueueService::class);
@@ -1000,7 +1094,10 @@ class JobOrderController extends Controller
                                  'recipient_email' => $customer->email_address,
                                  'subject' => $welcomeEmailTemplate->Subject_Line ?? 'Welcome to Ampere', 
                                  'body_html' => nl2br($emailBody), 
-                                 'attachment_path' => null
+                                 'attachment_path' => null,
+                                 'email_sender' => $welcomeEmailTemplate->email_sender,
+                                 'reply_to' => $welcomeEmailTemplate->reply_to,
+                                 'sender_name' => $welcomeEmailTemplate->sender_name
                              ]);
                              
                              \Log::info('Welcome Email queued successfully', [
@@ -1047,11 +1144,12 @@ class JobOrderController extends Controller
             
             // Map common error messages to user-friendly "duplicate" message
             $duplicateMessages = [
-                'theirs already a data in database',
+                'there\'s already data in database',
                 'Duplicate entry',
                 'Integrity constraint violation',
                 'Billing account already exists',
-                'Technical details already exist'
+                'Technical details already exist',
+                'already been approved'
             ];
             
             $isDuplicate = false;
@@ -1065,14 +1163,14 @@ class JobOrderController extends Controller
             if ($isDuplicate) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'theirs already a data in database',
+                    'message' => 'there\'s already data in database',
                     'error' => $e->getMessage(),
                 ], 409); // Conflict
             }
             
             return response()->json([
                 'success' => false,
-                'message' => 'Failed to approve job order',
+                'message' => $e->getMessage() ?: 'Failed to approve job order',
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -1268,6 +1366,7 @@ class JobOrderController extends Controller
                 'has_port_label' => $request->hasFile('port_label_image'),
                 'has_client_signature' => $request->hasFile('client_signature_image'),
                 'has_speed_test' => $request->hasFile('speed_test_image'),
+                'has_proof_image' => $request->hasFile('proof_image'),
             ]);
 
             $validator = Validator::make($request->all(), [
@@ -1279,6 +1378,7 @@ class JobOrderController extends Controller
                 'port_label_image' => 'nullable|image|max:10240',
                 'client_signature_image' => 'nullable|image|max:10240',
                 'speed_test_image' => 'nullable|image|max:10240',
+                'proof_image' => 'nullable|image|max:10240',
             ]);
 
             if ($validator->fails()) {
@@ -1417,6 +1517,23 @@ class JobOrderController extends Controller
                 );
             }
 
+            if ($request->hasFile('proof_image')) {
+                $file = $request->file('proof_image');
+                $fileSizeKB = round($file->getSize() / 1024, 2);
+                Log::info('[BACKEND] Proof image received', [
+                    'size_kb' => $fileSizeKB,
+                    'size_mb' => round($fileSizeKB / 1024, 2),
+                    'mime_type' => $file->getMimeType(),
+                ]);
+                $fileName = 'proof_' . time() . '.' . $file->getClientOriginalExtension();
+                $imageUrls['proof_image_url'] = $driveService->uploadFile(
+                    $file,
+                    $folderId,
+                    $fileName,
+                    $file->getMimeType()
+                );
+            }
+
             Log::info('Job order images uploaded successfully', [
                 'job_order_id' => $id,
                 'folder_name' => $folderName,
@@ -1448,51 +1565,43 @@ class JobOrderController extends Controller
 
     public function createRadiusAccount($id): JsonResponse
     {
+        $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->findOrFail($id);
+        $result = $this->createRadiusAccountInternal($jobOrder);
+        
+        if ($result['success']) {
+            return response()->json($result);
+        } else {
+            return response()->json($result, 500);
+        }
+    }
+
+    private function createRadiusAccountInternal(JobOrder $jobOrder): array
+    {
+        $id = $jobOrder->id;
         try {
-            \Log::info('=== CREATE RADIUS ACCOUNT REQUEST ===', [
+            \Log::info('=== CREATE RADIUS ACCOUNT INTERNAL ===', [
                 'job_order_id' => $id
             ]);
-
-            DB::beginTransaction();
 
             $radiusConfig = RadiusConfig::first();
             
             if (!$radiusConfig) {
                 \Log::error('RADIUS configuration not found in database');
-                DB::rollBack();
-                return response()->json([
+                return [
                     'success' => false,
                     'message' => 'RADIUS configuration not found. Please configure RADIUS settings first.',
-                ], 500);
+                ];
             }
 
             $radiusUrl = $radiusConfig->ssl_type . '://' . $radiusConfig->ip . ':' . $radiusConfig->port . '/rest/user-manage/user';
             $radiusUsername = $radiusConfig->username;
             $radiusPassword = $radiusConfig->password;
 
-            \Log::info('RADIUS configuration loaded', [
-                'ssl_type' => $radiusConfig->ssl_type,
-                'ip' => $radiusConfig->ip,
-                'port' => $radiusConfig->port,
-                'url' => $radiusUrl,
-                'username' => $radiusConfig->username
-            ]);
-
-            $jobOrder = JobOrder::with(['application', 'lcpnapLocation'])->findOrFail($id);
-            
             if (!$jobOrder->application) {
                 throw new \Exception('Job order must have an associated application');
             }
 
             $application = $jobOrder->application;
-
-            \Log::info('Job order and application loaded', [
-                'job_order_id' => $id,
-                'application_id' => $application->id,
-                'customer_name' => $application->first_name . ' ' . $application->last_name,
-                'existing_username' => $jobOrder->pppoe_username,
-                'existing_password' => $jobOrder->pppoe_password ? 'EXISTS' : 'NULL'
-            ]);
 
             $credentialsExist = !empty($jobOrder->pppoe_username) && !empty($jobOrder->pppoe_password);
             $pppoeUsername = $jobOrder->pppoe_username;
@@ -1511,18 +1620,7 @@ class JobOrderController extends Controller
             $portValue = $jobOrder->port ?? '';
 
             if (!$credentialsExist) {
-                \Log::info('No existing credentials found, generating new ones', [
-                    'job_order_id' => $id
-                ]);
-                
                 $pppoeService = new PppoeUsernameService();
-                
-                \Log::info('LCPNAP/Port technical info', [
-                    'lcpnap_value' => $lcpnapValue,
-                    'lcp' => $lcpValue,
-                    'nap' => $napValue,
-                    'port' => $portValue
-                ]);
                 
                 $customerData = [
                     'first_name' => $application->first_name ?? '',
@@ -1541,32 +1639,13 @@ class JobOrderController extends Controller
                     throw new \Exception('Failed to generate PPPoE credentials');
                 }
                 
-                \Log::info('New PPPoE credentials generated', [
-                    'job_order_id' => $id,
-                    'pppoe_username' => $pppoeUsername,
-                    'username_length' => strlen($pppoeUsername),
-                    'password_length' => strlen($pppoePassword)
-                ]);
-
-                $updateResult = $jobOrder->update([
+                $jobOrder->update([
                     'pppoe_username' => $pppoeUsername,
                     'pppoe_password' => $pppoePassword,
                     'updated_by_user_email' => request()->input('updated_by_user_email', 'system@ampere.com')
                 ]);
                 
                 $jobOrder->refresh();
-                
-                \Log::info('PPPoE credentials saved to job_orders table', [
-                    'job_order_id' => $id,
-                    'update_result' => $updateResult,
-                    'pppoe_username_saved' => $jobOrder->pppoe_username,
-                    'pppoe_password_saved_length' => strlen($jobOrder->pppoe_password ?? '')
-                ]);
-            } else {
-                \Log::info('Credentials already exist, reusing existing credentials', [
-                    'job_order_id' => $id,
-                    'pppoe_username' => $pppoeUsername
-                ]);
             }
 
             $desiredPlan = $application->desired_plan;
@@ -1577,28 +1656,12 @@ class JobOrderController extends Controller
                 $plan = trim($parts[0]);
             }
             
-            \Log::info('Extracted plan name', [
-                'desired_plan' => $desiredPlan,
-                'extracted_plan' => $plan
-            ]);
-
             try {
                 $payload = [
                     'name' => $pppoeUsername,
                     'group' => $plan,
                     'password' => $pppoePassword
                 ];
-
-                \Log::info('Submitting to RADIUS API', [
-                    'url' => $radiusUrl,
-                    'method' => 'PUT',
-                    'payload' => [
-                        'name' => $pppoeUsername,
-                        'group' => $plan,
-                        'password' => '***'
-                    ],
-                    'auth_username' => $radiusUsername
-                ]);
 
                 $response = Http::withOptions([
                     'verify' => false
@@ -1610,58 +1673,28 @@ class JobOrderController extends Controller
 
                 if ($statusCode === 204 || $response->successful()) {
                     $radiusSubmitted = true;
-                    \Log::info('RADIUS API submission successful', [
-                        'status' => $statusCode,
-                        'response' => $statusCode === 204 ? 'No Content (Success)' : $response->json()
-                    ]);
                 } else {
                     $radiusError = 'HTTP ' . $statusCode . ': ' . $response->body();
-                    \Log::error('RADIUS API submission failed', [
-                        'status' => $statusCode,
-                        'error' => $response->body(),
-                        'headers' => $response->headers()
-                    ]);
-                    
                     if (!$credentialsExist) {
-                        DB::rollBack();
-                        return response()->json([
+                        return [
                             'success' => false,
                             'message' => 'Failed to create RADIUS account',
                             'error' => $radiusError,
-                            'radius_url' => $radiusUrl,
-                            'http_status' => $statusCode
-                        ], 500);
+                        ];
                     }
                 }
             } catch (\Exception $mikrotikException) {
                 $radiusError = $mikrotikException->getMessage();
-                \Log::error('RADIUS API submission exception', [
-                    'error' => $radiusError,
-                    'trace' => $mikrotikException->getTraceAsString()
-                ]);
-                
                 if (!$credentialsExist) {
-                    DB::rollBack();
-                    return response()->json([
+                    return [
                         'success' => false,
                         'message' => 'Failed to connect to RADIUS server',
                         'error' => $radiusError,
-                        'radius_url' => $radiusUrl
-                    ], 500);
+                    ];
                 }
             }
 
-            DB::commit();
-
-            \Log::info('=== RADIUS ACCOUNT OPERATION COMPLETED ===', [
-                'job_order_id' => $id,
-                'credentials_existed' => $credentialsExist,
-                'pppoe_username' => $pppoeUsername,
-                'radius_submitted' => $radiusSubmitted,
-                'radius_error' => $radiusError
-            ]);
-
-            return response()->json([
+            return [
                 'success' => true,
                 'message' => $credentialsExist ? 'RADIUS credentials already exist' : 'RADIUS account created successfully',
                 'data' => [
@@ -1674,32 +1707,155 @@ class JobOrderController extends Controller
                         'submitted' => $radiusSubmitted,
                         'status' => $radiusSubmitted ? 'success' : 'failed',
                         'error' => $radiusError
-                    ],
-                    'customer_name' => $application->first_name . ' ' . $application->last_name,
-                    'plan' => $plan,
-                    'radius_config' => [
-                        'url' => $radiusUrl,
-                        'ssl_type' => $radiusConfig->ssl_type,
-                        'ip' => $radiusConfig->ip,
-                        'port' => $radiusConfig->port
                     ]
                 ]
-            ]);
+            ];
 
         } catch (\Exception $e) {
-            DB::rollBack();
-            
-            \Log::error('=== RADIUS ACCOUNT CREATION FAILED ===', [
+            \Log::error('=== RADIUS ACCOUNT CREATION INTERNAL FAILED ===', [
                 'job_order_id' => $id,
                 'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString()
             ]);
             
-            return response()->json([
+            return [
                 'success' => false,
                 'message' => 'Failed to create RADIUS account',
                 'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
+     * Send Welcome SMS notification just like in TransactionController
+     */
+    private function sendWelcomeSms($customer, $accountNumber, $pppoeUsername, $pppoePassword, $planName)
+    {
+        try {
+            if ($customer && !empty($customer->contact_number_primary)) {
+                $welcomeTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Welcome')
+                    ->where('is_active', 1)
+                    ->first();
+                    
+                if ($welcomeTemplate) {
+                    $smsService = new \App\Services\ItexmoSmsService();
+                    $message = $welcomeTemplate->message_content;
+                    
+                    // Replace variables
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
+                    $message = str_replace('{{customer_tag}}', $customerName, $message);
+                    $message = str_replace('{{account_no}}', $accountNumber, $message);
+                    $message = str_replace('{{username}}', $pppoeUsername, $message);
+                    $message = str_replace('{{password}}', $pppoePassword, $message);
+                    
+                    $displayPlan = $planName ?? 'N/A';
+                    if (strpos($displayPlan, ' - P') !== false) {
+                        $displayPlan = trim(explode(' - P', $displayPlan)[0]);
+                    }
+                    $displayPlan = str_replace('₱', 'P', $displayPlan);
+                    $message = str_replace('{{plan_name}}', $displayPlan, $message);
+                    
+                    // Support more variables like in TransactionController
+                    $currentDate = date('Y-m-d');
+                    $message = str_replace('{{date}}', $currentDate, $message);
+                    $message = str_replace('{{payment_date}}', $currentDate, $message);
+                    
+                    $message = $this->replaceGlobalVariables($message);
+                    
+                    $result = $smsService->send([
+                        'contact_no' => $customer->contact_number_primary,
+                        'message' => $message
+                    ]);
+                    
+                    if ($result['success']) {
+                        \Log::info('Welcome SMS sent successfully', [
+                             'customer_id' => $customer->id,
+                             'account_no' => $accountNumber
+                        ]);
+                    } else {
+                        \Log::error('Welcome SMS failed to send: ' . ($result['error'] ?? 'Unknown error'));
+                    }
+                } else {
+                    \Log::warning('Welcome SMS template not found or inactive');
+                }
+            }
+        } catch (\Exception $e) {
+            \Log::error('Failed to send Welcome SMS: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Replace global placeholders in SMS messages
+     */
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
+    }
+
+    /**
+     * Validate Modem Router SN for duplicates
+     */
+    public function validateModemRouterSN(Request $request): JsonResponse
+    {
+        try {
+            $sn = $request->query('sn');
+            $excludeId = $request->query('exclude_id');
+
+            if (!$sn) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'SN is required'
+                ], 422);
+            }
+
+            // Check job_orders table
+            $existsInJobOrders = JobOrder::where('modem_router_sn', $sn)
+                ->when($excludeId, function ($query) use ($excludeId) {
+                    return $query->where('id', '!=', $excludeId);
+                })
+                ->exists();
+
+            if ($existsInJobOrders) {
+                return response()->json([
+                    'success' => false,
+                    'is_duplicate' => true,
+                    'source' => 'job_orders',
+                    'message' => 'Please check on Customer Details. SN Duplicate Detected in Job Orders.'
+                ]);
+            }
+
+            // Check technical_details table (modem_router_sn field mapping might be router_modem_sn or ip_address etc)
+            // Let's check common field names for SN in technical_details
+            $existsInTechnicalDetails = TechnicalDetail::where('router_modem_sn', $sn)->exists();
+
+            if ($existsInTechnicalDetails) {
+                return response()->json([
+                    'success' => false,
+                    'is_duplicate' => true,
+                    'source' => 'technical_details',
+                    'message' => 'Please check on Customer Details. SN Duplicate Detected in Technical Details.'
+                ]);
+            }
+
+            return response()->json([
+                'success' => true,
+                'is_duplicate' => false,
+                'message' => 'SN is available'
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('Modem SN Validation Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Error validating SN'
             ], 500);
         }
     }
+
 }

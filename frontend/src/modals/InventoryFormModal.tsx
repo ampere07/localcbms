@@ -319,8 +319,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
               <button
                 onClick={handleCancel}
                 className={`px-4 py-2 rounded text-sm transition-colors ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                   }`}
               >
                 Cancel
@@ -330,7 +330,7 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {
@@ -338,7 +338,7 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {loading ? 'Saving...' : (editData ? 'Update' : 'Save')}
@@ -364,8 +364,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                 value={formData.itemName}
                 onChange={(e) => handleInputChange('itemName', e.target.value)}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
                   } ${errors.itemName ? 'border-red-500' : ''}`}
                 placeholder="Enter item name"
               />
@@ -382,8 +382,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                 onChange={(e) => handleInputChange('itemDescription', e.target.value)}
                 rows={3}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
                   } ${errors.itemDescription ? 'border-red-500' : ''}`}
                 placeholder="Enter item description"
               />
@@ -410,8 +410,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                     type="button"
                     onClick={() => handleQuantityChange('quantityAlert', false)}
                     className={`px-3 py-2 border-l transition-colors ${isDarkMode
-                        ? 'text-gray-400 hover:text-white border-gray-700'
-                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                      ? 'text-gray-400 hover:text-white border-gray-700'
+                      : 'text-gray-600 hover:text-gray-900 border-gray-300'
                       }`}
                   >
                     <Minus size={16} />
@@ -420,8 +420,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                     type="button"
                     onClick={() => handleQuantityChange('quantityAlert', true)}
                     className={`px-3 py-2 border-l transition-colors ${isDarkMode
-                        ? 'text-gray-400 hover:text-white border-gray-700'
-                        : 'text-gray-600 hover:text-gray-900 border-gray-300'
+                      ? 'text-gray-400 hover:text-white border-gray-700'
+                      : 'text-gray-600 hover:text-gray-900 border-gray-300'
                       }`}
                   >
                     <Plus size={16} />
@@ -443,8 +443,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                 />
                 <div className={`w-full h-24 border-2 border-dashed rounded flex items-center justify-center transition-colors ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 hover:border-gray-600'
-                    : 'bg-gray-50 border-gray-300 hover:border-gray-400'
+                  ? 'bg-gray-800 border-gray-700 hover:border-gray-600'
+                  : 'bg-gray-50 border-gray-300 hover:border-gray-400'
                   }`}>
                   <Camera className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} size={24} />
                 </div>
@@ -475,8 +475,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                 Modified By
               </label>
               <div className={`px-3 py-2 border rounded ${isDarkMode
-                  ? 'bg-gray-900 border-gray-700 text-gray-400'
-                  : 'bg-gray-100 border-gray-300 text-gray-600'
+                ? 'bg-gray-900 border-gray-700 text-gray-400'
+                : 'bg-gray-100 border-gray-300 text-gray-600'
                 }`}>
                 {formData.modifiedBy}
               </div>
@@ -493,8 +493,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                   value={formData.modifiedDate}
                   readOnly
                   className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700'
-                      : 'bg-white text-gray-900 border-gray-300'
+                    ? 'bg-gray-800 text-white border-gray-700'
+                    : 'bg-white text-gray-900 border-gray-300'
                     }`}
                 />
                 <Calendar className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
@@ -511,8 +511,8 @@ const InventoryFormModal: React.FC<InventoryFormModalProps> = ({
                 value={formData.category}
                 onChange={(e) => handleInputChange('category', e.target.value)}
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
                   }`}
               >
                 <option value="">Select category</option>

@@ -34,9 +34,10 @@ export const userService = {
   },
 
   // Get users by role ID
-  getUsersByRoleId: async (roleId: number): Promise<ApiResponse<User[]>> => {
+  getUsersByRoleId: async (roleId: number | number[]): Promise<ApiResponse<User[]>> => {
     try {
-      const response = await apiClient.get<ApiResponse<User[]>>(`/users?role_id=${roleId}`);
+      const param = Array.isArray(roleId) ? roleId.join(',') : roleId;
+      const response = await apiClient.get<ApiResponse<User[]>>(`/users?role_id=${param}`);
       return response.data;
     } catch (error: any) {
       console.error('Get users by role ID API error:', error.message);
@@ -296,7 +297,8 @@ export const logsService = {
     action?: string;
     days?: number;
   }): Promise<any> => {
-    const response = await apiClient.get('/logs/export', { params });
+    const responseType = params?.format === 'csv' ? 'blob' : 'json';
+    const response = await apiClient.get('/logs/export', { params, responseType });
     return response.data;
   },
 

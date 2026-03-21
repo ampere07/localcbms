@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, X } from 'lucide-react';
 import AddInventoryCategoryModal from '../modals/AddInventoryCategoryModal';
 import {
   getInventoryCategories,
@@ -8,6 +8,7 @@ import {
   InventoryCategory
 } from '../services/inventoryCategoryService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 const InventoryCategoryList: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -52,6 +53,27 @@ const InventoryCategoryList: React.FC = () => {
     fetchCategories();
   }, []);
 
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[InventoryCategory Soketi] Update received, refreshing:', data);
+      try {
+        await fetchCategories(true);
+        console.log('[InventoryCategory Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[InventoryCategory Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const categoryChannel = pusher.subscribe('inventory-categories');
+    categoryChannel.bind('inventory-category-updated', handleUpdate);
+
+    return () => {
+      categoryChannel.unbind('inventory-category-updated', handleUpdate);
+      pusher.unsubscribe('inventory-categories');
+    };
+  }, []);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -77,7 +99,7 @@ const InventoryCategoryList: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -174,7 +196,7 @@ const InventoryCategoryList: React.FC = () => {
       <div className={`h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4" style={{ borderColor: 'transparent', borderBottomColor: colorPalette?.primary || '#7c3aed' }}></div>
           <div className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Loading categories...</div>
         </div>
@@ -195,7 +217,7 @@ const InventoryCategoryList: React.FC = () => {
             onClick={() => fetchCategories()}
             className="text-white px-4 py-2 rounded transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -250,7 +272,7 @@ const InventoryCategoryList: React.FC = () => {
               placeholder="Search Inventory Category List"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${isDarkMode
+              className={`w-full rounded pl-10 pr-10 py-2 border focus:outline-none ${isDarkMode
                 ? 'bg-gray-800 text-white border-gray-600'
                 : 'bg-gray-100 text-gray-900 border-gray-300'
                 }`}
@@ -267,12 +289,21 @@ const InventoryCategoryList: React.FC = () => {
             />
             <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
               }`} />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                  }`}
+              >
+                <X size={16} />
+              </button>
+            )}
           </div>
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {

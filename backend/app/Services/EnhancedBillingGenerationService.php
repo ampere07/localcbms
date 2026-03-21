@@ -756,6 +756,7 @@ class EnhancedBillingGenerationService
         $transactions = DB::table('transactions')
             ->where('account_no', $account->account_no)
             ->where('status', 'Done')
+            ->whereNotIn('transaction_type', ['Security Deposit', 'Installation Fee'])
             ->whereMonth('payment_date', $lastMonth->month)
             ->whereYear('payment_date', $lastMonth->year)
             ->sum('received_payment');
@@ -827,8 +828,15 @@ class EnhancedBillingGenerationService
 
     protected function extractPlanName(string $desiredPlan): string
     {
+        // First handle " - " separator
         if (strpos($desiredPlan, ' - ') !== false) {
             $parts = explode(' - ', $desiredPlan);
+            $desiredPlan = trim($parts[0]);
+        }
+        
+        // Then handle space separator (e.g., "SWIFT 1000" -> "SWIFT")
+        if (strpos($desiredPlan, ' ') !== false) {
+            $parts = explode(' ', $desiredPlan);
             return trim($parts[0]);
         }
         
@@ -1085,3 +1093,4 @@ class EnhancedBillingGenerationService
         }
     }
 }
+

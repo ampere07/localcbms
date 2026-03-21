@@ -156,7 +156,7 @@ class MonitorController extends Controller
                     // OPTIONAL barangay filtering via customers table
                     ->leftJoin('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                     ->select(
-                        DB::raw("COALESCE(billing_status.status_name, 'Unknown') as label"),
+                        DB::raw("COALESCE(billing_status.status_name, 'Regular') as label"),
                         DB::raw('COUNT(*) as value')
                     )
                     ->groupBy('billing_status.status_name');
@@ -188,14 +188,14 @@ class MonitorController extends Controller
             if ($action === 'app_status') {
                 $qb = DB::table('applications')
                     ->select(
-                        DB::raw("COALESCE(status, 'Unknown') as label"),
+                        DB::raw("COALESCE(status, 'Pending') as label"),
                         DB::raw('COUNT(*) as value')
                     );
 
                 $applyScope($qb, 'applications.timestamp');
                 $applyBarangayOnApplications($qb, 'applications.barangay');
 
-                $qb->groupBy('applications.status');
+                $qb->groupBy(DB::raw("COALESCE(status, 'Pending')"));
 
                 $response['data'] = $qb->get();
                 $response['status'] = 'success';
@@ -390,10 +390,12 @@ class MonitorController extends Controller
             // X-axis: Status values (Paid, Unpaid, Pending, etc.), Y-axis: Count or Amount
             if (in_array($action, ['invoice_mon', 'transactions_mon', 'portal_mon'], true)) {
                 if ($action === 'invoice_mon') {
-                    // Get count/sum for each invoice status in the given year
+                    // Get count/sum for each invoice status per month in the given year
                     $qb = DB::table('invoices')
                         ->select(
-                            DB::raw("IFNULL(status, 'Unknown') as label"),
+                            DB::raw("MONTH(invoice_date) as month_num"),
+                            DB::raw("MONTHNAME(invoice_date) as month_name"),
+                            DB::raw("IFNULL(status, 'Unknown') as status_value"),
                             // Count records or sum amounts based on param
                             $param === 'amount' 
                                 ? DB::raw("SUM(IFNULL(total_amount, 0)) as value")
@@ -401,13 +403,27 @@ class MonitorController extends Controller
                         )
                         ->whereYear('invoice_date', $year)
                         ->whereNotNull('invoice_date')
-                        ->groupBy(DB::raw("IFNULL(status, 'Unknown')"))
-                        ->orderByDesc('value')
+                        ->groupBy(DB::raw("MONTH(invoice_date)"), DB::raw("MONTHNAME(invoice_date)"), DB::raw("IFNULL(status, 'Unknown')"))
+                        ->orderBy(DB::raw("MONTH(invoice_date)"))
                         ->get();
+                    
+                    // Transform to: {label: "January", series: {"Paid": 1000, "Unpaid": 200}}
+                    $months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+                    $result = [];
+                    
+                    foreach ($months as $month) {
+                        $result[$month] = ['label' => $month, 'series' => []];
+                    }
+                    
+                    foreach ($qb as $row) {
+                        if (isset($result[$row->month_name])) {
+                            $result[$row->month_name]['series'][$row->status_value] = (float)$row->value;
+                        }
+                    }
                     
                     return response()->json([
                         'status' => 'success', 
-                        'data' => $qb, 
+                        'data' => array_values($result), 
                         'barangays' => $response['barangays']
                     ]);
                 } elseif ($action === 'transactions_mon') {
@@ -577,6 +593,30 @@ class MonitorController extends Controller
                 return response()->json(['status' => 'success', 'data' => $qb->get(), 'barangays' => $response['barangays']]);
             }
 
+            // 12.1) DASHBOARD COUNTS (New)
+            if ($action === 'dashboard_counts') {
+                $counts = [
+                    'so_support_in_progress' => DB::table('service_orders')->where('support_status', 'In Progress')->count(),
+                    'so_visit_in_progress' => DB::table('service_orders')->where('visit_status', 'In Progress')->count(),
+                    'so_visit_pullout_in_progress' => DB::table('service_orders')
+                        ->leftJoin('support_concern', 'service_orders.concern_id', '=', 'support_concern.id')
+                        ->where('service_orders.visit_status', 'In Progress')
+                        ->where(function($q) {
+                            $q->where('support_concern.name', 'LIKE', '%Pullout%')
+                              ->orWhere('service_orders.concern_remarks', 'LIKE', '%Pullout%');
+                        })
+                        ->count(),
+                    'app_pending' => DB::table('applications')->where('status', 'Pending')->count(),
+                    'jo_in_progress' => DB::table('job_orders')->where('onsite_status', 'In Progress')->count(),
+                    'radius_online' => DB::table('online_status')->where('session_status', 'Online')->count(),
+                    'radius_offline' => DB::table('online_status')->where('session_status', 'Offline')->count(),
+                    'radius_blocked' => DB::table('online_status')->where('session_status', 'Blocked')->count(),
+                ];
+
+                return response()->json(['status' => 'success', 'data' => $counts]);
+            }
+
+
             // 13) TECHNICIAN AVAILABILITY
             if ($action === 'technician_availability') {
                 $techs = DB::table('users')
@@ -591,64 +631,157 @@ class MonitorController extends Controller
                     $name = trim(($tech->first_name ?? '') . ' ' . ($tech->last_name ?? ''));
                     if (!$name) $name = $tech->username;
 
-                    // Check Job Orders (Working if not Done)
-                    $activeJO = DB::table('job_orders')
+                    if (!$name) $name = $tech->username;
+
+                    // --- RESET TIME LOGIC (Every 7:59 AM GMT+8) ---
+                    $now = \Carbon\Carbon::now('Asia/Manila');
+                    $resetTime = $now->copy()->hour(7)->minute(59)->second(0);
+                    if ($now->lt($resetTime)) {
+                        $resetTime->subDay();
+                    }
+
+                    // 1. Fetch ALL tasks (JO/SO) that happened since resetTime
+                    $dailyJOs = DB::table('job_orders')
                         ->where('assigned_email', $email)
-                        ->where('onsite_status', '!=', 'Done')
-                        ->orderByDesc('updated_at')
+                        ->where(function($q) use ($resetTime) {
+                            $q->where('start_time', '>=', $resetTime)
+                              ->orWhere('end_time', '>=', $resetTime)
+                              ->orWhere(function($sq) { $sq->whereNotNull('start_time')->whereNull('end_time'); });
+                        })
+                        ->select('id', 'start_time', 'end_time', DB::raw("'jo' as task_type"))
+                        ->get();
+
+                    $dailySOs = DB::table('service_orders')
+                        ->where('assigned_email', $email)
+                        ->where(function($q) use ($resetTime) {
+                            $q->where('start_time', '>=', $resetTime)
+                              ->orWhere('end_time', '>=', $resetTime)
+                              ->orWhere(function($sq) { $sq->whereNotNull('start_time')->whereNull('end_time'); });
+                        })
+                        ->select('id', 'start_time', 'end_time', DB::raw("'so' as task_type"))
+                        ->get();
+
+                    // Combine and sort by start_time
+                    $allDailyTasks = $dailyJOs->concat($dailySOs)->sortBy('start_time');
+
+                    // 2. Calculate Cumulative Available Time
+                    $totalAvailableSeconds = 0;
+                    $refTime = $resetTime->copy();
+
+                    foreach ($allDailyTasks as $task) {
+                        $tStart = \Carbon\Carbon::parse($task->start_time, 'Asia/Manila');
+                        $tEnd = $task->end_time ? \Carbon\Carbon::parse($task->end_time, 'Asia/Manila') : null;
+
+                        // Ensure task start is not before reset
+                        if ($tStart->lt($resetTime)) $tStart = $resetTime->copy();
+
+                        // Idle gap found?
+                        if ($tStart->gt($refTime)) {
+                            $totalAvailableSeconds += $refTime->diffInSeconds($tStart);
+                        }
+
+                        // Update reference time to end of this task (or now if it's currently running)
+                        $actualEnd = $tEnd ?: $now;
+                        if ($actualEnd->gt($refTime)) {
+                            $refTime = $actualEnd->copy();
+                        }
+                    }
+
+                    // Final gap if they are currently available
+                    if ($refTime->lt($now)) {
+                        $totalAvailableSeconds += $refTime->diffInSeconds($now);
+                    }
+
+                    // Format available time
+                    $avHours = floor($totalAvailableSeconds / 3600);
+                    $avMins = floor(($totalAvailableSeconds % 3600) / 60);
+                    $availableTimeStr = "{$avHours}h {$avMins}m";
+
+                    // --- STATUS LOGIC (AS BEFORE) ---
+                    // 1. Check for CURRENT Working Task (Has start_time, No end_time)
+                    $workingJO = DB::table('job_orders')
+                        ->where('assigned_email', $email)
+                        ->whereNotNull('start_time')
+                        ->whereNull('end_time')
+                        ->orderByDesc('start_time')
                         ->first();
 
-                    // Check Service Orders (Working if not Resolved)
-                    $activeSO = DB::table('service_orders')
+                    $workingSO = DB::table('service_orders')
                         ->where('assigned_email', $email)
-                        ->where('support_status', '!=', 'Resolved')
-                        ->orderByDesc('updated_at')
+                        ->whereNotNull('start_time')
+                        ->whereNull('end_time')
+                        ->orderByDesc('start_time')
                         ->first();
+
+                    // 2. Count assigned tasks (Active but no start_time)
+                    $pendingJO = DB::table('job_orders')
+                        ->where('assigned_email', $email)
+                        ->where('onsite_status', '!=', 'Done')
+                        ->whereNull('start_time')
+                        ->count();
+
+                    $pendingSO = DB::table('service_orders')
+                        ->where('assigned_email', $email)
+                        ->where('visit_status', '!=', 'Resolved')
+                        ->where('visit_status', '!=', 'Done')
+                        ->whereNull('start_time')
+                        ->count();
+
+                    $totalPending = $pendingJO + $pendingSO;
 
                     // Default to Available
                     $status = 'Available';
-                    $details = 'Ready to accept tasks';
+                    $details = $totalPending > 0 ? "Ready to accept ($totalPending assigned)" : 'Ready to accept tasks';
                     $since = null;
                     $type = null;
 
-                    // If active JO exists, they are working
-                    if ($activeJO) {
+                    // If working JO or SO exists, they are working
+                    $joStartTime = $workingJO ? $workingJO->start_time : null;
+                    $soStartTime = $workingSO ? $workingSO->start_time : null;
+
+                    if ($workingJO || $workingSO) {
                         $status = 'Working';
-                        $details = 'Job Order #' . $activeJO->id . ' (' . ($activeJO->onsite_status ?? 'Unknown') . ')';
-                        $since = $activeJO->updated_at ?? $activeJO->created_at;
-                        $type = 'jo';
-                    } 
-                    // Else if active SO exists, they are working
-                    elseif ($activeSO) {
-                        $status = 'Working';
-                        $details = 'Service Order #' . $activeSO->id . ' (' . ($activeSO->support_status ?? 'Unknown') . ')';
-                        $since = $activeSO->updated_at ?? $activeSO->created_at;
-                        $type = 'so';
+                        if ($workingJO && (!$workingSO || $joStartTime > $soStartTime)) {
+                            $details = 'Job Order #' . $workingJO->id . ' (' . ($workingJO->onsite_status ?? 'Unknown') . ')';
+                            $since = $joStartTime;
+                            $type = 'jo';
+                        } else {
+                            $details = 'Service Order #' . $workingSO->id . ' (' . ($workingSO->visit_status ?? 'Unknown') . ')';
+                            $since = $soStartTime;
+                            $type = 'so';
+                        }
                     } 
                     // Otherwise they are available, find when they finished last task
                     else {
-                        // Find last finished JO
+                        // Find last finished JO/SO with end_time
                         $lastJO = DB::table('job_orders')
                             ->where('assigned_email', $email)
-                            ->where('onsite_status', 'Done')
-                            ->orderByDesc('updated_at')
+                            ->whereNotNull('end_time')
+                            ->orderByDesc('end_time')
                             ->first();
 
-                        // Find last finished SO
                         $lastSO = DB::table('service_orders')
                             ->where('assigned_email', $email)
-                            ->where('support_status', 'Resolved')
-                            ->orderByDesc('updated_at')
+                            ->whereNotNull('end_time')
+                            ->orderByDesc('end_time')
                             ->first();
                         
-                        $joTime = $lastJO ? ($lastJO->updated_at ?? $lastJO->created_at) : null;
-                        $soTime = $lastSO ? ($lastSO->updated_at ?? $lastSO->created_at) : null;
+                        $joTime = $lastJO ? $lastJO->end_time : null;
+                        $soTime = $lastSO ? $lastSO->end_time : null;
                         
-                        // Compare who is later
                         if ($joTime && $soTime) {
                             $since = ($joTime > $soTime) ? $joTime : $soTime;
                         } else {
                             $since = $joTime ?? $soTime ?? null;
+                        }
+
+                        // Fallback if no end_time ever recorded
+                        if (!$since) {
+                            $lastActivity = DB::table('activity_log')
+                                ->where('description', 'LIKE', "%$email%")
+                                ->orderByDesc('created_at')
+                                ->first();
+                            $since = $lastActivity ? $lastActivity->created_at : $tech->created_at ?? now();
                         }
                     }
 
@@ -669,7 +802,8 @@ class MonitorController extends Controller
                             'status' => $status,
                             'details' => $details,
                             'since' => $since,
-                            'type' => $type
+                            'type' => $type,
+                            'available_time_str' => $availableTimeStr
                         ]
                     ];
                 }
@@ -686,7 +820,7 @@ class MonitorController extends Controller
                     ->join('applications', 'job_orders.application_id', '=', 'applications.id')
                     ->select(
                         'users.username as team_name',
-                        DB::raw("'Job Order' as type"),
+                        DB::raw("'Installation (Joborder)' as type"),
                         DB::raw("CONCAT(applications.first_name, ' ', applications.last_name) as customer"),
                         DB::raw("CONCAT(
                             COALESCE(applications.installation_address, ''), ' ', 
@@ -697,7 +831,8 @@ class MonitorController extends Controller
                             COALESCE(applications.region, '')
                         ) as address"),
                         // Cast updated_at to char to match service_orders type if diff, or just for safety
-                        DB::raw("CAST(job_orders.updated_at AS CHAR) as start_time_str"),
+                        DB::raw("CAST(COALESCE(job_orders.start_time, job_orders.updated_at) AS CHAR) as start_time_str"),
+                        DB::raw("CAST(job_orders.end_time AS CHAR) as end_time_str"),
                         'job_orders.onsite_status as status'
                     )
                     ->where('job_orders.onsite_status', '!=', 'Done')
@@ -711,7 +846,7 @@ class MonitorController extends Controller
                     ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                     ->select(
                         'users.username as team_name',
-                        DB::raw("COALESCE(service_orders.concern, 'Service Order') as type"),
+                        DB::raw("CONCAT(COALESCE(service_orders.repair_category, service_orders.concern, 'Repair'), ' (Service Order)') as type"),
                         DB::raw("CONCAT(customers.first_name, ' ', customers.last_name) as customer"),
                         DB::raw("CONCAT(
                             COALESCE(customers.address, ''), ' ', 
@@ -720,7 +855,8 @@ class MonitorController extends Controller
                             COALESCE(customers.city, ''), ' ', 
                             COALESCE(customers.region, '')
                         ) as address"),
-                        DB::raw("CAST(service_orders.updated_at AS CHAR) as start_time_str"),
+                        DB::raw("CAST(COALESCE(service_orders.start_time, service_orders.updated_at) AS CHAR) as start_time_str"),
+                        DB::raw("CAST(service_orders.end_time AS CHAR) as end_time_str"),
                         'service_orders.visit_status as status'
                     )
                     ->where('service_orders.visit_status', '!=', 'Resolved')
@@ -733,7 +869,9 @@ class MonitorController extends Controller
                 // Calculate duration in PHP
                 $data = $all->map(function ($item) {
                     $startStr = $item->start_time_str ?? null;
+                    $endStr = $item->end_time_str ?? null;
                     $start = $startStr ? \Carbon\Carbon::parse($startStr) : null;
+                    $end = $endStr ? \Carbon\Carbon::parse($endStr) : null;
                     
                     if (!$start) {
                         return [
@@ -746,14 +884,15 @@ class MonitorController extends Controller
                         ];
                     }
 
-                    $now = \Carbon\Carbon::now();
+                    $endTime = $end ?: \Carbon\Carbon::now();
                     
                     // Duration string
-                    $diff = $start->diff($now);
+                    $diff = $start->diff($endTime);
                     $duration = "";
                     if ($diff->d > 0) $duration .= $diff->d . "d ";
                     if ($diff->h > 0) $duration .= $diff->h . "h ";
-                    $duration .= $diff->i . "m";
+                    $duration .= $diff->i . "m ";
+                    $duration .= $diff->s . "s";
 
                     return [
                         'team_name' => $item->team_name,
@@ -768,6 +907,95 @@ class MonitorController extends Controller
                 return response()->json(['status' => 'success', 'data' => $data]);
             }
 
+            // 15) AGENT DETAILED QUEUE
+            if ($action === 'agent_detailed_queue') {
+                // 1) Job Orders
+                $jobs = DB::table('job_orders')
+                    ->join('applications', 'job_orders.application_id', '=', 'applications.id')
+                    ->select(
+                        'applications.referred_by as team_name',
+                        DB::raw("'Installation (Joborder)' as type"),
+                        DB::raw("CONCAT(applications.first_name, ' ', applications.last_name) as customer"),
+                        DB::raw("CONCAT(
+                            COALESCE(applications.installation_address, ''), ' ', 
+                            COALESCE(applications.landmark, ''), ' ', 
+                            COALESCE(applications.location, ''), ' ', 
+                            COALESCE(applications.barangay, ''), ' ', 
+                            COALESCE(applications.city, ''), ' ', 
+                            COALESCE(applications.region, '')
+                        ) as address"),
+                        DB::raw("CAST(COALESCE(job_orders.start_time, job_orders.updated_at) AS CHAR) as start_time_str"),
+                        DB::raw("CAST(job_orders.end_time AS CHAR) as end_time_str"),
+                        'job_orders.onsite_status as status'
+                    )
+                    ->where('job_orders.onsite_status', '!=', 'Done')
+                    ->whereNotNull('applications.referred_by')
+                    ->where('applications.referred_by', '!=', '');
+
+                // 2) Service Orders
+                $services = DB::table('service_orders')
+                    ->join('billing_accounts', 'service_orders.account_no', '=', 'billing_accounts.account_no')
+                    ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
+                    ->select(
+                        'customers.referred_by as team_name',
+                        DB::raw("CONCAT(COALESCE(service_orders.repair_category, service_orders.concern, 'Repair'), ' (Service Order)') as type"),
+                        DB::raw("CONCAT(customers.first_name, ' ', customers.last_name) as customer"),
+                        DB::raw("CONCAT(
+                            COALESCE(customers.address, ''), ' ', 
+                            COALESCE(customers.location, ''), ' ', 
+                            COALESCE(customers.barangay, ''), ' ', 
+                            COALESCE(customers.city, ''), ' ', 
+                            COALESCE(customers.region, '')
+                        ) as address"),
+                        DB::raw("CAST(COALESCE(service_orders.start_time, service_orders.updated_at) AS CHAR) as start_time_str"),
+                        DB::raw("CAST(service_orders.end_time AS CHAR) as end_time_str"),
+                        'service_orders.visit_status as status'
+                    )
+                    ->where('service_orders.visit_status', '!=', 'Resolved')
+                    ->where('service_orders.visit_status', '!=', 'Done') 
+                    ->whereNotNull('customers.referred_by')
+                    ->where('customers.referred_by', '!=', '');
+
+                $all = $jobs->union($services)->get();
+
+                $data = $all->map(function ($item) {
+                    $startStr = $item->start_time_str ?? null;
+                    $endStr = $item->end_time_str ?? null;
+                    $start = $startStr ? \Carbon\Carbon::parse($startStr) : null;
+                    $end = $endStr ? \Carbon\Carbon::parse($endStr) : null;
+                    
+                    if (!$start) {
+                        return [
+                            'team_name' => $item->team_name,
+                            'type' => $item->type,
+                            'customer' => $item->customer,
+                            'address' => trim($item->address),
+                            'start' => '-',
+                            'duration' => '-'
+                        ];
+                    }
+
+                    $endTime = $end ?: \Carbon\Carbon::now();
+                    $diff = $start->diff($endTime);
+                    $duration = "";
+                    if ($diff->d > 0) $duration .= $diff->d . "d ";
+                    if ($diff->h > 0) $duration .= $diff->h . "h ";
+                    $duration .= $diff->i . "m ";
+                    $duration .= $diff->s . "s";
+
+                    return [
+                        'team_name' => $item->team_name,
+                        'type' => $item->type,
+                        'customer' => $item->customer,
+                        'address' => trim($item->address),
+                        'start' => $start->format('M d, Y h:i A'),
+                        'duration' => $duration
+                    ];
+                });
+
+                return response()->json(['status' => 'success', 'data' => $data]);
+            }
+            
             return response()->json([
                 'status' => 'error',
                 'message' => "Unknown action: $action",
@@ -782,3 +1010,4 @@ class MonitorController extends Controller
         }
     }
 }
+

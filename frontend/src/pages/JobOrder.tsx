@@ -1,11 +1,17 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { FileText, Search, ChevronDown, ChevronRight, ListFilter, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight, Globe, Calendar } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
-import JobOrderFunnelFilter from '../components/filters/JobOrderFunnelFilter';
+import JobOrderFunnelFilter, { FilterValues, allColumns as filterColumns } from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
 import { JobOrder } from '../types/jobOrder';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
+
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
 interface LocationItem {
   id: string;
@@ -17,11 +23,17 @@ type DisplayMode = 'card' | 'table';
 
 const allColumns = [
   { key: 'timestamp', label: 'Timestamp', width: 'min-w-40' },
-  { key: 'billingStatus', label: 'Billing Status', width: 'min-w-32' },
-  { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
   { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-36' },
-  { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
+  { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
+  { key: 'fullName', label: 'Full Name of Client', width: 'min-w-48' },
+  { key: 'address', label: 'Full Address of Client', width: 'min-w-56' },
+  { key: 'onsiteStatus', label: 'Onsite Status', width: 'min-w-32' },
+  { key: 'billingStatus', label: 'Billing Status', width: 'min-w-32' },
+  { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'billingDay', label: 'Billing Day', width: 'min-w-28' },
+  { key: 'installationFee', label: 'Installation Fee', width: 'min-w-32' },
+  { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
+  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
   { key: 'modemRouterSN', label: 'Modem/Router SN', width: 'min-w-36' },
   { key: 'routerModel', label: 'Router Model', width: 'min-w-32' },
   { key: 'groupName', label: 'Group Name', width: 'min-w-32' },
@@ -52,14 +64,10 @@ const allColumns = [
   { key: 'createdByUserEmail', label: 'Created By User Email', width: 'min-w-48' },
   { key: 'updatedAt', label: 'Updated At', width: 'min-w-40' },
   { key: 'updatedByUserEmail', label: 'Updated By User Email', width: 'min-w-48' },
-  { key: 'assignedEmail', label: 'Assigned Email', width: 'min-w-48' },
   { key: 'pppoeUsername', label: 'PPPoE Username', width: 'min-w-36' },
   { key: 'pppoePassword', label: 'PPPoE Password', width: 'min-w-36' },
-  { key: 'fullName', label: 'Full Name of Client', width: 'min-w-48' },
-  { key: 'address', label: 'Full Address of Client', width: 'min-w-56' },
+  { key: 'location', label: 'Location', width: 'min-w-40' },
   { key: 'contractTemplate', label: 'Contract Template', width: 'min-w-36' },
-  { key: 'modifiedBy', label: 'Modified By', width: 'min-w-32' },
-  { key: 'modifiedDate', label: 'Modified Date', width: 'min-w-40' },
   { key: 'firstName', label: 'First Name', width: 'min-w-32' },
   { key: 'middleInitial', label: 'Middle Initial', width: 'min-w-28' },
   { key: 'lastName', label: 'Last Name', width: 'min-w-32' },
@@ -70,7 +78,6 @@ const allColumns = [
   { key: 'city', label: 'City', width: 'min-w-28' },
   { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
   { key: 'choosePlan', label: 'Choose Plan', width: 'min-w-36' },
-  { key: 'referredBy', label: 'Referred By', width: 'min-w-32' },
   { key: 'startTimestamp', label: 'Start Timestamp', width: 'min-w-40' },
   { key: 'endTimestamp', label: 'End Timestamp', width: 'min-w-40' },
   { key: 'duration', label: 'Duration', width: 'min-w-28' }
@@ -82,17 +89,19 @@ const JobOrderPage: React.FC = () => {
   const [expandedStatuses, setExpandedStatuses] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(null);
-  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore } = useJobOrderStore();
+  const { jobOrders, isLoading, error, fetchJobOrders, refreshJobOrders, silentRefresh, hasMore, fetchUpdates } = useJobOrderStore();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<string>('');
+  const [roleId, setRoleId] = useState<string | number | null>(null);
+  const [agentName, setAgentName] = useState<string>('');
   const [displayMode, setDisplayMode] = useState<DisplayMode>('table');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [filterDropdownOpen, setFilterDropdownOpen] = useState(false);
-  const [visibleColumns, setVisibleColumns] = useState<string[]>(allColumns.map(col => col.key));
-  const [sortColumn, setSortColumn] = useState<string | null>(null);
-  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [visibleColumns, setVisibleColumns] = useState<string[]>(['timestamp', 'dateInstalled', 'referredBy', 'fullName', 'address', 'onsiteStatus', 'billingStatus', 'assignedEmail', 'billingDay', 'installationFee', 'modifiedBy', 'modifiedDate']);
+  const [sortColumn, setSortColumn] = useState<string | null>('timestamp');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [hoveredColumn, setHoveredColumn] = useState<string | null>(null);
   const [resizingColumn, setResizingColumn] = useState<string | null>(null);
   const [columnWidths, setColumnWidths] = useState<Record<string, number>>({});
@@ -103,7 +112,10 @@ const JobOrderPage: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [mobileView, setMobileView] = useState<'locations' | 'orders' | 'details'>('locations');
+  const [technicianEmail, setTechnicianEmail] = useState<string | undefined>(undefined);
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
+  const [dateInstalledFrom, setDateInstalledFrom] = useState<string>('');
+  const [dateInstalledTo, setDateInstalledTo] = useState<string>('');
   const dropdownRef = useRef<HTMLDivElement>(null);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
@@ -111,6 +123,8 @@ const JobOrderPage: React.FC = () => {
   const startWidthRef = useRef<number>(0);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const cardScrollRef = useRef<HTMLDivElement>(null);
+  const tableScrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [activeFilters, setActiveFilters] = useState<any>(() => {
     const saved = localStorage.getItem('jobOrderFilters');
@@ -124,8 +138,15 @@ const JobOrderPage: React.FC = () => {
     return {};
   });
 
+  const removeFilter = (key: string) => {
+    const newFilters = { ...activeFilters };
+    delete newFilters[key];
+    setActiveFilters(newFilters);
+    localStorage.setItem('jobOrderFilters', JSON.stringify(newFilters));
+  };
+
   // No need for internal currentPage as it's managed by store
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -143,7 +164,16 @@ const JobOrderPage: React.FC = () => {
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection]);
+  }, [selectedLocation, searchQuery, activeFilters, sortColumn, sortDirection, itemsPerPage, dateInstalledFrom, dateInstalledTo]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (displayMode === 'card' && cardScrollRef.current) {
+      cardScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (displayMode === 'table' && tableScrollRef.current) {
+      tableScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage, displayMode]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -165,7 +195,64 @@ const JobOrderPage: React.FC = () => {
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return '-';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const formatOnlyDate = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const formatDateTime = (dateStr?: string | null): string => {
+    if (!dateStr) return '-';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return '-';
+    }
+  };
+
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return '-';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
     } catch (e) {
       return '-';
     }
@@ -205,7 +292,48 @@ const JobOrderPage: React.FC = () => {
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        setUserRole(userData.role || '');
+        const role = userData.role || '';
+        const id = userData.role_id || null;
+        setUserRole(role);
+        setRoleId(id);
+
+        const isAgent = role.toLowerCase() === 'agent' || String(id) === '4';
+        if (isAgent) {
+          setVisibleColumns([
+            'timestamp',
+            'referredBy',
+            'fullName',
+            'contactNumber',
+            'emailAddress',
+            'address',
+            'installationFee',
+            'billingStatus',
+            'billingDay',
+            'dateInstalled',
+            'onsiteStatus'
+          ]);
+        }
+
+        // Try getting full_name directly first, then fallback to parts
+        let fullName = userData.full_name || '';
+
+        if (!fullName) {
+          const firstName = userData.first_name || '';
+          const middleInitial = userData.middle_initial ? userData.middle_initial.trim() : '';
+          const lastName = userData.last_name || '';
+
+          fullName = [
+            firstName,
+            middleInitial ? `${middleInitial}.` : '',
+            lastName
+          ].filter(Boolean).join(' ').replace(/\s+/g, ' ').trim();
+        }
+
+        setAgentName(fullName);
+
+        if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
+          setTechnicianEmail(userData.email);
+        }
       } catch (error) {
         console.error('Failed to parse auth data:', error);
       }
@@ -227,23 +355,79 @@ const JobOrderPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    const loadData = async () => {
-      const authData = localStorage.getItem('authData');
-      let email: string | undefined;
-      if (authData) {
-        try {
-          const userData = JSON.parse(authData);
-          if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-            email = userData.email;
-          }
-        } catch (err) { }
+    // Use silentRefresh on mount to check for updates without showing a spinner if we already have data
+    silentRefresh(technicianEmail);
+  }, [silentRefresh, technicianEmail]);
+
+  // Pusher/Soketi connection for real-time job order updates
+  useEffect(() => {
+    const handleJobOrderUpdate = async (data: any) => {
+      console.log('[JobOrder Soketi] Update received, silently refreshing:', data);
+      try {
+        await silentRefresh(technicianEmail);
+        console.log('[JobOrder Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[JobOrder Soketi] Failed to refresh data:', err);
       }
-      // Fetch a large number to support local filtering and hierarchy
-      await fetchJobOrders(1, 10000, '', email);
     };
 
-    loadData();
-  }, [fetchJobOrders]);
+    const jobChannel = pusher.subscribe('job-orders');
+    const appChannel = pusher.subscribe('applications');
+
+    // Subscription success/error handlers
+    const channels = [
+      { channel: jobChannel, name: 'job-orders' },
+      { channel: appChannel, name: 'applications' }
+    ];
+    channels.forEach(({ channel, name }) => {
+      channel.bind('pusher:subscription_succeeded', () => {
+        console.log(`[JobOrder Soketi] Successfully subscribed to ${name} channel`);
+      });
+      channel.bind('pusher:subscription_error', (error: any) => {
+        console.error(`[JobOrder Soketi] Subscription error on ${name}:`, error);
+      });
+    });
+
+    jobChannel.bind('job-order-done', handleJobOrderUpdate);
+    appChannel.bind('new-application', handleJobOrderUpdate);
+
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[JobOrder Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected') {
+        if (jobChannel.subscribed !== true) pusher.subscribe('job-orders');
+        if (appChannel.subscribed !== true) pusher.subscribe('applications');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
+    return () => {
+      channels.forEach(({ channel }) => {
+        channel.unbind('pusher:subscription_succeeded');
+        channel.unbind('pusher:subscription_error');
+      });
+      jobChannel.unbind('job-order-done', handleJobOrderUpdate);
+      appChannel.unbind('new-application', handleJobOrderUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
+      pusher.unsubscribe('job-orders');
+      pusher.unsubscribe('applications');
+    };
+  }, [silentRefresh, technicianEmail]);
+
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[JobOrder Page] Polling for updates...');
+      try {
+        await fetchUpdates(technicianEmail);
+      } catch (err) {
+        console.error('[JobOrder Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates, technicianEmail]);
 
   // Idle detection and auto-refresh logic
   useEffect(() => {
@@ -253,17 +437,7 @@ const JobOrderPage: React.FC = () => {
     const refreshData = async () => {
       console.log('User idle for 15 minutes, auto-refreshing Job Order data...');
       try {
-        const authData = localStorage.getItem('authData');
-        let email: string | undefined;
-        if (authData) {
-          try {
-            const userData = JSON.parse(authData);
-            if ((userData.role && userData.role.toLowerCase() === 'technician' || String(userData.role_id) === '2') && userData.email) {
-              email = userData.email;
-            }
-          } catch (err) { }
-        }
-        await silentRefresh(email);
+        await silentRefresh(technicianEmail);
       } catch (err) {
         console.error('Idle refresh failed:', err);
       }
@@ -280,7 +454,7 @@ const JobOrderPage: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -299,7 +473,29 @@ const JobOrderPage: React.FC = () => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [silentRefresh]);
+  }, [silentRefresh, technicianEmail]);
+
+  const accessibleJobOrders = useMemo(() => {
+    const isAgent = userRole?.toLowerCase() === 'agent' || String(roleId) === '4';
+    if (isAgent && agentName) {
+      const lowerAgentName = agentName.toLowerCase().trim();
+      return jobOrders.filter((jo: JobOrder) => {
+        const referredBy = (jo.Referred_By || jo.referred_by || '').toLowerCase().trim();
+        return referredBy === lowerAgentName;
+      });
+    }
+    return jobOrders;
+  }, [jobOrders, userRole, roleId, agentName]);
+
+  // Update selectedJobOrder with fresh data after refresh
+  useEffect(() => {
+    if (selectedJobOrder) {
+      const updatedOrder = accessibleJobOrders.find(order => order.id === selectedJobOrder.id);
+      if (updatedOrder && JSON.stringify(updatedOrder) !== JSON.stringify(selectedJobOrder)) {
+        setSelectedJobOrder(updatedOrder);
+      }
+    }
+  }, [accessibleJobOrders]);
 
   const getClientFullName = (jobOrder: JobOrder): string => {
     return [
@@ -312,6 +508,7 @@ const JobOrderPage: React.FC = () => {
   const getClientFullAddress = (jobOrder: JobOrder): string => {
     const addressParts = [
       jobOrder.Address || jobOrder.address,
+      jobOrder.Location || jobOrder.location,
       jobOrder.Barangay || jobOrder.barangay,
       jobOrder.City || jobOrder.city,
       jobOrder.Region || jobOrder.region
@@ -332,10 +529,162 @@ const JobOrderPage: React.FC = () => {
         }
       } catch (err) { }
     }
-    await refreshJobOrders(email);
+    await fetchUpdates(email);
     setIsRefreshing(false);
   };
 
+  // Helper function to apply funnel filters
+  const getVal = (jo: JobOrder, key: string) => {
+    switch (key) {
+      case 'timestamp': return jo.Timestamp || jo.timestamp || '';
+      case 'application_id': return jo.Application_ID || jo.application_id || '';
+      case 'billingStatus': return jo.billing_status || jo.Billing_Status || '';
+      case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
+      case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
+      case 'installationFee': return jo.Installation_Fee || jo.installation_fee || 0;
+      case 'billingDay': return jo.Billing_Day ?? jo.billing_day ?? 0;
+      case 'modemRouterSN': return jo.Modem_Router_SN || jo.modem_router_sn || '';
+      case 'routerModel': return jo.Router_Model || jo.router_model || '';
+      case 'groupName': return jo.group_name || jo.Group_Name || '';
+      case 'lcpnap': return jo.LCPNAP || jo.lcpnap || '';
+      case 'port': return jo.PORT || jo.Port || jo.port || '';
+      case 'vlan': return jo.VLAN || jo.vlan || '';
+      case 'username': return jo.Username || jo.username || '';
+      case 'ipAddress': return jo.IP_Address || jo.ip_address || jo.IP || jo.ip || '';
+      case 'connectionType': return jo.Connection_Type || jo.connection_type || '';
+      case 'usageType': return jo.Usage_Type || jo.usage_type || '';
+      case 'usernameStatus': return jo.username_status || jo.Username_Status || '';
+      case 'visitBy': return jo.Visit_By || jo.visit_by || '';
+      case 'visitWith': return jo.Visit_With || jo.visit_with || '';
+      case 'visitWithOther': return jo.Visit_With_Other || jo.visit_with_other || '';
+      case 'onsiteRemarks': return jo.Onsite_Remarks || jo.onsite_remarks || '';
+      case 'statusRemarks': return jo.Status_Remarks || jo.status_remarks || '';
+      case 'fullName': return getClientFullName(jo);
+      case 'emailAddress': return jo.Email_Address || jo.email_address || jo.Applicant_Email_Address || jo.applicant_email_address || '';
+      case 'referredBy': return jo.Referred_By || jo.referred_by || '';
+      case 'contactNumber': return jo.Contact_Number || jo.contact_number || jo.Mobile_Number || jo.mobile_number || '';
+      case 'barangay': return jo.Barangay || jo.barangay || '';
+      case 'city': return jo.City || jo.city || '';
+      case 'region': return jo.Region || jo.region || '';
+      case 'choosePlan': return jo.Choose_Plan || jo.Desired_Plan || jo.choose_plan || jo.desired_plan || '';
+      case 'contractTemplate': return jo.Contract_Template || jo.contract_template || (jo as any).contract_link || '';
+      case 'Account_No': return jo.Account_No || jo.Account_Number || jo.account_no || jo.account_number || '';
+      case 'houseFrontPictureUrl': return jo.house_front_picture_url || jo.House_Front_Picture || '';
+      case 'address': return getClientFullAddress(jo);
+      case 'assignedEmail': return jo.Assigned_Email || jo.assigned_email || '';
+      case 'createdAt': return jo.created_at || jo.Created_At || '';
+      case 'updatedAt': return jo.updated_at || jo.Updated_At || '';
+      case 'lcp': return jo.LCP || jo.lcp || '';
+      case 'nap': return jo.NAP || jo.nap || '';
+      case 'startTimestamp': return jo.StartTimeStamp || jo.start_timestamp || jo.start_time || '';
+      case 'endTimestamp': return jo.EndTimeStamp || jo.end_timestamp || jo.end_time || '';
+      case 'duration':
+        const start = jo.start_time || jo.StartTimeStamp || jo.start_timestamp;
+        const end = jo.end_time || jo.EndTimeStamp || jo.end_timestamp;
+        return calculateDuration(start, end);
+      default: return (jo as any)[key] || '';
+    }
+  };
+
+  const applyFunnelFilters = (orders: JobOrder[], filters: any): JobOrder[] => {
+    if (!filters || Object.keys(filters).length === 0) return orders;
+
+    return orders.filter(order => {
+      return Object.entries(filters).every(([key, filter]: [string, any]) => {
+        const orderValue = getVal(order, key);
+
+        let match = true;
+        if (filter.type === 'text') {
+          if (!filter.value) match = true;
+          else {
+            const value = String(orderValue || '').toLowerCase();
+            match = value.includes(filter.value.toLowerCase());
+          }
+        } else if (filter.type === 'number') {
+          const numValue = Number(orderValue);
+          if (isNaN(numValue)) match = false;
+          else if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) match = false;
+          else if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) match = false;
+          else match = true;
+        } else if (filter.type === 'checklist') {
+          if (!filter.value || filter.value.length === 0) match = true;
+          else {
+            const valStr = String(orderValue || '').toLowerCase();
+            match = filter.value.some((v: string) => {
+              const filterVal = String(v).toLowerCase();
+              return valStr === filterVal;
+            });
+          }
+        } else if (filter.type === 'date') {
+          if (!orderValue) match = false;
+          else {
+            const normalizeDate = (d: any, isEnd: boolean = false) => {
+              let s = String(d).trim().replace(' ', 'T');
+              if (s.length === 10) {
+                s = isEnd ? `${s}T23:59:59.999` : `${s}T00:00:00`;
+              }
+              return new Date(s).getTime();
+            };
+
+            const orderTime = normalizeDate(orderValue);
+            const fromTime = filter.from ? normalizeDate(filter.from) : null;
+            const toTime = filter.to ? normalizeDate(filter.to, true) : null;
+
+            if (fromTime && orderTime < fromTime) match = false;
+            else if (toTime && orderTime > toTime) match = false;
+            else match = true;
+          }
+        }
+
+        return match;
+      });
+    });
+  };
+
+  // 1. Initial search and funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredJobOrders = useMemo(() => {
+    let filtered = accessibleJobOrders.filter((jobOrder: JobOrder) => {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      return searchQuery === '' || checkValue(jobOrder);
+    });
+
+    // Apply sidebar date range filters for date installed
+    if (dateInstalledFrom || dateInstalledTo) {
+      filtered = filtered.filter(record => {
+        const dateValueStr = record.Date_Installed || record.date_installed;
+        if (!dateValueStr) return false;
+
+        const dateValue = new Date(dateValueStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (dateInstalledFrom) {
+          const fromDate = new Date(dateInstalledFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (dateInstalledTo) {
+          const toDate = new Date(dateInstalledTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
+    return applyFunnelFilters(filtered, activeFilters);
+  }, [accessibleJobOrders, searchQuery, activeFilters, dateInstalledFrom, dateInstalledTo]);
+
+  // Derive statusItems components from the search-filtered set
   const statusItems = useMemo(() => {
     const statuses = [
       { name: 'Done', value: 'done' },
@@ -350,10 +699,10 @@ const JobOrderPage: React.FC = () => {
       tree[s.value] = { count: 0, billingStatuses: {} };
     });
 
-    jobOrders.forEach((job: JobOrder) => {
+    globalFilteredJobOrders.forEach((job: JobOrder) => {
       let onsite = (job.Onsite_Status || job.onsite_status || '').toLowerCase().trim();
 
-      // Normalize common variations and handle unknown as 'empty'
+      // Normalize onsite status
       if (onsite === 'completed' || onsite === 'finish' || onsite === 'done') onsite = 'done';
       else if (onsite === 'in progress' || onsite === 'inprogress') onsite = 'inprogress';
       else if (onsite === 'cancelled' || onsite === 'failed') onsite = 'failed';
@@ -389,55 +738,19 @@ const JobOrderPage: React.FC = () => {
           }))
         }))
       })),
-      total: jobOrders.length
+      total: globalFilteredJobOrders.length
     };
-  }, [jobOrders]);
+  }, [globalFilteredJobOrders]);
 
-  // Helper function to apply funnel filters
-  const applyFunnelFilters = (orders: JobOrder[], filters: any): JobOrder[] => {
-    if (!filters || Object.keys(filters).length === 0) return orders;
+  const sortedJobOrders = useMemo(() => {
+    let filtered = globalFilteredJobOrders.filter((jobOrder: JobOrder) => {
+      if (selectedLocation === 'all') return true;
 
-    return orders.filter(order => {
-      return Object.entries(filters).every(([key, filter]: [string, any]) => {
-        const orderValue = (order as any)[key] || (order as any)[key.toLowerCase()] || (order as any)[key.charAt(0).toUpperCase() + key.slice(1).replace(/_./g, (match) => match.charAt(1).toUpperCase())];
-
-        if (filter.type === 'text') {
-          if (!filter.value) return true;
-          const value = String(orderValue || '').toLowerCase();
-          return value.includes(filter.value.toLowerCase());
-        }
-
-        if (filter.type === 'number') {
-          const numValue = Number(orderValue);
-          if (isNaN(numValue)) return false;
-          if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-          if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-          return true;
-        }
-
-        if (filter.type === 'date') {
-          if (!orderValue) return false;
-          const dateValue = new Date(orderValue).getTime();
-          if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-          if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-          return true;
-        }
-
-        return true;
-      });
-    });
-  };
-
-  let filteredJobOrders = jobOrders.filter((jobOrder: JobOrder) => {
-    let matchesLocation = selectedLocation === 'all';
-
-    if (!matchesLocation) {
       if (selectedLocation.startsWith('status:')) {
         const parts = selectedLocation.split(':');
         const onsiteValue = parts[1];
         let appOnsite = (jobOrder.Onsite_Status || jobOrder.onsite_status || '').toLowerCase().trim();
 
-        // Normalize appOnsite for comparison
         if (appOnsite === 'completed' || appOnsite === 'finish' || appOnsite === 'done') appOnsite = 'done';
         else if (appOnsite === 'in progress' || appOnsite === 'inprogress') appOnsite = 'inprogress';
         else if (appOnsite === 'cancelled' || appOnsite === 'failed') appOnsite = 'failed';
@@ -459,85 +772,44 @@ const JobOrderPage: React.FC = () => {
             if (recordBrgy !== brgyName) return false;
           }
         }
-        matchesLocation = true;
+        return true;
       }
+      return true;
+    });
+
+    const presorted = [...filtered].sort((a, b) => {
+      const timeA = new Date(getVal(a, 'timestamp') || 0).getTime();
+      const timeB = new Date(getVal(b, 'timestamp') || 0).getTime();
+      if (timeA !== timeB) return timeB - timeA;
+      
+      const idA = parseInt(String(a.id)) || 0;
+      const idB = parseInt(String(b.id)) || 0;
+      return idB - idA;
+    });
+
+    if (sortColumn) {
+      return [...presorted].sort((a, b) => {
+        let aValue = getVal(a, sortColumn);
+        let bValue = getVal(b, sortColumn);
+
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase();
+          bValue = bValue.toLowerCase();
+        }
+
+        if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
+        if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
+        return 0;
+      });
     }
-
-    const fullName = getClientFullName(jobOrder).toLowerCase();
-    const matchesSearch = searchQuery === '' ||
-      fullName.includes(searchQuery.toLowerCase()) ||
-      ((jobOrder.Address || jobOrder.address) || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-      ((jobOrder.Assigned_Email || jobOrder.assigned_email) || '').toLowerCase().includes(searchQuery.toLowerCase());
-
-    return matchesLocation && matchesSearch;
-  });
-
-  // Apply funnel filters
-  filteredJobOrders = applyFunnelFilters(filteredJobOrders, activeFilters);
-
-  const presortedJobOrders = [...filteredJobOrders].sort((a, b) => {
-    const idA = parseInt(String(a.id)) || 0;
-    const idB = parseInt(String(b.id)) || 0;
-    return idB - idA;
-  });
-
-  const sortedJobOrders = [...presortedJobOrders].sort((a, b) => {
-    if (!sortColumn) return 0;
-
-    let aValue: any = '';
-    let bValue: any = '';
-
-    const getVal = (jo: JobOrder, key: string) => {
-      switch (key) {
-        case 'timestamp': return jo.Timestamp || jo.timestamp || '';
-        case 'billingStatus': return jo.billing_status || jo.Billing_Status || '';
-        case 'onsiteStatus': return jo.Onsite_Status || jo.onsite_status || '';
-        case 'dateInstalled': return jo.Date_Installed || jo.date_installed || '';
-        case 'installationFee': return jo.Installation_Fee || jo.installation_fee || 0;
-        case 'billingDay': return jo.Billing_Day ?? jo.billing_day ?? 0;
-        case 'modemRouterSN': return jo.Modem_Router_SN || jo.modem_router_sn || '';
-        case 'routerModel': return jo.Router_Model || jo.router_model || '';
-        case 'groupName': return jo.group_name || jo.Group_Name || '';
-        case 'lcpnap': return jo.LCPNAP || jo.lcpnap || '';
-        case 'port': return jo.PORT || jo.Port || jo.port || '';
-        case 'vlan': return jo.VLAN || jo.vlan || '';
-        case 'username': return jo.Username || jo.username || '';
-        case 'ipAddress': return jo.IP_Address || jo.ip_address || jo.IP || jo.ip || '';
-        case 'connectionType': return jo.Connection_Type || jo.connection_type || '';
-        case 'usageType': return jo.Usage_Type || jo.usage_type || '';
-        case 'usernameStatus': return jo.username_status || jo.Username_Status || '';
-        case 'visitBy': return jo.Visit_By || jo.visit_by || '';
-        case 'visitWith': return jo.Visit_With || jo.visit_with || '';
-        case 'visitWithOther': return jo.Visit_With_Other || jo.visit_with_other || '';
-        case 'onsiteRemarks': return jo.Onsite_Remarks || jo.onsite_remarks || '';
-        case 'statusRemarks': return jo.Status_Remarks || jo.status_remarks || '';
-        case 'fullName': return getClientFullName(jo);
-        case 'address': return getClientFullAddress(jo);
-        case 'assignedEmail': return jo.Assigned_Email || jo.assigned_email || '';
-        case 'createdAt': return jo.created_at || jo.Created_At || '';
-        case 'updatedAt': return jo.updated_at || jo.Updated_At || '';
-        default: return '';
-      }
-    };
-
-    aValue = getVal(a, sortColumn);
-    bValue = getVal(b, sortColumn);
-
-    if (typeof aValue === 'string' && typeof bValue === 'string') {
-      aValue = aValue.toLowerCase();
-      bValue = bValue.toLowerCase();
-    }
-
-    if (aValue < bValue) return sortDirection === 'asc' ? -1 : 1;
-    if (aValue > bValue) return sortDirection === 'asc' ? 1 : -1;
-    return 0;
-  });
+    return presorted;
+  }, [globalFilteredJobOrders, selectedLocation, sortColumn, sortDirection]);
 
   // Derived paginated records
   const paginatedJobOrders = React.useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return sortedJobOrders.slice(startIndex, startIndex + itemsPerPage);
-  }, [sortedJobOrders, currentPage]);
+  }, [sortedJobOrders, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(sortedJobOrders.length / itemsPerPage);
 
@@ -580,6 +852,8 @@ const JobOrderPage: React.FC = () => {
         case 'done':
         case 'active':
         case 'completed':
+        case 'vip':
+        case 'service account':
           textColor = 'text-green-400';
           break;
         case 'pending':
@@ -588,10 +862,16 @@ const JobOrderPage: React.FC = () => {
           break;
         case 'suspended':
         case 'overdue':
+        case 'cancelled':
+        case 'blacklisted':
+        case 'pullout':
           textColor = 'text-red-500';
           break;
-        case 'cancelled':
-          textColor = 'text-red-500';
+        case 'freeze':
+          textColor = 'text-blue-400';
+          break;
+        case 'inactive':
+          textColor = 'text-gray-400';
           break;
         default:
           textColor = 'text-gray-400';
@@ -811,7 +1091,7 @@ const JobOrderPage: React.FC = () => {
       case 'timestamp':
         return formatDate(jobOrder.Timestamp || jobOrder.timestamp);
       case 'dateInstalled':
-        return formatDate(jobOrder.Date_Installed || jobOrder.date_installed);
+        return formatOnlyDate(jobOrder.Date_Installed || jobOrder.date_installed);
       case 'installationFee':
         return formatPrice(jobOrder.Installation_Fee || jobOrder.installation_fee);
       case 'billingDay':
@@ -957,17 +1237,21 @@ const JobOrderPage: React.FC = () => {
         return getValue(jobOrder.City || jobOrder.city);
       case 'barangay':
         return getValue(jobOrder.Barangay || jobOrder.barangay);
+      case 'location':
+        return getValue(jobOrder.Location || jobOrder.location);
 
       case 'choosePlan':
         return getValue(jobOrder.Choose_Plan || jobOrder.Desired_Plan || jobOrder.choose_plan || jobOrder.desired_plan);
       case 'referredBy':
         return getValue(jobOrder.Referred_By || jobOrder.referred_by);
       case 'startTimestamp':
-        return formatDate(jobOrder.StartTimeStamp || jobOrder.start_timestamp);
+        return formatDate(jobOrder.StartTimeStamp || jobOrder.start_timestamp || jobOrder.start_time);
       case 'endTimestamp':
-        return formatDate(jobOrder.EndTimeStamp || jobOrder.end_timestamp);
+        return formatDate(jobOrder.EndTimeStamp || jobOrder.end_timestamp || jobOrder.end_time);
       case 'duration':
-        return getValue(jobOrder.Duration || jobOrder.duration);
+        const start = jobOrder.start_time || jobOrder.StartTimeStamp || jobOrder.start_timestamp;
+        const end = jobOrder.end_time || jobOrder.EndTimeStamp || jobOrder.end_timestamp;
+        return getValue(calculateDuration(start, end));
       default:
         return '-';
     }
@@ -997,16 +1281,22 @@ const JobOrderPage: React.FC = () => {
               className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
               }}
             >
               <div className="flex items-center">
-                <FileText className="h-5 w-5 mr-3" />
                 <span className="capitalize text-base">All Job Orders</span>
               </div>
-              <span className="px-3 py-1 rounded-full text-sm bg-gray-700 text-gray-300">
+              <span className={`px-2 py-1 rounded text-sm transition-colors ${selectedLocation === 'all'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                }`}
+                style={selectedLocation === 'all' ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
                 {statusItems.total}
               </span>
             </button>
@@ -1036,7 +1326,7 @@ const JobOrderPage: React.FC = () => {
                     className={`w-full flex items-center justify-between px-4 py-4 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {
                       color: isDarkMode ? '#d1d5db' : '#374151'
                     }}
@@ -1047,10 +1337,9 @@ const JobOrderPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-3">
                       {status.count > 0 && (
-                        <span className={`px-3 py-1 rounded-full text-sm ${selectedLocation === status.id ? '' : 'bg-gray-700 text-gray-300'}`}
+                        <span className={`px-2 py-0.5 rounded text-sm transition-colors ${selectedLocation === status.id ? 'text-white' : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'}`}
                           style={selectedLocation === status.id ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
-                            color: 'white'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           } : {}}>
                           {status.count}
                         </span>
@@ -1090,17 +1379,16 @@ const JobOrderPage: React.FC = () => {
                           className={`w-full flex items-center justify-between pl-12 pr-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                           style={selectedLocation === billing.id ? {
                             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                            color: colorPalette?.primary || '#fb923c'
+                            color: colorPalette?.primary || '#7c3aed'
                           } : {
                             color: isDarkMode ? '#9ca3af' : '#4b5563'
                           }}
                         >
                           <span className="truncate flex-1 text-left">{billing.name}</span>
                           <div className="flex items-center space-x-3">
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${selectedLocation === billing.id ? '' : 'bg-gray-800 text-gray-500'}`}
+                            <span className={`text-xs px-1.5 py-0.5 rounded transition-colors ${selectedLocation === billing.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                               style={selectedLocation === billing.id ? {
-                                backgroundColor: colorPalette?.primary || '#ea580c',
-                                color: 'white'
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
                               } : {}}>
                               {billing.count}
                             </span>
@@ -1138,17 +1426,16 @@ const JobOrderPage: React.FC = () => {
                               className={`w-full flex items-center justify-between pl-20 pr-4 py-2 text-xs transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}
                               style={selectedLocation === brgy.id ? {
                                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                                color: colorPalette?.primary || '#fb923c',
+                                color: colorPalette?.primary || '#7c3aed',
                                 fontWeight: 'bold'
                               } : {
                                 color: isDarkMode ? '#6b7280' : '#4b5563'
                               }}
                             >
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${selectedLocation === brgy.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-400'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
-                                  color: 'white'
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
                                 } : {}}>
                                 {brgy.count}
                               </span>
@@ -1194,18 +1481,66 @@ const JobOrderPage: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === 'all' ? '' : 'text-gray-300'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500
                 } : {}}
               >
                 <div className="flex items-center">
-                  <FileText className="h-4 w-4 mr-2" />
                   <span>All Job Orders</span>
                 </div>
                 <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
                   {statusItems.total}
                 </span>
               </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Date Installed Range
+                  </span>
+                  {(dateInstalledFrom || dateInstalledTo) && (
+                    <button
+                      onClick={() => {
+                        setDateInstalledFrom('');
+                        setDateInstalledTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={dateInstalledFrom}
+                      onChange={(e) => setDateInstalledFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={dateInstalledFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={dateInstalledTo}
+                      onChange={(e) => setDateInstalledTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={dateInstalledTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
 
               {/* Status Items */}
               {statusItems.items.map((status) => {
@@ -1231,7 +1566,7 @@ const JobOrderPage: React.FC = () => {
                     className={`flex-shrink-0 flex flex-col items-center justify-center px-4 py-2 text-xs transition-colors ${selectedLocation === status.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className={`h-2.5 w-2.5 rounded-full mb-1 ${getStatusColor(statusValue).replace('text-', 'bg-')}`} />
@@ -1239,7 +1574,7 @@ const JobOrderPage: React.FC = () => {
                     {status.count > 0 && (
                       <span className="mt-1 px-2 py-0.5 rounded-full text-[10px]"
                         style={selectedLocation === status.id ? {
-                          backgroundColor: colorPalette?.primary || '#ea580c',
+                          backgroundColor: colorPalette?.primary || '#7c3aed',
                           color: 'white'
                         } : {
                           backgroundColor: '#374151',
@@ -1277,23 +1612,22 @@ const JobOrderPage: React.FC = () => {
                 }`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c',
+                color: colorPalette?.primary || '#7c3aed',
                 fontWeight: 500
               } : {
                 color: isDarkMode ? '#d1d5db' : '#374151'
               }}
             >
               <div className="flex items-center">
-                <FileText className="h-4 w-4 mr-2" />
                 <span>All Job Orders</span>
               </div>
               <span
-                className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                className={`px-2 py-0.5 rounded text-xs transition-colors ${selectedLocation === 'all'
                   ? 'text-white'
-                  : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                   }`}
                 style={selectedLocation === 'all' ? {
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 {statusItems.total}
@@ -1324,7 +1658,7 @@ const JobOrderPage: React.FC = () => {
                       }`}
                     style={selectedLocation === status.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center flex-1">
@@ -1333,10 +1667,9 @@ const JobOrderPage: React.FC = () => {
                     </div>
                     <div className="flex items-center space-x-2">
                       {status.count > 0 && (
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${selectedLocation === status.id ? '' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedLocation === status.id ? 'text-white' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                           style={selectedLocation === status.id ? {
-                            backgroundColor: colorPalette?.primary || '#ea580c',
-                            color: 'white'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           } : {}}>
                           {status.count}
                         </span>
@@ -1374,17 +1707,16 @@ const JobOrderPage: React.FC = () => {
                             }`}
                           style={selectedLocation === billing.id ? {
                             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                            color: colorPalette?.primary || '#fb923c'
+                            color: colorPalette?.primary || '#7c3aed'
                           } : {
                             color: isDarkMode ? '#9ca3af' : '#4b5563'
                           }}
                         >
                           <span className="truncate flex-1 text-left">{billing.name}</span>
                           <div className="flex items-center space-x-2">
-                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === billing.id ? '' : 'bg-gray-800 text-gray-500'}`}
+                            <span className={`px-1.5 py-0.5 rounded text-[10px] ${selectedLocation === billing.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'}`}
                               style={selectedLocation === billing.id ? {
-                                backgroundColor: colorPalette?.primary || '#ea580c',
-                                color: 'white'
+                                backgroundColor: colorPalette?.primary || '#7c3aed'
                               } : {}}>
                               {billing.count}
                             </span>
@@ -1420,17 +1752,16 @@ const JobOrderPage: React.FC = () => {
                                 }`}
                               style={selectedLocation === brgy.id ? {
                                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                                color: colorPalette?.primary || '#fb923c',
+                                color: colorPalette?.primary || '#7c3aed',
                                 fontWeight: 'bold'
                               } : {
                                 color: isDarkMode ? '#6b7280' : '#4b5563'
                               }}
                             >
                               <span className="truncate flex-1 text-left">{brgy.name}</span>
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] ${selectedLocation === brgy.id ? '' : 'bg-gray-800 text-gray-600'}`}
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] transition-colors ${selectedLocation === brgy.id ? 'text-white bg-white/20' : isDarkMode ? 'bg-gray-800 text-gray-600' : 'bg-gray-100 text-gray-400'}`}
                                 style={selectedLocation === brgy.id ? {
-                                  backgroundColor: colorPalette?.primary || '#ea580c',
-                                  color: 'white'
+                                  backgroundColor: colorPalette?.primary || '#7c3aed'
                                 } : {}}>
                                 {brgy.count}
                               </span>
@@ -1450,7 +1781,7 @@ const JobOrderPage: React.FC = () => {
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
             onMouseDown={handleMouseDownSidebarResize}
             style={{
-              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isResizingSidebar && colorPalette?.primary) {
@@ -1487,7 +1818,7 @@ const JobOrderPage: React.FC = () => {
                   placeholder="Search job orders..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-300'} border`}
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-300'} border`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -1501,18 +1832,47 @@ const JobOrderPage: React.FC = () => {
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <div className="flex space-x-2">
                 <button
                   onClick={() => setIsFunnelFilterOpen(true)}
-                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                    ? 'hover:bg-gray-700 text-white'
-                    : 'hover:bg-gray-200 text-gray-900'
+                  title={activeFilters && Object.keys(activeFilters).length > 0
+                    ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                      const colName = filterColumns.find(c => c.key === key)?.label || key;
+                      if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                      if (filter.type === 'number') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                        if (filter.from) return `${colName}: > ${filter.from}`;
+                        if (filter.to) return `${colName}: < ${filter.to}`;
+                      }
+                      if (filter.type === 'date') {
+                        if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                        if (filter.from) return `${colName}: After ${filter.from}`;
+                        if (filter.to) return `${colName}: Before ${filter.to}`;
+                      }
+                      return colName;
+                    }).join('\n')}`
+                    : "Filter Job Orders"
+                  }
+                  className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${activeFilters && Object.keys(activeFilters).length > 0
+                    ? 'text-red-500 hover:bg-red-500/10'
+                    : isDarkMode
+                      ? 'hover:bg-gray-700 text-white'
+                      : 'hover:bg-gray-200 text-gray-900'
                     }`}
                 >
                   <Filter className="h-5 w-5" />
                 </button>
-                {displayMode === 'table' && (
+                {!(userRole.toLowerCase() === 'agent' || String(roleId) === '4') && displayMode === 'table' && (
                   <div className="relative" ref={filterDropdownRef}>
                     <button
                       className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
@@ -1520,8 +1880,9 @@ const JobOrderPage: React.FC = () => {
                         : 'hover:bg-gray-100 text-gray-900'
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                      title="Column Visibility"
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <>
@@ -1549,7 +1910,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleSelectAllColumns}
                                 className="text-sm px-3 py-1 rounded transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316',
+                                  color: colorPalette?.primary || '#7c3aed',
                                   backgroundColor: isDarkMode ? '#374151' : '#e5e7eb'
                                 }}
                               >
@@ -1559,7 +1920,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleDeselectAllColumns}
                                 className="text-sm px-3 py-1 rounded transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316',
+                                  color: colorPalette?.primary || '#7c3aed',
                                   backgroundColor: isDarkMode ? '#374151' : '#e5e7eb'
                                 }}
                               >
@@ -1579,10 +1940,11 @@ const JobOrderPage: React.FC = () => {
                                     type="checkbox"
                                     checked={visibleColumns.includes(column.key)}
                                     onChange={() => handleToggleColumn(column.key)}
-                                    className={`mr-3 h-4 w-4 rounded text-orange-600 focus:ring-orange-500 ${isDarkMode
+                                    className={`mr-3 h-4 w-4 rounded ${isDarkMode
                                       ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800'
                                       : 'border-gray-300 bg-white focus:ring-offset-white'
                                       }`}
+                                    style={{ accentColor: colorPalette?.primary || '#7c3aed' }}
                                   />
                                   <span>{column.label}</span>
                                 </label>
@@ -1605,7 +1967,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleSelectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1625,7 +1987,7 @@ const JobOrderPage: React.FC = () => {
                                 onClick={handleDeselectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#f97316'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1655,7 +2017,8 @@ const JobOrderPage: React.FC = () => {
                                   type="checkbox"
                                   checked={visibleColumns.includes(column.key)}
                                   onChange={() => handleToggleColumn(column.key)}
-                                  className="mr-3 h-4 w-4 rounded border-gray-600 bg-gray-700 text-orange-600 focus:ring-orange-500 focus:ring-offset-gray-800"
+                                  className={`mr-3 h-4 w-4 rounded ${isDarkMode ? 'border-gray-600 bg-gray-700 focus:ring-offset-gray-800' : 'border-gray-300 bg-white focus:ring-offset-white'}`}
+                                  style={{ accentColor: colorPalette?.primary || '#7c3aed' }}
                                 />
                                 <span>{column.label}</span>
                               </label>
@@ -1674,7 +2037,7 @@ const JobOrderPage: React.FC = () => {
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
@@ -1687,7 +2050,7 @@ const JobOrderPage: React.FC = () => {
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                         style={displayMode === 'card' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1701,7 +2064,7 @@ const JobOrderPage: React.FC = () => {
                         }}
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'}`}
                         style={displayMode === 'table' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1716,7 +2079,7 @@ const JobOrderPage: React.FC = () => {
                   disabled={isRefreshing}
                   className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isRefreshing && colorPalette?.accent) {
@@ -1736,8 +2099,83 @@ const JobOrderPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Active Funnel Filters Row */}
+          {Object.keys(activeFilters || {}).length > 0 && (
+            <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Active Filters:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(activeFilters || {}).map(([key, filter]: [string, any]) => {
+                  const column = filterColumns.find(c => (c as any).key === key);
+                  const label = column?.label || key;
+
+                  let displayValue = '';
+                  if (filter.type === 'text' || filter.type === 'boolean') {
+                    displayValue = String(filter.value);
+                  } else if (filter.type === 'checklist') {
+                    displayValue = Array.isArray(filter.value)
+                      ? filter.value.join(', ')
+                      : String(filter.value);
+                  } else if (filter.type === 'number' || filter.type === 'date') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                    else if (filter.from) displayValue = `> ${filter.from}`;
+                    else if (filter.to) displayValue = `< ${filter.to}`;
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                      style={{
+                        backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                        color: colorPalette?.primary || '#7c3aed',
+                        border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                      }}
+                    >
+                      <span className="opacity-70 mr-1">{label}:</span>
+                      <span className="truncate max-w-[150px]">{displayValue}</span>
+                      <button
+                        onClick={() => removeFilter(key)}
+                        className={`ml-1 p-0.5 rounded-full transition-colors`}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.primary) {
+                            e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    setActiveFilters({});
+                    localStorage.removeItem('jobOrderFilters');
+                  }}
+                  className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+            <div className={`flex-1 ${displayMode === 'table' ? 'overflow-hidden' : 'overflow-y-auto'}`} ref={cardScrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -1798,7 +2236,7 @@ const JobOrderPage: React.FC = () => {
                 )
               ) : (
                 <div className="h-full relative flex flex-col">
-                  <div className="flex-1 overflow-auto">
+                  <div className="flex-1 overflow-auto" ref={tableScrollRef}>
                     <table ref={tableRef} className="w-max min-w-full text-sm border-separate border-spacing-0">
                       <thead>
                         <tr className={`border-b sticky top-0 z-10 ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-200 bg-gray-100'
@@ -1838,14 +2276,14 @@ const JobOrderPage: React.FC = () => {
                                       <ArrowDown
                                         className="h-4 w-4"
                                         style={{
-                                          color: colorPalette?.primary || '#fb923c'
+                                          color: colorPalette?.primary || '#7c3aed'
                                         }}
                                       />
                                     ) : (
                                       <ArrowUp
                                         className="h-4 w-4 text-gray-400 transition-colors"
                                         style={{
-                                          color: hoveredColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                          color: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                         }}
                                       />
                                     )}
@@ -1856,7 +2294,7 @@ const JobOrderPage: React.FC = () => {
                                 <div
                                   className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group-hover:bg-gray-600"
                                   style={{
-                                    backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#f97316') : undefined
+                                    backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                   }}
                                   onMouseDown={(e) => handleMouseDownResize(e, column.key)}
                                 />
@@ -1918,10 +2356,38 @@ const JobOrderPage: React.FC = () => {
             {/* Pagination Controls */}
             {!isLoading && sortedJobOrders.length > 0 && totalPages > 1 && (
               <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedJobOrders.length)}</span> of <span className="font-medium">{sortedJobOrders.length}</span> results
+                <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                  <div className="flex items-center gap-2">
+                    <span>Show</span>
+                    <select
+                      value={itemsPerPage}
+                      onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                      className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                    <span>entries</span>
+                  </div>
+                  <span>
+                    Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, sortedJobOrders.length)}</span> of <span className="font-medium">{sortedJobOrders.length}</span> results
+                  </span>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                    className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                    title="First Page"
+                  >
+                    <ChevronsLeft size={16} />
+                  </button>
+
                   <button
                     onClick={() => handlePageChange(currentPage - 1)}
                     disabled={currentPage === 1}
@@ -1949,6 +2415,18 @@ const JobOrderPage: React.FC = () => {
                   >
                     Next
                   </button>
+
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+                      ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                      : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                      }`}
+                    title="Last Page"
+                  >
+                    <ChevronsRight size={16} />
+                  </button>
                 </div>
               </div>
             )}
@@ -1962,7 +2440,7 @@ const JobOrderPage: React.FC = () => {
           <JobOrderDetails
             jobOrder={selectedJobOrder}
             onClose={handleMobileBack}
-            onRefresh={refreshJobOrders}
+            onRefresh={() => fetchUpdates(technicianEmail)}
             isMobile={true}
           />
         </div>
@@ -1973,7 +2451,7 @@ const JobOrderPage: React.FC = () => {
           <JobOrderDetails
             jobOrder={selectedJobOrder}
             onClose={() => setSelectedJobOrder(null)}
-            onRefresh={refreshJobOrders}
+            onRefresh={() => fetchUpdates(technicianEmail)}
             isMobile={false}
           />
         </div>
@@ -1982,11 +2460,12 @@ const JobOrderPage: React.FC = () => {
       <JobOrderFunnelFilter
         isOpen={isFunnelFilterOpen}
         onClose={() => setIsFunnelFilterOpen(false)}
-        onApplyFilters={(filters) => {
-          console.log('Applied filters:', filters);
+        onApplyFilters={(filters: any) => {
+          console.log('[JobOrderPage] Applying filters:', filters);
           setActiveFilters(filters);
           localStorage.setItem('jobOrderFilters', JSON.stringify(filters));
           setIsFunnelFilterOpen(false);
+          setCurrentPage(1);
         }}
         currentFilters={activeFilters}
       />

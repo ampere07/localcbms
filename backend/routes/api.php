@@ -39,13 +39,22 @@ use App\Http\Controllers\Api\DisconnectionLogsController;
 use App\Http\Controllers\Api\ReconnectionLogsController;
 use App\Http\Controllers\ConsolidatedNotificationController;
 use App\Http\Controllers\Api\ServiceOrderItemApiController;
+use App\Http\Controllers\ReportController;
+
+Route::get('/reports', [ReportController::class, 'index']);
+Route::post('/reports', [ReportController::class, 'store']);
 
 Route::get('/monitor/handle', [MonitorController::class, 'handle']);
 Route::post('/monitor/handle', [MonitorController::class, 'handle']); // Ensure POST is also handled for save_template actions if not using REST
 Route::get('/sms-blast', [SmsBlastController::class, 'index']);
+Route::post('/sms-blast', [SmsBlastController::class, 'store']);
 Route::get('/expenses-logs', [ExpensesLogController::class, 'index']);
 Route::get('/disconnection-logs', [DisconnectionLogsController::class, 'index']);
 Route::get('/smart-olt/validate-sn', [\App\Http\Controllers\SmartOltController::class, 'validateOnuSn']);
+Route::get('/smart-olt', [\App\Http\Controllers\SmartOltController::class, 'index']);
+Route::post('/smart-olt', [\App\Http\Controllers\SmartOltController::class, 'store']);
+Route::put('/smart-olt/{id}', [\App\Http\Controllers\SmartOltController::class, 'update']);
+Route::delete('/smart-olt/{id}', [\App\Http\Controllers\SmartOltController::class, 'destroy']);
 Route::get('/reconnection-logs', [ReconnectionLogsController::class, 'index']);
 
 // SMS Template Routes
@@ -599,13 +608,13 @@ Route::delete('/barangays/{id}', function($id, Request $request) {
     return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('barangay', $id, $request);
 });
 
-Route::get('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'getAllVillages']);
-Route::post('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'addVillage']);
+Route::get('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'getAllDetails']);
+Route::post('/villages', [\App\Http\Controllers\Api\LocationApiController::class, 'addLocation']);
 Route::put('/villages/{id}', function($id, Request $request) {
-    return app(\App\Http\Controllers\Api\LocationApiController::class)->updateLocation('village', $id, $request);
+    return app(\App\Http\Controllers\Api\LocationApiController::class)->updateLocation('location', $id, $request);
 });
 Route::delete('/villages/{id}', function($id, Request $request) {
-    return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('village', $id, $request);
+    return app(\App\Http\Controllers\Api\LocationApiController::class)->deleteLocation('location', $id, $request);
 });
 
 // Alternative endpoint formats for maximum compatibility
@@ -872,6 +881,26 @@ Route::post('/fix-customer-password', function (Request $request) {
     }
 });
 
+// Work Order Category Management Routes
+Route::prefix('work-categories')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'destroy']);
+});
+
+// Work Order Management Routes
+Route::prefix('work-orders')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'destroy']);
+});
+
 // Authentication endpoints
 Route::post('/login-debug', function (Request $request) {
     try {
@@ -977,7 +1006,24 @@ Route::post('/login', function (Request $request) {
         }
         
         // Verify password
-        if (!Hash::check($password, $user->password_hash)) {
+        $passwordMatches = Hash::check($password, $user->password_hash);
+        
+        // For customers (role_id 3), allow variations of the leading '0' if the primary check fails
+        if (!$passwordMatches && $user->role_id == 3) {
+            $altPassword = null;
+            if (str_starts_with($password, '0')) {
+                $altPassword = substr($password, 1); // Try without leading '0'
+            } else {
+                $altPassword = '0' . $password; // Try with leading '0'
+            }
+            
+            if ($altPassword && Hash::check($altPassword, $user->password_hash)) {
+                $passwordMatches = true;
+                \Log::info('Customer login: Password matched using variation', ['user_id' => $user->id]);
+            }
+        }
+
+        if (!$passwordMatches) {
             \Log::warning('Login failed: Invalid password', [
                 'identifier' => $identifier,
                 'ip' => $request->ip()
@@ -1034,6 +1080,7 @@ Route::post('/login', function (Request $request) {
                 'email' => $user->email_address,
                 'full_name' => $fullName,
                 'role' => $primaryRole,
+                'role_id' => $user->role_id,
             ]
         ];
         
@@ -1078,19 +1125,49 @@ Route::post('/login', function (Request $request) {
 });
 
 Route::post('/forgot-password', function (Request $request) {
-    $email = $request->input('email');
+    $identifier = $request->input('email') ?: $request->input('account_no');
     
-    if (!$email) {
+    if (!$identifier) {
         return response()->json([
             'status' => 'error',
-            'message' => 'Email is required'
+            'message' => 'Email address or account number is required'
         ], 400);
     }
     
-    return response()->json([
-        'status' => 'success',
-        'message' => 'Password reset instructions have been sent to your email.'
-    ]);
+    // Find user by username (account number) or email address
+    $user = \App\Models\User::where('username', $identifier)
+               ->orWhere('email_address', $identifier)
+               ->first();
+    
+    if (!$user) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'Account or email not found'
+        ], 404);
+    }
+    
+    if (!$user->email_address) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'This account does not have a registered email address. Please contact support.'
+        ], 400);
+    }
+    
+    try {
+        $emailQueueService = app(\App\Services\EmailQueueService::class);
+        $emailQueueService->sendUserCredentials($user);
+        
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Your account details have been sent to your registered email address.'
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Forgot password email queuing failed', ['error' => $e->getMessage()]);
+        return response()->json([
+            'status' => 'error',
+            'message' => 'An error occurred while processing your request. Please try again later.'
+        ], 500);
+    }
 });
 
 // Health check
@@ -1412,6 +1489,184 @@ Route::get('/plans/{id}', [\App\Http\Controllers\Api\PlanApiController::class, '
 Route::put('/plans/{id}', [\App\Http\Controllers\Api\PlanApiController::class, 'update']);
 Route::delete('/plans/{id}', [\App\Http\Controllers\Api\PlanApiController::class, 'destroy']);
 
+// Plan Related Data - fetch applications, job orders, customers by plan name
+Route::get('/plans/{id}/related', function ($id) {
+    try {
+        $plan = \Illuminate\Support\Facades\DB::table('plan_list')->where('id', $id)->first();
+        if (!$plan) {
+            return response()->json(['success' => false, 'message' => 'Plan not found'], 404);
+        }
+        $planName = $plan->plan_name;
+
+        // Related Applications (match by desired_plan string)
+        $applications = collect([]);
+        try {
+            $applications = \Illuminate\Support\Facades\DB::table('applications')
+                ->leftJoin('application_visits', 'applications.id', '=', 'application_visits.application_id')
+                ->leftJoin('job_orders', 'applications.id', '=', 'job_orders.application_id')
+                ->where(function($query) use ($planName) {
+                    $query->where('applications.desired_plan', $planName)
+                          ->orWhere('applications.desired_plan', 'LIKE', '%' . $planName . '%');
+                })
+                ->select(
+                    'applications.*',
+                    'application_visits.visit_by',
+                    'application_visits.visit_with',
+                    'application_visits.visit_with_other',
+                    'application_visits.visit_remarks as remarks',
+                    'job_orders.usage_type',
+                    \Illuminate\Support\Facades\DB::raw('NULL as ownership'),
+                    'applications.promo as applying_for',
+                    \Illuminate\Support\Facades\DB::raw('(SELECT COUNT(*) FROM job_orders jo2 WHERE jo2.application_id = applications.id) as job_orders_count')
+                )
+                ->orderBy('applications.created_at', 'desc')
+                ->limit(50)
+                ->get()
+                ->map(function ($app) {
+                    $app->full_name = trim(($app->first_name ?? '') . ' ' . ($app->last_name ?? ''));
+                    return $app;
+                });
+        } catch (\Exception $e) {
+            \Log::warning('Plan related applications query failed: ' . $e->getMessage());
+        }
+
+        // Related Job Orders (go through applications table via application_id FK)
+        $jobOrders = collect([]);
+        try {
+            $applicationIds = $applications->pluck('id')->toArray();
+            if (!empty($applicationIds)) {
+                $jobOrders = \Illuminate\Support\Facades\DB::table('job_orders')
+                    ->whereIn('application_id', $applicationIds)
+                    ->orderBy('created_at', 'desc')
+                    ->limit(50)
+                    ->get()
+                    ->map(function($jo) {
+                        try {
+                            $app = \Illuminate\Support\Facades\DB::table('applications')->where('id', $jo->application_id)->first();
+                            $visit = \Illuminate\Support\Facades\DB::table('application_visits')->where('application_id', $jo->application_id)->first();
+                            
+                            $billing = null;
+                            if (isset($jo->account_id)) {
+                                $billing = \Illuminate\Support\Facades\DB::table('billing_accounts')->where('id', $jo->account_id)->first();
+                            }
+                            
+                            $updatedBy = null;
+                            if (isset($jo->updated_by_user_id)) {
+                                $updatedBy = \Illuminate\Support\Facades\DB::table('users')->where('id', $jo->updated_by_user_id)->first();
+                            }
+                            
+                            $visitByUser = null;
+                            if (isset($jo->visit_by_user_id)) {
+                                $visitByUser = \Illuminate\Support\Facades\DB::table('users')->where('id', $jo->visit_by_user_id)->first();
+                            }
+                            
+                            $first_name = $jo->first_name ?? ($app ? $app->first_name : '');
+                            $last_name = $jo->last_name ?? ($app ? $app->last_name : '');
+                            
+                            $jo->first_name = $first_name;
+                            $jo->last_name = $last_name;
+                            $jo->email_address = $jo->email_address ?? ($app ? $app->email_address : '');
+                            $jo->mobile_number = $jo->mobile_number ?? ($app ? $app->mobile_number : '');
+                            $jo->installation_address = $jo->installation_address ?? ($app ? $app->installation_address : '');
+                            $jo->barangay = $jo->barangay ?? ($app ? $app->barangay : '');
+                            $jo->city = $jo->city ?? ($app ? $app->city : '');
+                            $jo->region = $jo->region ?? ($app ? $app->region : '');
+                            $jo->desired_plan = $jo->desired_plan ?? ($app ? $app->desired_plan : '');
+                            $jo->referred_by = $jo->referred_by ?? ($app ? $app->referred_by : '');
+                            $jo->applying_for = $jo->applying_for ?? ($app ? $app->promo : '');
+                            $jo->terms_agreed = $jo->terms_agreed ?? ($app ? $app->terms_agreed : '');
+
+                            $jo->visit_with_other = $jo->visit_with_other ?? ($visit ? ($visit->visit_with_other ?? '') : '');
+                            $jo->visit_remarks = $jo->visit_remarks ?? ($visit ? ($visit->visit_remarks ?? '') : '');
+                            
+                            $jo->account_no = $jo->account_no ?? ($billing ? $billing->account_no : '');
+
+                            $modifier_first = $updatedBy ? $updatedBy->first_name : '';
+                            $modifier_last = $updatedBy ? $updatedBy->last_name : '';
+                            $jo->modified_by = trim($modifier_first . ' ' . $modifier_last);
+                            if (empty($jo->modified_by)) {
+                                $jo->modified_by = $jo->updated_by ?? '';
+                            }
+
+                            $v_first = $visitByUser ? $visitByUser->first_name : '';
+                            $v_last = $visitByUser ? $visitByUser->last_name : '';
+                            $computedUser = trim($v_first . ' ' . $v_last);
+                            
+                            $jo->computed_visit_by = $computedUser ?: ($jo->visit_by ?? ($visit ? ($visit->visit_by ?? '') : ''));
+
+                            $jo->job_order_no = 'JO-' . str_pad($jo->id, 5, '0', STR_PAD_LEFT);
+                            $jo->customer_name = trim($first_name . ' ' . $last_name);
+                            $jo->computed_full_address = trim(implode(', ', array_filter([$jo->installation_address, $jo->barangay, $jo->city, $jo->region])));
+                            
+                            $jo->duration = null;
+                            if (isset($jo->start_time) && isset($jo->end_time) && $jo->start_time && $jo->end_time) {
+                                try {
+                                    $start = new \DateTime($jo->start_time);
+                                    $end = new \DateTime($jo->end_time);
+                                    $interval = $start->diff($end);
+                                    $jo->duration = $interval->format('%H:%I:%S');
+                                } catch (\Exception $e) {}
+                            }
+                            
+                            $lcpnap = isset($jo->lcpnap) ? $jo->lcpnap : '';
+                            $port = isset($jo->port) ? $jo->port : '';
+                            $jo->lcpnapport = trim($lcpnap . ' ' . $port);
+                            
+                        } catch (\Exception $e) {
+                            \Log::error('Job Order mapping error: ' . $e->getMessage());
+                        }
+                        
+                        return $jo;
+                    });
+            }
+        } catch (\Exception $e) {
+            \Log::warning('Plan related job orders query failed: ' . $e->getMessage());
+        }
+
+        // Subscribed Customers (desired_plan string matches plan name, OR billing_accounts.plan_id matches)
+        $customers = collect([]);
+        try {
+            $customers = \Illuminate\Support\Facades\DB::table('customers')
+                ->leftJoin('billing_accounts', 'customers.id', '=', 'billing_accounts.customer_id')
+                ->where(function($query) use ($planName, $id) {
+                    $query->where('customers.desired_plan', $planName)
+                          ->orWhere('billing_accounts.plan_id', $id);
+                })
+                ->select('customers.id', 'customers.first_name', 'customers.last_name', 'customers.desired_plan', 'customers.email_address', 'customers.contact_number_primary', 'customers.address', 'customers.created_at', 'billing_accounts.id as account_no')
+                ->distinct()
+                ->orderBy('customers.created_at', 'desc')
+                ->limit(50)
+                ->get()
+                ->map(function ($cust) {
+                    $cust->full_name = trim(($cust->first_name ?? '') . ' ' . ($cust->last_name ?? ''));
+                    return $cust;
+                });
+        } catch (\Exception $e) {
+            \Log::warning('Plan related customers query failed: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'applications' => $applications,
+                'job_orders' => $jobOrders,
+                'customers' => $customers,
+            ],
+            'counts' => [
+                'applications' => count($applications),
+                'job_orders' => count($jobOrders),
+                'customers' => count($customers),
+            ]
+        ]);
+    } catch (\Exception $e) {
+        \Log::error('Plan related data error: ' . $e->getMessage());
+        return response()->json([
+            'success' => false,
+            'message' => 'Error fetching related data: ' . $e->getMessage()
+        ], 500);
+    }
+});
+
 // Promo Management Routes - Direct routes at API root level for maximum compatibility
 Route::get('/promos', [\App\Http\Controllers\Api\PromoApiController::class, 'index']);
 Route::post('/promos', [\App\Http\Controllers\Api\PromoApiController::class, 'store']);
@@ -1542,6 +1797,27 @@ Route::prefix('usage-types')->group(function () {
     Route::delete('/{id}', [\App\Http\Controllers\Api\UsageTypeApiController::class, 'destroy']);
 });
 
+// Work Order Category Management Routes
+Route::prefix('work-categories')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class, 'destroy']);
+});
+
+// Work Order Management Routes
+Route::prefix('work-orders')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'destroy']);
+    Route::post('/{id}/upload-images', [\App\Http\Controllers\Api\WorkOrderApiController::class, 'uploadImages']);
+});
+
 // VLANs (plural) for frontend compatibility
 Route::prefix('vlans')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\VlanApiController::class, 'index']);
@@ -1554,10 +1830,12 @@ Route::prefix('vlans')->group(function () {
 
 // LCPNAP Location Management Routes - Using lcpnap table
 Route::prefix('lcpnap')->group(function () {
+    Route::get('/get-most-used', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getMostUsedLCPNAPs']);
     Route::get('/', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'index']);
     Route::post('/', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'store']);
     Route::get('/statistics', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getStatistics']);
     Route::get('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'show']);
+    Route::get('/{id}/related-customers', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'getRelatedCustomers']);
     Route::put('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'update']);
     Route::delete('/{id}', [\App\Http\Controllers\Api\LcpNapLocationController::class, 'destroy']);
 });
@@ -1732,6 +2010,7 @@ Route::prefix('customers')->group(function () {
 
 // Billing API Routes - Fetches from customers, billing_accounts, and technical_details
 Route::prefix('billing')->group(function () {
+    Route::get('/check-updates', [\App\Http\Controllers\BillingController::class, 'checkUpdates']);
     Route::get('/', [\App\Http\Controllers\BillingController::class, 'index']);
     Route::get('/{id}', [\App\Http\Controllers\BillingController::class, 'show']);
     Route::get('/accounts/active', function() {
@@ -2058,6 +2337,7 @@ Route::prefix('email-queue')->group(function () {
     Route::post('/retry-failed', [EmailQueueController::class, 'retryFailed']);
     Route::post('/{id}/retry', [EmailQueueController::class, 'retry']);
     Route::delete('/{id}', [EmailQueueController::class, 'delete']);
+    Route::post('/send-credentials/{userId}', [EmailQueueController::class, 'sendUserCredentials']);
 });
 
 // Settings Image Size Management Routes
@@ -2101,7 +2381,17 @@ Route::prefix('transactions')->group(function () {
     Route::post('/batch-approve', [\App\Http\Controllers\TransactionController::class, 'batchApprove']);
     Route::get('/{id}', [\App\Http\Controllers\TransactionController::class, 'show']);
     Route::post('/{id}/approve', [\App\Http\Controllers\TransactionController::class, 'approve']);
+    Route::post('/{id}/revert', [\App\Http\Controllers\TransactionController::class, 'revert']);
     Route::put('/{id}/status', [\App\Http\Controllers\TransactionController::class, 'updateStatus']);
+    Route::delete('/{id}', [\App\Http\Controllers\TransactionController::class, 'destroy']);
+});
+
+// Transaction Revert Request Routes (Super Admin only)
+Route::prefix('transaction-reverts')->group(function () {
+    Route::get('/', [\App\Http\Controllers\TransactionRevertController::class, 'index']);
+    Route::post('/', [\App\Http\Controllers\TransactionRevertController::class, 'store']);
+    Route::get('/{id}', [\App\Http\Controllers\TransactionRevertController::class, 'show']);
+    Route::put('/{id}/status', [\App\Http\Controllers\TransactionRevertController::class, 'updateStatus']);
 });
 
 // Rebates endpoint for frontend
@@ -3000,6 +3290,17 @@ Route::prefix('monitor')->group(function () {
     Route::match(['GET', 'OPTIONS'], '/templates/{id}', [MonitorController::class, 'loadTemplate']);
     Route::match(['DELETE', 'OPTIONS'], '/templates/{id}', [MonitorController::class, 'deleteTemplate']);
 });
+
+Route::get('/invoices/{id}', [RelatedDataController::class, 'getInvoiceById']);
+Route::get('/payment-portal-logs/{id}', [RelatedDataController::class, 'getPaymentPortalLogById']);
+Route::get('/lookup/payment-methods', [RelatedDataController::class, 'getPaymentMethods']);
+Route::get('/lookup/transaction-types', [RelatedDataController::class, 'getDistinctTransactionTypes']);
+Route::get('/lookup/customer-locations', [RelatedDataController::class, 'getDistinctCustomerLocations']);
+Route::get('/lookup/payment-portal', [RelatedDataController::class, 'getPaymentPortalLookupData']);
+Route::get('/lookup/job-orders', [RelatedDataController::class, 'getJobOrderLookupData']);
+Route::get('/lookup/service-orders', [RelatedDataController::class, 'getServiceOrderLookupData']);
+Route::get('/lookup/customers', [RelatedDataController::class, 'getCustomerLookupData']);
+Route::get('/transactions/{id}/details', [RelatedDataController::class, 'getTransactionById']);
 
 Route::get('/invoices/by-account/{accountNo}', [RelatedDataController::class, 'getInvoicesByAccount']);
 Route::get('/payment-portal-logs/by-account/{accountNo}', [RelatedDataController::class, 'getPaymentPortalLogsByAccount']);

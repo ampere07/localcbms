@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown ,Loader2 } from 'lucide-react';
+import { X, ChevronDown, Loader2 } from 'lucide-react';
 import { createApplicationVisit, ApplicationVisitData } from '../services/applicationVisitService';
 import { updateApplication } from '../services/applicationService';
 import { UserData } from '../types/api';
@@ -72,7 +72,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
 
   useEffect(() => {
     if (isOpen && applicationData) {
@@ -94,11 +94,11 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       }));
     }
   }, [isOpen, applicationData]);
-  
+
 
   const [formData, setFormData] = useState<VisitFormData>(() => {
     const initialSecondContact = applicationData?.secondary_mobile_number || '';
-    
+
     return {
       firstName: applicationData?.first_name || '',
       middleInitial: applicationData?.middle_initial || '',
@@ -152,14 +152,14 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
     };
     fetchColorPalette();
   }, []);
-  
+
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'success',
     title: '',
     message: ''
   });
-  
+
   interface Region {
     id: number;
     name: string;
@@ -189,7 +189,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await planService.getAllPlans();
-          
+
           if (Array.isArray(response)) {
             setPlans(response);
           } else {
@@ -201,7 +201,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         }
       }
     };
-    
+
     fetchPlans();
   }, [isOpen]);
 
@@ -211,7 +211,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         try {
           const response = await apiClient.get<ApiResponse<Promo[]> | Promo[]>('/promos');
           const data = response.data;
-          
+
           if (data && typeof data === 'object' && 'success' in data && data.success && Array.isArray(data.data)) {
             setPromos(data.data);
           } else if (Array.isArray(data)) {
@@ -234,7 +234,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       if (isOpen) {
         try {
           const fetchedRegions = await getRegions();
-          
+
           if (Array.isArray(fetchedRegions)) {
             setRegions(fetchedRegions);
           } else {
@@ -246,7 +246,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         }
       }
     };
-    
+
     fetchRegions();
   }, [isOpen]);
 
@@ -255,7 +255,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       if (isOpen) {
         try {
           const fetchedCities = await getCities();
-          
+
           if (Array.isArray(fetchedCities)) {
             setAllCities(fetchedCities);
           } else {
@@ -267,7 +267,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         }
       }
     };
-    
+
     fetchAllCities();
   }, [isOpen]);
 
@@ -276,7 +276,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await barangayService.getAll();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setAllBarangays(response.data);
           } else {
@@ -288,7 +288,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         }
       }
     };
-    
+
     fetchAllBarangays();
   }, [isOpen]);
 
@@ -297,7 +297,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       if (isOpen) {
         try {
           const response = await locationDetailService.getAll();
-          
+
           if (response.success && Array.isArray(response.data)) {
             setAllLocations(response.data);
           } else {
@@ -309,7 +309,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         }
       }
     };
-    
+
     fetchAllLocations();
   }, [isOpen]);
 
@@ -338,7 +338,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         }
       }
     };
-    
+
     fetchTechnicians();
   }, [isOpen]);
 
@@ -347,11 +347,11 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
   const handleInputChange = (field: keyof VisitFormData, value: string) => {
     setFormData(prev => {
       const newFormData = { ...prev, [field]: value };
-      
+
       if (field === 'assignedEmail') {
         newFormData.visit_by = value;
       }
-      
+
       if (field === 'region') {
         newFormData.city = '';
         newFormData.barangay = '';
@@ -362,10 +362,10 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       } else if (field === 'barangay') {
         newFormData.location = '';
       }
-      
+
       return newFormData;
     });
-    
+
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -409,11 +409,11 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
 
   const mapFormDataToVisitData = (applicationId: string): ApplicationVisitData => {
     const appId = parseInt(applicationId);
-    
+
     if (isNaN(appId) || appId <= 0) {
       throw new Error(`Invalid application ID: ${applicationId}`);
     }
-    
+
     return {
       application_id: appId,
       assigned_email: formData.assignedEmail,
@@ -436,7 +436,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
 
   const handleSave = async () => {
     const isValid = validateForm();
-    
+
     if (!isValid) {
       setModal({
         isOpen: true,
@@ -446,7 +446,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       });
       return;
     }
-    
+
     if (!applicationData?.id) {
       console.error('No application ID available');
       setModal({
@@ -466,7 +466,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       title: 'Submitting',
       message: 'Please wait while we process your request...'
     });
-    
+
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
         if (prev >= 99) return 99;
@@ -475,10 +475,10 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         return prev + 3;
       });
     }, 200);
-    
+
     try {
       const applicationId = applicationData.id;
-      
+
       const applicationUpdateData: any = {
         first_name: formData.firstName,
         middle_initial: formData.middleInitial || null,
@@ -494,12 +494,12 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         desired_plan: formData.choosePlan,
         promo: formData.promo || null
       };
-      
+
       try {
         await updateApplication(applicationId.toString(), applicationUpdateData);
       } catch (appError: any) {
         console.error('Error updating application:', appError);
-        
+
         clearInterval(progressInterval);
         const errorMsg = appError.response?.data?.message || appError.message || 'Unknown error';
         setModal({
@@ -511,19 +511,19 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         setLoading(false);
         return;
       }
-      
+
       const visitData = mapFormDataToVisitData(applicationId);
-      
+
       const result = await createApplicationVisit(visitData);
-      
+
       if (!result.success) {
         throw new Error(result.message || 'Failed to create application visit');
       }
-      
+
       clearInterval(progressInterval);
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
-      
+
       setModal({
         isOpen: true,
         type: 'success',
@@ -538,17 +538,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       });
     } catch (error: any) {
       console.error('Error creating application visit:', error);
-      
+
       clearInterval(progressInterval);
       let errorMessage = 'Unknown error occurred';
       let errorDetails = '';
-      
+
       if (error instanceof Error) {
         errorMessage = error.message;
       } else if (error.response?.data) {
         const responseData = error.response.data;
         errorMessage = responseData.message || 'Server error occurred';
-        
+
         if (responseData.errors) {
           errorDetails = Object.entries(responseData.errors)
             .map(([field, messages]) => `${field}: ${Array.isArray(messages) ? messages.join(', ') : messages}`)
@@ -559,11 +559,11 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-      
-      const fullErrorMessage = errorDetails 
-        ? `${errorMessage}\n\nDetails:\n${errorDetails}` 
+
+      const fullErrorMessage = errorDetails
+        ? `${errorMessage}\n\nDetails:\n${errorDetails}`
         : errorMessage;
-      
+
       setModal({
         isOpen: true,
         type: 'error',
@@ -583,25 +583,21 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      }`}>
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${
-          isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
+      <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
         }`}>
-          <h2 className={`text-xl font-semibold ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>Application Form Visit</h2>
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-300'
+          }`}>
+          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>Application Form Visit</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleCancel}
-              className={`px-4 py-2 rounded text-sm ${
-                isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-              }`}
+              className={`px-4 py-2 rounded text-sm ${isDarkMode
+                ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                }`}
             >
               Cancel
             </button>
@@ -610,7 +606,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -618,7 +614,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -642,9 +638,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 First Name<span className="text-red-500">*</span>
               </label>
               <input
@@ -661,19 +656,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = errors.firstName ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.firstName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
               />
               {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Middle Initial
               </label>
               <input
@@ -691,18 +683,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Last Name<span className="text-red-500">*</span>
               </label>
               <input
@@ -719,19 +709,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = errors.lastName ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.lastName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
               />
               {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Contact Number<span className="text-red-500">*</span>
               </label>
               <input
@@ -748,19 +735,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = errors.contactNumber ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.contactNumber ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
               />
               {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Second Contact Number
               </label>
               <input
@@ -777,18 +761,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Applicant Email Address<span className="text-red-500">*</span>
               </label>
               <input
@@ -805,19 +787,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = errors.email ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  errors.email ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.email ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
               />
               {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Address<span className="text-red-500">*</span>
               </label>
               <input
@@ -834,19 +813,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = errors.address ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${
-                  errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.address ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
               />
               {errors.address && <p className="text-red-500 text-xs mt-1">{errors.address}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Region<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -863,11 +839,9 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.borderColor = errors.region ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                     e.currentTarget.style.boxShadow = 'none';
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                    errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.region ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                 >
                   <option value="">Select Region</option>
                   {formData.region && !regions.some(reg => reg.name === formData.region) && (
@@ -879,17 +853,15 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     </option>
                   ))}
                 </select>
-                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`} size={20} />
+                <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`} size={20} />
               </div>
               {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 City<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -907,11 +879,9 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.borderColor = errors.city ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                     e.currentTarget.style.boxShadow = 'none';
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                    errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.city ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                 >
                   <option value="">{formData.region ? 'Select City' : 'Select Region First'}</option>
                   {formData.city && !filteredCities.some(city => city.name === formData.city) && (
@@ -929,9 +899,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Barangay<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -949,11 +918,9 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.borderColor = errors.barangay ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                     e.currentTarget.style.boxShadow = 'none';
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                    errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.barangay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                 >
                   <option value="">{formData.city ? 'Select Barangay' : 'Select City First'}</option>
                   {formData.barangay && !filteredBarangays.some(brgy => brgy.barangay === formData.barangay) && (
@@ -971,9 +938,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Location<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -991,11 +957,9 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.borderColor = errors.location ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                     e.currentTarget.style.boxShadow = 'none';
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${
-                    errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.location ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                 >
                   <option value="">{formData.barangay ? 'Select Location' : 'Select Barangay First'}</option>
                   {formData.location && formData.location.trim() !== '' && !filteredLocations.some(loc => loc.location_name === formData.location) && (
@@ -1013,9 +977,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Choose Plan<span className="text-red-500">*</span>
               </label>
               <div className="relative">
@@ -1032,19 +995,17 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.borderColor = errors.choosePlan ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                     e.currentTarget.style.boxShadow = 'none';
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                    errors.choosePlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${
-                    isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.choosePlan ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                    }`}
                 >
                   <option value="">Select Plan</option>
                   {formData.choosePlan && !plans.some(plan => {
                     const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
                     return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
                   }) && (
-                    <option value={formData.choosePlan}>{formData.choosePlan}</option>
-                  )}
+                      <option value={formData.choosePlan}>{formData.choosePlan}</option>
+                    )}
                   {plans.map((plan) => {
                     const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
                     return (
@@ -1060,9 +1021,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Promo
               </label>
               <div className="relative">
@@ -1079,11 +1039,10 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                     e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                     e.currentTarget.style.boxShadow = 'none';
                   }}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                    isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-white'
-                      : 'bg-white border-gray-300 text-gray-900'
-                  }`}
+                  className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
                 >
                   <option value="">Select Promo</option>
                   <option value="None">None</option>
@@ -1101,9 +1060,8 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Remarks
               </label>
               <textarea
@@ -1120,18 +1078,16 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors resize-none ${
-                  isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors resize-none ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
+                  : 'bg-white border-gray-300 text-gray-900'
+                  }`}
               />
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Assigned Email<span className="text-red-500">*</span>
               </label>
               <select
@@ -1147,11 +1103,9 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                   e.currentTarget.style.borderColor = errors.assignedEmail ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
                   e.currentTarget.style.boxShadow = 'none';
                 }}
-                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${
-                  errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.assignedEmail ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                  }`}
               >
                 <option value="">Select Assigned Email</option>
                 {formData.assignedEmail && !technicians.some(t => t.email === formData.assignedEmail) && (
@@ -1173,11 +1127,10 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${
-            isDarkMode
-              ? 'bg-gray-900 border-gray-700'
-              : 'bg-white border-gray-300'
-          }`}>
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode
+            ? 'bg-gray-900 border-gray-700'
+            : 'bg-white border-gray-300'
+            }`}>
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-6">
@@ -1187,22 +1140,19 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
               </div>
             ) : (
               <>
-                <h3 className={`text-lg font-semibold mb-4 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>{modal.title}</h3>
-                <p className={`mb-6 whitespace-pre-line ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>{modal.message}</p>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
                 <div className="flex items-center justify-end gap-3">
                   {modal.type === 'confirm' ? (
                     <>
                       <button
                         onClick={modal.onCancel}
-                        className={`px-4 py-2 rounded transition-colors ${
-                          isDarkMode
-                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        }`}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
                       >
                         Cancel
                       </button>
@@ -1210,7 +1160,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                         onClick={modal.onConfirm}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -1218,7 +1168,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         Confirm
@@ -1235,7 +1185,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                       }}
                       className="px-4 py-2 text-white rounded transition-colors"
                       style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       }}
                       onMouseEnter={(e) => {
                         if (colorPalette?.accent) {
@@ -1243,7 +1193,7 @@ const ApplicationVisitFormModal: React.FC<ApplicationVisitFormModalProps> = ({
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                       }}
                     >
                       OK

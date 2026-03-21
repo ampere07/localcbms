@@ -1,7 +1,22 @@
-import React from 'react';
-import logo1 from '../assets/logo1.png';
+import React, { useState, useEffect } from 'react';
+import atsslogo from '../assets/atsslogo.png';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const SplashScreen: React.FC = () => {
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+  }, []);
+
   return (
     <div style={{
       display: 'flex',
@@ -19,9 +34,9 @@ const SplashScreen: React.FC = () => {
         alignItems: 'center',
         gap: '20px'
       }}>
-        <img 
-          src={logo1} 
-          alt="Sync Logo" 
+        <img
+          src={atsslogo}
+          alt="ATSS Fiber Logo"
           style={{
             height: '80px',
             marginBottom: '10px'
@@ -32,7 +47,7 @@ const SplashScreen: React.FC = () => {
           height: '48px',
           border: '4px solid',
           borderColor: '#e5e7eb',
-          borderTopColor: '#6d28d9',
+          borderTopColor: colorPalette?.primary || '#6d28d9',
           borderRadius: '50%',
           animation: 'spin 1s linear infinite'
         }} />

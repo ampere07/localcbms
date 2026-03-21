@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Receipt, Search, ChevronDown, CheckCheck, X, Check, ChevronRight, Menu, FileText, Globe, Filter } from 'lucide-react';
+import { Receipt, Search, ChevronDown, CheckCheck, X, Check, ChevronRight, Menu, FileText, Globe, Filter, ChevronsLeft, ChevronsRight, RefreshCw, Loader2 } from 'lucide-react';
 import TransactionListDetails from '../components/TransactionListDetails';
 import { transactionService } from '../services/transactionService';
 import { getCities, City } from '../services/cityService';
@@ -8,11 +8,18 @@ import { barangayService, Barangay } from '../services/barangayService';
 import LoadingModal from '../components/LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useTransactionStore } from '../store/transactionStore';
+import pusher from '../services/pusherService';
 import { Transaction } from '../types/transaction';
+
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
-import TransactionFunnelFilter, { FilterValues } from '../filter/TransactionFunnelFilter';
+import TransactionFunnelFilter, { FilterValues, allColumns } from '../filter/TransactionFunnelFilter';
+
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
 interface LocationItem {
   id: string;
@@ -69,12 +76,111 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
+
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft size={16} />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`px-2 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
+
 interface TransactionListProps {
   onNavigate?: (section: string, extra?: string) => void;
 }
 
 const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
-  const { transactions, totalCount, isLoading: loading, error, silentRefresh, fetchTransactions } = useTransactionStore();
+  const { transactions, totalCount, isLoading: loading, error, silentRefresh, fetchTransactions, fetchUpdates } = useTransactionStore();
 
   // Fetch data on mount if empty
   useEffect(() => {
@@ -82,6 +188,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       fetchTransactions();
     }
   }, [fetchTransactions, transactions.length]);
+
+  // Trigger silent refresh on mount to ensure data is fresh but no spinner if cached
+  useEffect(() => {
+    silentRefresh();
+  }, [silentRefresh]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -90,6 +201,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   // Local state for batch approval (kept local as it's UI functionality)
   const [isBatchApproveMode, setIsBatchApproveMode] = useState<boolean>(false);
@@ -103,6 +215,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
+  const [customerRefreshKey, setCustomerRefreshKey] = useState<number>(0);
   const [isFunnelFilterOpen, setIsFunnelFilterOpen] = useState<boolean>(false);
   const [activeFilters, setActiveFilters] = useState<FilterValues>(() => {
     const saved = localStorage.getItem('transactionFunnelFilters');
@@ -116,6 +229,16 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     return {};
   });
 
+  const [processedDateFrom, setProcessedDateFrom] = useState<string>('');
+  const [processedDateTo, setProcessedDateTo] = useState<string>('');
+
+  const removeFilter = (key: string) => {
+    const newFilters = { ...activeFilters };
+    delete newFilters[key];
+    setActiveFilters(newFilters);
+    localStorage.setItem('transactionFunnelFilters', JSON.stringify(newFilters));
+  };
+
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
   const [barangays, setBarangays] = useState<Barangay[]>([]);
@@ -124,7 +247,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
 
 
@@ -163,6 +286,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     fetchThemeData();
   }, []);
 
+  const handleRefresh = async () => {
+    await fetchTransactions(true, false);
+  };
+
   // Fetch lookup data
   useEffect(() => {
     const fetchLookupData = async () => {
@@ -183,6 +310,62 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     fetchLookupData();
   }, []);
 
+  // Pusher/Soketi connection for real-time transaction updates
+  useEffect(() => {
+    const channel = pusher.subscribe('transactions');
+
+    channel.bind('pusher:subscription_succeeded', () => {
+      console.log('[TransactionList Soketi] Successfully subscribed to transactions channel');
+    });
+
+    channel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[TransactionList Soketi] Subscription error:', error);
+    });
+
+    channel.bind('transaction-updated', async (data: any) => {
+      console.log('[TransactionList Soketi] Update received, silently refreshing:', data);
+      try {
+        await fetchUpdates();
+        console.log('[TransactionList Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[TransactionList Soketi] Failed to refresh data:', err);
+      }
+    });
+
+    // Log connection state for debugging
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[TransactionList Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && channel.subscribed !== true) {
+        console.log('[TransactionList Soketi] Reconnected, re-subscribing...');
+        pusher.subscribe('transactions');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
+    return () => {
+      channel.unbind('pusher:subscription_succeeded');
+      channel.unbind('pusher:subscription_error');
+      channel.unbind('transaction-updated');
+      pusher.connection.unbind('state_change', stateHandler);
+      pusher.unsubscribe('transactions');
+    };
+  }, [fetchUpdates]);
+
+  // Polling for updates every 3 seconds - Incremental fetch
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[TransactionList Page] Polling for updates...');
+      try {
+        await fetchUpdates();
+      } catch (err) {
+        console.error('[TransactionList Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [fetchUpdates]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -191,7 +374,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     const refreshData = async () => {
       console.log('User idle for 15 minutes, auto-refreshing transaction data...');
       try {
-        await silentRefresh();
+        await fetchUpdates();
       } catch (err) {
         console.error('Idle refresh failed:', err);
       }
@@ -208,7 +391,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -226,7 +409,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         window.removeEventListener(event, handleActivity);
       });
     };
-  }, [silentRefresh]);
+  }, [fetchUpdates]);
 
   const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
     e.stopPropagation();
@@ -245,18 +428,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
-      // Check if date is valid
       if (isNaN(date.getTime())) return dateStr || 'Invalid Date';
 
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       console.warn('Error formatting date:', dateStr, e);
       return dateStr || 'Error';
@@ -276,7 +453,114 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
   };
 
 
-  // Generate hierarchical location items
+  // 1. Initial search/funnel filtering (Global filtered set for sidebar counts)
+  const globalFilteredTransactions = useMemo(() => {
+    const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+    let filtered = transactions.filter(transaction => {
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      return searchQuery === '' || checkValue(transaction);
+    });
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(transaction => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const getValForFilter = (item: any, k: string) => {
+            switch (k) {
+              case 'full_name': return item.account?.customer?.full_name;
+              case 'barangay': return item.account?.customer?.barangay;
+              case 'city': return item.account?.customer?.city;
+              case 'region': return item.account?.customer?.region;
+              case 'account_balance': return item.account?.account_balance;
+              case 'contact_no': return item.account?.customer?.contact_number_primary;
+              case 'payment_method': return item.payment_method_info?.payment_method || item.payment_method;
+              default: return item[k];
+            }
+          };
+
+          const val = getValForFilter(transaction, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+
+            const valStr = String(val || '').toLowerCase().trim();
+
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+              const directVal = String(val || '').toLowerCase().trim();
+              const address = String(transaction.account?.customer?.address || '').toLowerCase();
+
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
+            }
+
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(val);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!val) return false;
+            const dateValue = new Date(val).getTime();
+            if (isNaN(dateValue)) return false;
+            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
+            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
+            return true;
+          }
+
+          return true;
+        });
+      });
+    }
+
+    // Apply sidebar date range filters for date_processed
+    if (processedDateFrom || processedDateTo) {
+      filtered = filtered.filter(transaction => {
+        if (!transaction.date_processed) return false;
+
+        const dateValue = new Date(transaction.date_processed).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (processedDateFrom) {
+          const fromDate = new Date(processedDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (processedDateTo) {
+          const toDate = new Date(processedDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [transactions, searchQuery, activeFilters, processedDateFrom, processedDateTo]);
+
+  // Generate hierarchical location items - Now using globalFilteredTransactions
   const locationItems = useMemo(() => {
     // Counts for each level
     const regionCounts: Record<string, number> = {};
@@ -289,7 +573,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     barangays.forEach(b => barangayCounts[`${b.city_id}_${b.barangay}`] = 0);
 
     // Count appearances in transactions
-    transactions.forEach(transaction => {
+    globalFilteredTransactions.forEach(transaction => {
       const region = transaction.account?.customer?.region;
       const city = transaction.account?.customer?.city;
       const barangay = transaction.account?.customer?.barangay;
@@ -333,12 +617,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           }))
         }))
       })),
-      total: transactions.length
+      total: globalFilteredTransactions.length
     };
-  }, [regions, cities, barangays, transactions]);
+  }, [regions, cities, barangays, globalFilteredTransactions]);
 
   const filteredTransactions = useMemo(() => {
-    let filtered = transactions.filter(transaction => {
+    return globalFilteredTransactions.filter(transaction => {
       let matchesLocation = selectedLocation === 'all';
 
       if (!matchesLocation) {
@@ -351,67 +635,26 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         }
       }
 
-      const matchesSearch = searchQuery === '' ||
-        (transaction.account?.customer?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (transaction.account?.account_no || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (transaction.reference_no || '').toLowerCase().includes(searchQuery.toLowerCase());
-
-      return matchesLocation && matchesSearch;
+      return matchesLocation;
     });
-
-    // Apply funnel filters
-    if (activeFilters && Object.keys(activeFilters).length > 0) {
-      filtered = filtered.filter(transaction => {
-        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          let recordValue: any;
-
-          // Data mapping for nested fields
-          if (key === 'full_name') recordValue = transaction.account?.customer?.full_name;
-          else if (key === 'barangay') recordValue = transaction.account?.customer?.barangay;
-          else if (key === 'city') recordValue = transaction.account?.customer?.city;
-          else if (key === 'region') recordValue = transaction.account?.customer?.region;
-          else if (key === 'account_balance') recordValue = transaction.account?.account_balance;
-          else recordValue = (transaction as any)[key];
-
-          if (filter.type === 'text') {
-            if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
-          }
-
-          if (filter.type === 'number') {
-            const numValue = Number(recordValue);
-            if (isNaN(numValue)) return false;
-            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-            return true;
-          }
-
-          if (filter.type === 'date') {
-            if (!recordValue) return false;
-            const dateValue = new Date(recordValue).getTime();
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-            return true;
-          }
-
-          return true;
-        });
-      });
-    }
-
-    return filtered;
-  }, [transactions, selectedLocation, searchQuery, activeFilters]);
+  }, [globalFilteredTransactions, selectedLocation]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedLocation, searchQuery, activeFilters]);
+  }, [selectedLocation, searchQuery, activeFilters, itemsPerPage, processedDateFrom, processedDateTo]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedTransactions = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredTransactions.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredTransactions, currentPage]);
+  }, [filteredTransactions, currentPage, itemsPerPage]);
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
@@ -429,46 +672,6 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (transaction: Transaction) => {
     if (isBatchApproveMode) {
@@ -478,6 +681,33 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     } else {
       setSelectedTransaction(transaction);
       setSelectedCustomer(null);
+    }
+  };
+
+  const refreshCustomerDetails = async (accountNo: string) => {
+    try {
+      const detail = await getCustomerDetail(accountNo);
+      if (detail) {
+        setSelectedCustomer(detail);
+        setCustomerRefreshKey(prev => prev + 1);
+      }
+    } catch (err) {
+      console.error('Error refreshing customer details:', err);
+    }
+  };
+
+  const handleApprovalSuccess = async () => {
+    await fetchUpdates();
+    // Sync selectedTransaction with fresh store data
+    if (selectedTransaction) {
+      const freshTransactions = useTransactionStore.getState().transactions;
+      const updated = freshTransactions.find(t => t.id === selectedTransaction.id);
+      if (updated) setSelectedTransaction(updated);
+    }
+    // Refresh customer panel if open
+    if (selectedCustomer) {
+      const accountNo = selectedCustomer.billingAccount?.accountNo;
+      if (accountNo) await refreshCustomerDetails(accountNo);
     }
   };
 
@@ -539,10 +769,19 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
 
     try {
       setIsApproving(true);
-      // Removed setError(null) as error is now managed by context primarily, though local error handling for this action would be ideal.
-      // We'll rely on global error or modal for now.
 
-      const result = await transactionService.batchApproveTransactions(selectedTransactionIds);
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email || parsed.user?.email || '';
+        }
+      } catch (err) {
+        console.error('Error getting current user email:', err);
+      }
+
+      const result = await transactionService.batchApproveTransactions(selectedTransactionIds, currentUserEmail);
 
       if (result.success) {
         const successCount = result.data?.success?.length || 0;
@@ -566,7 +805,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         setSelectedTransactionIds([]);
 
         // Refresh transactions using context
-        await silentRefresh();
+        await fetchUpdates();
+        // Refresh customer panel if open
+        if (selectedCustomer) {
+          const accountNo = selectedCustomer.billingAccount?.accountNo;
+          if (accountNo) await refreshCustomerDetails(accountNo);
+        }
       } else {
         setApprovalMessage(result.message || 'Failed to approve transactions');
         setShowFailedModal(true);
@@ -655,6 +899,55 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                DATE RANGE
+              </span>
+              {(processedDateFrom || processedDateTo) && (
+                <button
+                  onClick={() => {
+                    setProcessedDateFrom('');
+                    setProcessedDateTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={processedDateFrom}
+                  onChange={(e) => setProcessedDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={processedDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={processedDateTo}
+                  onChange={(e) => setProcessedDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={processedDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* All Level */}
           <button
             onClick={() => setSelectedLocation('all')}
@@ -665,11 +958,10 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               }`}
             style={selectedLocation === 'all' ? {
               backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#fb923c'
+              color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
             <div className="flex items-center">
-              <Receipt className="h-4 w-4 mr-2" />
               <span>All Transactions</span>
             </div>
             <span
@@ -678,7 +970,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                 : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
               style={selectedLocation === 'all' ? {
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               {locationItems.total}
@@ -697,7 +989,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                   }`}
                 style={selectedLocation === region.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center flex-1">
@@ -721,7 +1013,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                       : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                       }`}
                     style={selectedLocation === region.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     {region.count}
@@ -741,7 +1033,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                       }`}
                     style={selectedLocation === city.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                      color: colorPalette?.primary || '#fb923c'
+                      color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     <div className="flex items-center flex-1">
@@ -773,7 +1065,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           : isDarkMode ? 'text-gray-500' : 'text-gray-500'
                         }`}
                       style={selectedLocation === barangay.id ? {
-                        color: colorPalette?.primary || '#fb923c',
+                        color: colorPalette?.primary || '#7c3aed',
                         fontWeight: 'bold'
                       } : {}}
                     >
@@ -795,7 +1087,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
         <div
           className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
           style={{
-            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizingSidebar && colorPalette?.primary) {
@@ -829,12 +1121,12 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                 placeholder="Search transactions..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
                   ? 'bg-gray-800 text-white border border-gray-700'
                   : 'bg-white text-gray-900 border border-gray-300'
                   }`}
                 style={{
-                  '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                  '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                 } as React.CSSProperties}
                 onFocus={(e) => {
                   if (colorPalette?.primary) {
@@ -847,12 +1139,21 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               />
               <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                 }`} />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
+                    }`}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <button
               onClick={() => isBatchApproveMode ? handleCancelApprove() : setIsBatchApproveMode(true)}
               className="px-4 py-2 rounded flex items-center transition-colors text-white"
               style={{
-                backgroundColor: isBatchApproveMode ? '#dc2626' : (colorPalette?.primary || '#ea580c')
+                backgroundColor: isBatchApproveMode ? '#dc2626' : (colorPalette?.primary || '#7c3aed')
               }}
               onMouseEnter={(e) => {
                 if (isBatchApproveMode) {
@@ -900,17 +1201,136 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
             )}
             <button
               onClick={() => setIsFunnelFilterOpen(true)}
-              className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                ? 'hover:bg-gray-700 text-white'
-                : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
+              title={Object.keys(activeFilters).length > 0
+                ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                  const colName = allColumns.find(c => c.key === key)?.label || key;
+                  if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                  if (filter.type === 'number') {
+                    if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                    if (filter.from) return `${colName}: > ${filter.from}`;
+                    if (filter.to) return `${colName}: < ${filter.to}`;
+                  }
+                  if (filter.type === 'date') {
+                    if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                    if (filter.from) return `${colName}: After ${filter.from}`;
+                    if (filter.to) return `${colName}: Before ${filter.to}`;
+                  }
+                  if (filter.type === 'checklist') {
+                    return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
+                  }
+                  return colName;
+                }).join('\n')}`
+                : "Filter Transactions"
+              }
+              className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(activeFilters).length > 0
+                ? 'text-red-500 hover:bg-red-500/10'
+                : isDarkMode
+                  ? 'hover:bg-gray-700 text-white'
+                  : 'hover:bg-gray-200 text-gray-900 border border-gray-300'
                 }`}
             >
               <Filter className="h-5 w-5" />
             </button>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
+              style={{
+                backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+              }}
+              onMouseEnter={(e) => {
+                if (!loading && colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading && colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
+              }}
+            >
+              <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
+
+        {/* Active Funnel Filters Row */}
+        {Object.keys(activeFilters || {}).length > 0 && (
+          <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              Active Filters:
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(activeFilters || {}).map(([key, filter]: [string, any]) => {
+                const column = allColumns.find(c => c.key === key);
+                const label = column?.label || key;
+
+                let displayValue = '';
+                if (filter.type === 'text' || filter.type === 'boolean') {
+                  displayValue = String(filter.value);
+                } else if (filter.type === 'checklist') {
+                  displayValue = Array.isArray(filter.value)
+                    ? filter.value.join(', ')
+                    : String(filter.value || '');
+                } else if (filter.type === 'number' || filter.type === 'date') {
+                  if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                  else if (filter.from) displayValue = `> ${filter.from}`;
+                  else if (filter.to) displayValue = `< ${filter.to}`;
+                }
+
+                return (
+                  <div
+                    key={key}
+                    className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                    style={{
+                      backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                      color: colorPalette?.primary || '#7c3aed',
+                      border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                    }}
+                  >
+                    <span className="opacity-70 mr-1">{label}:</span>
+                    <span className="truncate max-w-[150px]">{displayValue}</span>
+                    <button
+                      onClick={() => removeFilter(key)}
+                      className={`ml-1 p-0.5 rounded-full transition-colors`}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.primary) {
+                          e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = 'transparent';
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                );
+              })}
+              <button
+                onClick={() => {
+                  setActiveFilters({});
+                  localStorage.removeItem('transactionFunnelFilters');
+                }}
+                className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                style={{ color: colorPalette?.primary || '#7c3aed' }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                }}
+              >
+                Clear all
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex-1 overflow-x-auto overflow-y-auto">
+          <div className="flex-1 overflow-y-auto" ref={scrollRef}>
             {loading ? (
               <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 <div className="animate-pulse flex flex-col items-center">
@@ -947,15 +1367,13 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           onChange={toggleSelectAll}
                           className="w-4 h-4 rounded border-gray-300 cursor-pointer"
                           style={{
-                            accentColor: colorPalette?.primary || '#ea580c'
+                            accentColor: colorPalette?.primary || '#7c3aed'
                           }}
                         />
                       </th>
                     )}
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Date Processed</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Status</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Account No.</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -973,25 +1391,23 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Remarks</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Transaction Type</th>
+                      }`}>Status</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Image</th>
+                      }`}>Transaction Type</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Barangay</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Transaction ID</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Contact No</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Modified By</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Modified Date</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Payment Date</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>City</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Plan</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Account Balance</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Created At</th>
-                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>Updated At</th>
                   </tr>
                 </thead>
                 <tbody className={`${isDarkMode ? 'bg-gray-900 divide-y divide-gray-800' : 'bg-white divide-y divide-gray-200'
@@ -1028,21 +1444,20 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                                 className={`w-4 h-4 rounded border-gray-300 ${isPending ? 'cursor-pointer' : 'cursor-not-allowed opacity-50'
                                   }`}
                                 style={{
-                                  accentColor: colorPalette?.primary || '#ea580c'
+                                  accentColor: colorPalette?.primary || '#7c3aed'
                                 }}
                               />
                             </td>
                           )}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{formatDate(transaction.date_processed)}</td>
-                          <td className="px-4 py-3 whitespace-nowrap"><StatusText status={transaction.status} /></td>
                           <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">{transaction.account?.account_no || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>{formatCurrency(transaction.received_payment)}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.payment_method_info?.payment_method || transaction.payment_method}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.processed_by_user || '-'}</td>
+                            }`}>{transaction.processor?.email_address || transaction.processed_by_user || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.full_name || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
@@ -1051,32 +1466,29 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                             }`}>{transaction.reference_no}</td>
                           <td className={`px-4 py-3 max-w-xs truncate ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.remarks || 'No remarks'}</td>
+                          <td className="px-4 py-3 whitespace-nowrap"><StatusText status={transaction.status} /></td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.transaction_type}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.image_url ? 'Yes' : '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.barangay || '-'}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{transaction.id}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.account?.customer?.contact_number_primary || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatDate(transaction.payment_date)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.account?.customer?.city || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{transaction.account?.customer?.desired_plan || '-'}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatCurrency(transaction.account?.account_balance || 0)}</td>
-                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatDate(transaction.created_at)}</td>
+                            }`}>{transaction.approved_by || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{formatDate(transaction.updated_at)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{formatDate(transaction.payment_date)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{formatCurrency(transaction.account?.account_balance || 0)}</td>
                         </tr>
                       );
                     })
                   ) : (
                     <tr>
-                      <td colSpan={isBatchApproveMode ? 21 : 20} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      <td colSpan={isBatchApproveMode ? 19 : 18} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>
                         {filteredTransactions.length > 0
                           ? 'No transactions found matching your filters'
@@ -1090,7 +1502,15 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               </table>
             )}
           </div>
-          <PaginationControls />
+          <PaginationControls
+            totalPages={totalPages}
+            itemsPerPage={itemsPerPage}
+            setItemsPerPage={setItemsPerPage}
+            isDarkMode={isDarkMode}
+            currentPage={currentPage}
+            totalDisplayCount={totalDisplayCount}
+            handlePageChange={handlePageChange}
+          />
         </div>
       </div>
 
@@ -1121,7 +1541,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
                 style={selectedLocation === 'all' ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500
                 } : {
                   color: isDarkMode ? '#d1d5db' : '#374151'
@@ -1136,6 +1556,55 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                 </span>
               </button>
 
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Date Processed Range
+                  </span>
+                  {(processedDateFrom || processedDateTo) && (
+                    <button
+                      onClick={() => {
+                        setProcessedDateFrom('');
+                        setProcessedDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={processedDateFrom}
+                      onChange={(e) => setProcessedDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={processedDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={processedDateTo}
+                      onChange={(e) => setProcessedDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={processedDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
+
               {/* Region Level */}
               {locationItems.regions.map((region: any) => (
                 <div key={region.id} className="border-b border-gray-800">
@@ -1147,7 +1616,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === region.id ? {
                       backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                      color: colorPalette?.primary || '#fb923c',
+                      color: colorPalette?.primary || '#7c3aed',
                       fontWeight: 500
                     } : {}}
                   >
@@ -1183,7 +1652,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                         className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
                         style={selectedLocation === city.id ? {
                           backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
-                          color: colorPalette?.primary || '#fb923c'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {}}
                       >
                         <div className="flex items-center flex-1">
@@ -1214,7 +1683,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           }}
                           className={`w-full flex items-center justify-between pl-16 pr-4 py-1.5 text-xs transition-colors ${selectedLocation === barangay.id ? '' : 'text-gray-500'}`}
                           style={selectedLocation === barangay.id ? {
-                            color: colorPalette?.primary || '#fb923c',
+                            color: colorPalette?.primary || '#7c3aed',
                             fontWeight: 'bold'
                           } : {}}
                         >
@@ -1243,6 +1712,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
             onClose={() => setSelectedTransaction(null)}
             onNavigate={onNavigate}
             onViewCustomer={handleViewCustomer}
+            onApprovalSuccess={handleApprovalSuccess}
           />
         </div>
       )}
@@ -1257,7 +1727,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>
@@ -1267,6 +1737,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
               billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
               onlineStatusRecords={[]}
               onClose={() => setSelectedCustomer(null)}
+              onRefresh={async () => {
+                const accountNo = selectedCustomer.billingAccount?.accountNo;
+                if (accountNo) await refreshCustomerDetails(accountNo);
+              }}
+              refreshKey={customerRefreshKey}
             />
           ) : null}
         </div>

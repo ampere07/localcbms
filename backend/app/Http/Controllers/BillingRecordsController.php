@@ -58,6 +58,12 @@ class BillingRecordsController extends Controller
                 ]);
             }
             
+            // Filter by recently updated
+            if ($request->has('updated_since')) {
+                $query->where($fastMode ? 'updated_at' : 'statement_of_accounts.updated_at', '>=', date('Y-m-d H:i:s', strtotime($request->updated_since)));
+            }
+
+            
             // Fetch one extra record to check if there are more pages (more efficient than COUNT)
             $statements = $query
                 ->orderBy('statement_of_accounts.statement_date', 'desc')
@@ -315,3 +321,4 @@ class BillingRecordsController extends Controller
         }
     }
 }
+

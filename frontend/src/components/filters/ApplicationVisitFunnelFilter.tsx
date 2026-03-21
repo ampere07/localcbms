@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Search, Check } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../../services/settingsColorPaletteService';
+import apiClient from '../../config/api';
+import { planService } from '../../services/planService';
 
 interface ApplicationVisitFunnelFilterProps {
   isOpen: boolean;
@@ -11,10 +13,11 @@ interface ApplicationVisitFunnelFilterProps {
 
 export interface FilterValues {
   [key: string]: {
-    type: 'text' | 'number' | 'date';
+    type: 'text' | 'number' | 'date' | 'checklist';
     value?: string;
     from?: string | number;
     to?: string | number;
+    selectedOptions?: string[];
   };
 }
 
@@ -22,7 +25,7 @@ interface Column {
   key: string;
   label: string;
   table: string;
-  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'decimal' | 'date' | 'datetime' | 'enum';
+  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'decimal' | 'date' | 'datetime' | 'enum' | 'checklist';
 }
 
 const STORAGE_KEY = 'applicationVisitFunnelFilters';
@@ -52,7 +55,7 @@ const allColumns: Column[] = [
   { key: 'city', label: 'City', table: 'application_visits', dataType: 'varchar' },
   { key: 'barangay', label: 'Barangay', table: 'application_visits', dataType: 'varchar' },
 
-  { key: 'choose_plan', label: 'Choose Plan', table: 'application_visits', dataType: 'varchar' },
+  { key: 'choose_plan', label: 'Choose Plan', table: 'application_visits', dataType: 'checklist' },
   { key: 'promo', label: 'Promo', table: 'application_visits', dataType: 'varchar' },
   { key: 'house_front_picture_url', label: 'House Front Picture URL', table: 'application_visits', dataType: 'text' },
   { key: 'image1_url', label: 'Image 1 URL', table: 'application_visits', dataType: 'text' },
@@ -70,6 +73,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [plans, setPlans] = useState<string[]>([]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -93,6 +98,27 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
 
   useEffect(() => {
     if (isOpen) {
+      const fetchChecklistData = async () => {
+        try {
+          const planData = await planService.getAllPlans();
+          if (planData) {
+            const formattedPlans = planData.map(p => {
+              const name = p.name || (p as any).plan_name || 'Unknown';
+              const price = Math.floor(Number(p.price || 0));
+              return `${name} ${price}`;
+            });
+            setPlans(formattedPlans);
+          }
+        } catch (err) {
+          console.error('Failed to fetch checklist data:', err);
+        }
+      };
+      fetchChecklistData();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
       const savedFilters = localStorage.getItem(STORAGE_KEY);
       if (savedFilters) {
         try {
@@ -108,10 +134,12 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
 
   const handleColumnClick = (column: Column) => {
     setSelectedColumn(column);
+    setSearchTerm('');
   };
 
   const handleBack = () => {
     setSelectedColumn(null);
+    setSearchTerm('');
   };
 
   const handleApply = () => {
@@ -166,6 +194,32 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
     }));
   };
 
+  const toggleOption = (columnKey: string, option: string) => {
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
+      const selectedOptions = current.selectedOptions || [];
+
+      const nextOptions = selectedOptions.includes(option)
+        ? selectedOptions.filter((o: string) => o !== option)
+        : [...selectedOptions, option];
+
+      if (nextOptions.length === 0) {
+        const newFilters = { ...prev };
+        delete newFilters[columnKey];
+        return newFilters;
+      }
+
+      return {
+        ...prev,
+        [columnKey]: {
+          ...current,
+          type: 'checklist',
+          selectedOptions: nextOptions
+        }
+      };
+    });
+  };
+
   const getActiveFilterCount = () => {
     return Object.keys(filterValues).filter(key => {
       const filter = filterValues[key];
@@ -199,8 +253,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
               placeholder="Minimum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -215,8 +269,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
               placeholder="Maximum value"
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -237,8 +291,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
           </div>
@@ -252,10 +306,83 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
               className={`w-full px-3 py-2 rounded border ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-white border-gray-300 text-gray-900'
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedColumn.dataType === 'checklist') {
+      let options: { label: string, value: string }[] = [];
+      if (selectedColumn.key === 'choose_plan') {
+        options = plans.map(p => ({ label: p, value: p }));
+      }
+
+      const filteredOptions = options.filter(opt =>
+        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      return (
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+            <input
+              type="text"
+              placeholder={`Search ${selectedColumn.label}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-gray-600'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-300'
+              } focus:outline-none focus:ring-1 focus:ring-opacity-50`}
+              style={{
+                '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+              } as React.CSSProperties}
+            />
+          </div>
+
+          <div className="max-h-60 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const isSelected = currentValue?.selectedOptions?.includes(option.value) || false;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => toggleOption(selectedColumn.key, option.value)}
+                    className={`w-full flex items-center justify-between p-2 rounded-md text-sm transition-all ${
+                      isSelected
+                        ? isDarkMode
+                          ? 'bg-gray-800 text-white font-medium'
+                          : 'bg-indigo-50 text-indigo-900 font-medium'
+                        : isDarkMode
+                          ? 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? 'border-transparent'
+                        : isDarkMode
+                          ? 'border-gray-600'
+                          : 'border-gray-300'
+                    }`}
+                    style={isSelected ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    >
+                      {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className={`text-center py-4 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                No options found
+              </div>
+            )}
           </div>
         </div>
       );
@@ -273,8 +400,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
           className={`w-full px-3 py-2 rounded border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700 text-white'
-              : 'bg-white border-gray-300 text-gray-900'
+            ? 'bg-gray-800 border-gray-700 text-white'
+            : 'bg-white border-gray-300 text-gray-900'
             }`}
         />
       </div>
@@ -305,8 +432,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                       <button
                         onClick={handleBack}
                         className={`p-2 rounded-lg transition-colors ${isDarkMode
-                            ? 'hover:bg-gray-800 text-gray-400'
-                            : 'hover:bg-gray-100 text-gray-600'
+                          ? 'hover:bg-gray-800 text-gray-400'
+                          : 'hover:bg-gray-100 text-gray-600'
                           }`}
                       >
                         <ChevronLeft className="h-5 w-5" />
@@ -328,8 +455,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                   <button
                     onClick={onClose}
                     className={`p-2 rounded-lg transition-colors ${isDarkMode
-                        ? 'hover:bg-gray-800 text-gray-400'
-                        : 'hover:bg-gray-100 text-gray-600'
+                      ? 'hover:bg-gray-800 text-gray-400'
+                      : 'hover:bg-gray-100 text-gray-600'
                       }`}
                   >
                     <X className="h-5 w-5" />
@@ -370,7 +497,7 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                                 {hasFilter && (
                                   <span
                                     className="w-2 h-2 rounded-full"
-                                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                                   />
                                 )}
                               </div>
@@ -391,8 +518,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                   <button
                     onClick={handleReset}
                     className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                        : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                       }`}
                   >
                     Clear All
@@ -400,14 +527,14 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                   <button
                     onClick={handleApply}
                     className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
                         e.currentTarget.style.backgroundColor = colorPalette.accent;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Apply Filters

@@ -102,7 +102,7 @@ const ApprovalConfirmationModal: React.FC<ApprovalConfirmationModalProps> = ({
               disabled={isDisabled}
               className="px-6 py-2 text-white rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               style={{
-                backgroundColor: isDisabled ? '#9ca3af' : (colorPalette?.primary || '#ea580c')
+                backgroundColor: isDisabled ? '#9ca3af' : (colorPalette?.primary || '#7c3aed')
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !isDisabled) {
@@ -111,7 +111,7 @@ const ApprovalConfirmationModal: React.FC<ApprovalConfirmationModalProps> = ({
               }}
               onMouseLeave={(e) => {
                 if (!isDisabled) {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }
               }}
             >

@@ -39,15 +39,15 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark');
     };
-    
+
     checkDarkMode();
-    
+
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -87,18 +87,18 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
         contact_number: formData.contact_number.trim() || null,
         email_address: formData.email_address.trim() || null
       };
-      
+
       const response = await organizationService.createOrganization(dataToSend);
-      
+
       if (response.success && response.data) {
         console.log('Organization creation response:', response.data);
-        
+
         if (!response.data || typeof response.data !== 'object') {
           console.error('Invalid response data:', response.data);
           setErrors({ general: 'Failed to create organization. Please try again.' });
           return;
         }
-        
+
         onOrganizationCreated(response.data);
         onCancel();
       } else {
@@ -106,12 +106,12 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
       }
     } catch (error: any) {
       console.error('Create organization error:', error);
-      
+
       if (error.response?.status === 422) {
         if (error.response?.data?.errors) {
           const backendErrors: Record<string, string> = {};
           const errorData = error.response.data.errors;
-          
+
           Object.keys(errorData).forEach(key => {
             if (Array.isArray(errorData[key])) {
               backendErrors[key] = errorData[key][0];
@@ -119,7 +119,7 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
               backendErrors[key] = errorData[key];
             }
           });
-          
+
           setErrors(backendErrors);
         } else if (error.response?.data?.message) {
           setErrors({ general: error.response.data.message });
@@ -127,7 +127,7 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
           setErrors({ general: 'Validation error: Please check all required fields' });
         }
       } else {
-        setErrors({ 
+        setErrors({
           general: error.response?.data?.message || error.message || 'Failed to create organization'
         });
       }
@@ -142,29 +142,25 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
         { label: 'Organizations', onClick: onCancel },
         { label: 'Add Organization' }
       ]} />
-      <div className={`rounded-lg border overflow-hidden ${
-        isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'
-      }`}>
+      <div className={`rounded-lg border overflow-hidden ${isDarkMode ? 'bg-gray-800 border-gray-600 text-white' : 'bg-white border-gray-200 text-gray-900'
+        }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className={`text-2xl font-semibold mb-2 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               Add New Organization
             </h2>
-            <p className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               Create a new organization in the system
             </p>
           </div>
 
           {errors.general && (
-            <div className={`mb-6 p-4 rounded ${
-              isDarkMode 
+            <div className={`mb-6 p-4 rounded ${isDarkMode
                 ? 'bg-red-900 border border-red-600 text-red-200'
                 : 'bg-red-100 border border-red-300 text-red-700'
-            }`}>
+              }`}>
               {errors.general}
             </div>
           )}
@@ -172,9 +168,8 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Organization Name *
                 </label>
                 <input
@@ -182,22 +177,19 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
                   name="organization_name"
                   value={formData.organization_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.organization_name 
-                      ? 'border-red-600' 
+                    } ${errors.organization_name
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter organization name"
                   required
                 />
                 {errors.organization_name && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.organization_name}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.organization_name}</p>
                 )}
               </div>
 
@@ -210,21 +202,18 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
                   value={formData.address}
                   onChange={handleInputChange}
                   rows={3}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.address 
-                      ? 'border-red-600' 
+                    } ${errors.address
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter organization address"
                 />
                 {errors.address && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.address}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.address}</p>
                 )}
               </div>
 
@@ -237,21 +226,18 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.contact_number 
-                      ? 'border-red-600' 
+                    } ${errors.contact_number
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter contact number"
                 />
                 {errors.contact_number && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.contact_number}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.contact_number}</p>
                 )}
               </div>
 
@@ -264,21 +250,18 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
                   name="email_address"
                   value={formData.email_address}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded focus:outline-none ${
-                    isDarkMode 
+                  className={`w-full px-4 py-3 rounded focus:outline-none ${isDarkMode
                       ? 'bg-gray-900 text-white placeholder-gray-500 focus:border-gray-400'
                       : 'bg-white text-gray-900 placeholder-gray-400 focus:border-gray-500'
-                  } ${
-                    errors.email_address 
-                      ? 'border-red-600' 
+                    } ${errors.email_address
+                      ? 'border-red-600'
                       : isDarkMode ? 'border-gray-600' : 'border-gray-300'
-                  }`}
+                    }`}
                   placeholder="Enter email address"
                 />
                 {errors.email_address && (
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-600'
-                  }`}>{errors.email_address}</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'
+                    }`}>{errors.email_address}</p>
                 )}
               </div>
             </div>
@@ -287,11 +270,10 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
-                  isDarkMode 
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${isDarkMode
                     ? 'border-gray-600 text-white hover:bg-gray-800'
                     : 'border-gray-300 text-gray-900 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -300,7 +282,7 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
                 disabled={loading}
                 className="px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 text-white"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -309,7 +291,7 @@ const AddNewOrganizationForm: React.FC<AddNewOrganizationFormProps> = ({ onCance
                 }}
                 onMouseLeave={(e) => {
                   if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }
                 }}
               >

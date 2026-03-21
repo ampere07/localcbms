@@ -46,3 +46,4 @@ class Inventory extends Model
         return $this->belongsTo(InventoryCategory::class, 'category_id');
     }
 }
+

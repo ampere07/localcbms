@@ -114,6 +114,20 @@ const SMSTemplate: React.FC = () => {
     setIsCreating(false);
   };
 
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   const handleCreate = () => {
     setFormData({
       template_name: '',
@@ -218,16 +232,16 @@ const SMSTemplate: React.FC = () => {
   };
 
   const getPrimaryColor = () => {
-    return colorPalette?.primary || '#6d28d9';
+    return colorPalette?.primary || '#7c3aed';
   };
 
   const templateTypes = [
     'Overdue',
     'DCNotice',
-    'SOA',
+    'StatementofAccount',
     'Disconnected',
     'Reconnect',
-    'Apply',
+    'Application',
     'Welcome',
     'Paid',
     'Due'
@@ -242,7 +256,10 @@ const SMSTemplate: React.FC = () => {
     '{{plan_name}}',
     '{{payment_date}}',
     '{{installation_date}}',
-    '{{mobile_number}}'
+    '{{mobile_number}}',
+    '{{soa_date}}',
+    '{{portal_url}}',
+    '{{company_name}}'
   ];
 
   const insertVariable = (variable: string) => {
@@ -327,9 +344,14 @@ const SMSTemplate: React.FC = () => {
                   }`}
               >
                 <option value="">Select type</option>
-                {templateTypes.map(type => (
-                  <option key={type} value={type}>{type}</option>
-                ))}
+                {templateTypes
+                  .filter(type =>
+                    formData.template_type === type ||
+                    !templates.some(t => t.template_type === type)
+                  )
+                  .map(type => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
               </select>
             </div>
           </div>
@@ -506,7 +528,7 @@ const SMSTemplate: React.FC = () => {
                                   Last Updated:
                                 </span>
                                 <p className={`mt-1 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                  {new Date(template.updated_at).toLocaleString()}
+                                  {formatDate(template.updated_at)}
                                 </p>
                               </div>
                             </div>

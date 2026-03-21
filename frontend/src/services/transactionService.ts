@@ -1,6 +1,7 @@
 import apiClient from '../config/api';
 
 interface ApiResponse<T = any> {
+  success?: boolean;
   data?: T;
   message?: string;
   error?: string;
@@ -21,6 +22,7 @@ interface CreateTransactionPayload {
   payment_date: string;
   date_processed: string;
   processed_by_user_id?: number;
+  processed_by_user?: string;
   payment_method: string;
   reference_no: string;
   or_no: string;
@@ -37,9 +39,11 @@ interface CreateTransactionResponse {
 }
 
 export const transactionService = {
-  approveTransaction: async (transactionId: string): Promise<ApproveTransactionResponse> => {
+  approveTransaction: async (transactionId: string, approvedBy?: string): Promise<ApproveTransactionResponse> => {
     try {
-      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/approve`);
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/approve`, {
+        approved_by: approvedBy
+      });
       return {
         success: true,
         message: response.data.message || 'Transaction approved successfully',
@@ -51,6 +55,35 @@ export const transactionService = {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to approve transaction'
       };
+    }
+  },
+
+  revertTransaction: async (transactionId: string, revertedBy?: string): Promise<ApproveTransactionResponse> => {
+    try {
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/revert`, {
+        reverted_by: revertedBy
+      });
+      return {
+        success: true,
+        message: response.data.message || 'Transaction reverted successfully',
+        data: response.data
+      };
+    } catch (error: any) {
+      console.error('Error reverting transaction:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to revert transaction'
+      };
+    }
+  },
+
+  deleteTransaction: async (transactionId: string): Promise<ApiResponse> => {
+    try {
+      const response = await apiClient.delete<ApiResponse>(`/transactions/${transactionId}`);
+      return response.data;
+    } catch (error: any) {
+      console.error('Error deleting transaction:', error);
+      throw error.response?.data || error;
     }
   },
 
@@ -77,10 +110,10 @@ export const transactionService = {
     }
   },
 
-  getAllTransactions: async (limit?: number, offset?: number): Promise<any> => {
+  getAllTransactions: async (limit?: number, offset?: number, updatedSince?: string): Promise<any> => {
     try {
       const response = await apiClient.get<ApiResponse>('/transactions', {
-        params: { limit, offset }
+        params: { limit, offset, updated_since: updatedSince }
       });
       return {
         success: true,
@@ -90,6 +123,23 @@ export const transactionService = {
       };
     } catch (error: any) {
       console.error('Error fetching transactions:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to fetch transactions',
+        data: []
+      };
+    }
+  },
+
+  getTransactionsByAccountNo: async (accountNo: string): Promise<any> => {
+    try {
+      const response = await apiClient.get<ApiResponse>(`/transactions/by-account/${accountNo}`);
+      return {
+        success: true,
+        data: response.data.data || []
+      };
+    } catch (error: any) {
+      console.error('Error fetching transactions by account:', error);
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to fetch transactions',
@@ -119,14 +169,15 @@ export const transactionService = {
     }
   },
 
-  batchApproveTransactions: async (transactionIds: string[]): Promise<any> => {
+  batchApproveTransactions: async (transactionIds: string[], approvedBy?: string): Promise<any> => {
     try {
       console.log('Batch approving transactions:', transactionIds);
       console.log('Transaction IDs type:', typeof transactionIds);
       console.log('First ID:', transactionIds[0], 'Type:', typeof transactionIds[0]);
 
       const response = await apiClient.post<ApiResponse>('/transactions/batch-approve', {
-        transaction_ids: transactionIds
+        transaction_ids: transactionIds,
+        approved_by: approvedBy
       });
 
       console.log('Batch approve response:', response.data);
@@ -142,6 +193,21 @@ export const transactionService = {
       return {
         success: false,
         message: error.response?.data?.message || error.message || 'Failed to batch approve transactions'
+      };
+    }
+  },
+
+  updateStatus: async (transactionId: string, status: string): Promise<ApiResponse> => {
+    try {
+      const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/status`, {
+        status
+      });
+      return response.data;
+    } catch (error: any) {
+      console.error('Error updating transaction status:', error);
+      return {
+        success: false,
+        message: error.response?.data?.message || error.message || 'Failed to update transaction status'
       };
     }
   }

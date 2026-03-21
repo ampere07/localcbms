@@ -51,7 +51,16 @@ export interface LCPNAPMapData {
   image2_url?: string;
   modified_by?: string;
   modified_date?: string;
+  active_sessions?: number;
+  inactive_sessions?: number;
+  offline_sessions?: number;
+  blocked_sessions?: number;
+  not_found_sessions?: number;
+  total_technical_details?: number;
+  total_sessions?: number;
 }
+
+let mapDataCache: LCPNAPMapData[] | null = null;
 
 export const getAllLCPNAPs = async (search?: string, page: number = 1, limit: number = 100): Promise<ApiResponse<LCPNAP[]>> => {
   try {
@@ -59,7 +68,7 @@ export const getAllLCPNAPs = async (search?: string, page: number = 1, limit: nu
     if (search) {
       params.search = search;
     }
-    
+
     const response = await apiClient.get<ApiResponse<LCPNAP[]>>('/lcpnap', { params });
     return response.data;
   } catch (error: any) {
@@ -72,18 +81,36 @@ export const getAllLCPNAPs = async (search?: string, page: number = 1, limit: nu
   }
 };
 
-export const getAllLCPNAPsForMap = async (): Promise<ApiResponse<LCPNAPMapData[]>> => {
+export const getAllLCPNAPsForMap = async (forceRefresh: boolean = false, search?: string): Promise<ApiResponse<LCPNAPMapData[]>> => {
   try {
-    const response = await apiClient.get<ApiResponse<LCPNAPMapData[]>>('/lcp-nap-locations');
+    if (!forceRefresh && mapDataCache && !search) {
+      return {
+        success: true,
+        data: mapDataCache,
+        message: 'Data loaded from cache'
+      };
+    }
+
+    const params: any = {};
+    if (search) params.search = search;
+
+    const response = await apiClient.get<ApiResponse<LCPNAPMapData[]>>('/lcp-nap-locations', { params });
+    if (response.data.success && !search) {
+      mapDataCache = response.data.data;
+    }
     return response.data;
   } catch (error: any) {
     console.error('Error fetching LCPNAP map data:', error);
     return {
       success: false,
-      data: [],
+      data: mapDataCache || [],
       message: error.message || 'Failed to fetch LCPNAP map data'
     };
   }
+};
+
+export const clearLCPNAPMapCache = () => {
+  mapDataCache = null;
 };
 
 export const getLCPNAPById = async (id: number): Promise<ApiResponse<LCPNAP>> => {
@@ -161,5 +188,18 @@ export const getLCPNAPLookupData = async (): Promise<ApiResponse<Array<{ id: num
   } catch (error: any) {
     console.error('Error fetching LCPNAP lookup data:', error);
     throw error;
+  }
+};
+export const getRelatedCustomers = async (id: number): Promise<ApiResponse<any[]>> => {
+  try {
+    const response = await apiClient.get<ApiResponse<any[]>>(`/lcpnap/${id}/related-customers`);
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching related customers:', error);
+    return {
+      success: false,
+      data: [],
+      message: error.message || 'Failed to fetch related customers'
+    };
   }
 };

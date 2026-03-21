@@ -92,15 +92,15 @@ const RadiusConfig: React.FC = () => {
       const theme = localStorage.getItem('theme');
       setIsDarkMode(theme === 'dark');
     };
-    
+
     checkDarkMode();
-    
+
     const observer = new MutationObserver(checkDarkMode);
     observer.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['class']
     });
-    
+
     return () => observer.disconnect();
   }, []);
 
@@ -140,10 +140,10 @@ const RadiusConfig: React.FC = () => {
   const handleSave = async () => {
     try {
       setLoading(true);
-      
+
       const authData = localStorage.getItem('authData');
       let userEmail = 'unknown@user.com';
-      
+
       if (authData) {
         try {
           const userData = JSON.parse(authData);
@@ -177,7 +177,7 @@ const RadiusConfig: React.FC = () => {
         });
         setEditingId(null);
       }
-      
+
       await fetchRadiusConfigs();
       resetForm();
       setShowPassword({});
@@ -247,17 +247,14 @@ const RadiusConfig: React.FC = () => {
   const canCreateNew = radiusConfigs.length < 2;
 
   return (
-    <div className={`p-4 min-h-full ${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    }`}>
-      <div className={`mb-4 pb-3 border-b ${
-        isDarkMode ? 'border-gray-700' : 'border-gray-300'
+    <div className={`p-4 min-h-full ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
+      <div className={`mb-4 pb-3 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
+        }`}>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className={`text-xl font-semibold mb-1 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-xl font-semibold mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               RADIUS Configuration
             </h2>
           </div>
@@ -266,7 +263,7 @@ const RadiusConfig: React.FC = () => {
               onClick={handleStartCreate}
               className="px-3 py-1.5 text-white text-sm rounded transition-colors"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -274,7 +271,7 @@ const RadiusConfig: React.FC = () => {
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               Create New
@@ -286,36 +283,32 @@ const RadiusConfig: React.FC = () => {
       <div className="space-y-3">
         {loading && radiusConfigs.length === 0 && !isCreating ? (
           <div className="flex items-center justify-center py-6">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
           </div>
         ) : (
           <>
             {radiusConfigs.map((config) => (
-              <div key={config.id} className={`rounded p-4 border ${
-                isDarkMode
+              <div key={config.id} className={`rounded p-4 border ${isDarkMode
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-300'
-              }`}>
+                }`}>
                 {editingId === config.id ? (
                   <div className="space-y-3">
-                    <h3 className={`text-base font-semibold mb-2 ${
-                      isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>Edit Configuration #{config.id}</h3>
+                    <h3 className={`text-base font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Edit Configuration #{config.id}</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       <div>
-                        <label className={`block text-xs font-medium mb-1 ${
-                          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>
+                        <label className={`block text-xs font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
                           Connection Type
                         </label>
                         <select
                           value={formData.ssl_type}
                           onChange={(e) => handleInputChange('ssl_type', e.target.value)}
-                          className={`w-full px-3 py-1.5 text-sm rounded focus:outline-none focus:border-orange-500 ${
-                            isDarkMode
+                          className={`w-full px-3 py-1.5 text-sm rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                               ? 'bg-gray-700 border-gray-600 text-white'
                               : 'bg-white border-gray-300 text-gray-900'
-                          }`}
+                            }`}
                           disabled={loading}
                         >
                           <option value="">Select Connection Type</option>
@@ -333,11 +326,10 @@ const RadiusConfig: React.FC = () => {
                           value={formData.ip}
                           onChange={(e) => handleInputChange('ip', e.target.value)}
                           placeholder="e.g., 192.168.1.1"
-                          className={`w-full px-3 py-1.5 text-sm rounded focus:outline-none focus:border-orange-500 ${
-                            isDarkMode
+                          className={`w-full px-3 py-1.5 text-sm rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                               ? 'bg-gray-700 border-gray-600 text-white'
                               : 'bg-white border-gray-300 text-gray-900'
-                          }`}
+                            }`}
                           disabled={loading}
                         />
                       </div>
@@ -386,11 +378,10 @@ const RadiusConfig: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => togglePasswordVisibility(config.id)}
-                            className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs ${
-                              isDarkMode
+                            className={`absolute right-2 top-1/2 transform -translate-y-1/2 text-xs ${isDarkMode
                                 ? 'text-gray-400 hover:text-gray-300'
                                 : 'text-gray-600 hover:text-gray-800'
-                            }`}
+                              }`}
                           >
                             {showPassword[config.id] ? 'Hide' : 'Show'}
                           </button>
@@ -404,7 +395,7 @@ const RadiusConfig: React.FC = () => {
                         disabled={loading}
                         className="px-3 py-1.5 text-sm disabled:opacity-50 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                          backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                         }}
                         onMouseEnter={(e) => {
                           if (!loading && colorPalette?.accent) {
@@ -413,7 +404,7 @@ const RadiusConfig: React.FC = () => {
                         }}
                         onMouseLeave={(e) => {
                           if (!loading) {
-                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                           }
                         }}
                       >
@@ -422,11 +413,10 @@ const RadiusConfig: React.FC = () => {
                       <button
                         onClick={handleCancel}
                         disabled={loading}
-                        className={`px-3 py-1.5 text-sm disabled:opacity-50 rounded transition-colors ${
-                          isDarkMode
+                        className={`px-3 py-1.5 text-sm disabled:opacity-50 rounded transition-colors ${isDarkMode
                             ? 'bg-gray-700 hover:bg-gray-600 text-white'
                             : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                        }`}
+                          }`}
                       >
                         Cancel
                       </button>
@@ -435,104 +425,82 @@ const RadiusConfig: React.FC = () => {
                 ) : (
                   <div>
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className={`text-base font-semibold ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>Configuration #{config.id}</h3>
+                      <h3 className={`text-base font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>Configuration #{config.id}</h3>
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleStartEdit(config)}
-                          className={`px-3 py-1 text-sm rounded transition-colors ${
-                            isDarkMode
+                          className={`px-3 py-1 text-sm rounded transition-colors ${isDarkMode
                               ? 'text-blue-400 hover:text-blue-300 hover:bg-blue-900'
                               : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
-                          }`}
+                            }`}
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => handleDelete(config.id)}
-                          className={`px-3 py-1 text-sm rounded transition-colors ${
-                            isDarkMode
+                          className={`px-3 py-1 text-sm rounded transition-colors ${isDarkMode
                               ? 'text-red-400 hover:text-red-300 hover:bg-red-900'
                               : 'text-red-600 hover:text-red-700 hover:bg-red-100'
-                          }`}
+                            }`}
                         >
                           Delete
                         </button>
                       </div>
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                      <div className={`p-2.5 rounded ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                      }`}>
-                        <p className={`text-xs mb-0.5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Connection Type</p>
-                        <p className={`font-medium text-sm uppercase ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{config.ssl_type || 'Not set'}</p>
-                      </div>
-                      <div className={`p-2.5 rounded ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                      }`}>
-                        <p className={`text-xs mb-0.5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>IP Address</p>
-                        <p className={`font-medium text-sm ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{config.ip || 'Not set'}</p>
-                      </div>
-                      <div className={`p-2.5 rounded ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                      }`}>
-                        <p className={`text-xs mb-0.5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Port</p>
-                        <p className={`font-medium text-sm ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{config.port || 'Not set'}</p>
-                      </div>
-                      <div className={`p-2.5 rounded ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                      }`}>
-                        <p className={`text-xs mb-0.5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Username</p>
-                        <p className={`font-medium text-sm ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{config.username || 'Not set'}</p>
-                      </div>
-                      <div className={`p-2.5 rounded ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                      }`}>
-                        <p className={`text-xs mb-0.5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Password</p>
-                        <p className={`font-medium text-sm ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
+                      <div className={`p-2.5 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
                         }`}>
+                        <p className={`text-xs mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Connection Type</p>
+                        <p className={`font-medium text-sm uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{config.ssl_type || 'Not set'}</p>
+                      </div>
+                      <div className={`p-2.5 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}>
+                        <p className={`text-xs mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>IP Address</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{config.ip || 'Not set'}</p>
+                      </div>
+                      <div className={`p-2.5 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}>
+                        <p className={`text-xs mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Port</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{config.port || 'Not set'}</p>
+                      </div>
+                      <div className={`p-2.5 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}>
+                        <p className={`text-xs mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Username</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{config.username || 'Not set'}</p>
+                      </div>
+                      <div className={`p-2.5 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}>
+                        <p className={`text-xs mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Password</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>
                           {showPassword[config.id] ? config.password : '••••••••'}
                         </p>
                         <button
                           onClick={() => togglePasswordVisibility(config.id)}
-                          className={`text-xs ${
-                            isDarkMode
+                          className={`text-xs ${isDarkMode
                               ? 'text-orange-400 hover:text-orange-300'
                               : 'text-orange-600 hover:text-orange-700'
-                          }`}
+                            }`}
                         >
                           {showPassword[config.id] ? 'Hide' : 'Show'}
                         </button>
                       </div>
-                      <div className={`p-2.5 rounded ${
-                        isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
-                      }`}>
-                        <p className={`text-xs mb-0.5 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>Last Updated By</p>
-                        <p className={`font-medium text-sm ${
-                          isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>{config.updated_by || 'Unknown'}</p>
+                      <div className={`p-2.5 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'
+                        }`}>
+                        <p className={`text-xs mb-0.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>Last Updated By</p>
+                        <p className={`font-medium text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                          }`}>{config.updated_by || 'Unknown'}</p>
                       </div>
                     </div>
                   </div>
@@ -541,14 +509,12 @@ const RadiusConfig: React.FC = () => {
             ))}
 
             {isCreating && (
-              <div className={`rounded p-4 border ${
-                isDarkMode
+              <div className={`rounded p-4 border ${isDarkMode
                   ? 'bg-gray-800 border-gray-700'
                   : 'bg-white border-gray-300'
-              }`}>
-                <h3 className={`text-base font-semibold mb-2 ${
-                  isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>Create New Configuration</h3>
+                }`}>
+                <h3 className={`text-base font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>Create New Configuration</h3>
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <div>
@@ -639,7 +605,7 @@ const RadiusConfig: React.FC = () => {
                       disabled={loading}
                       className="px-3 py-1.5 text-sm disabled:opacity-50 text-white rounded transition-colors"
                       style={{
-                        backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                        backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                       }}
                       onMouseEnter={(e) => {
                         if (!loading && colorPalette?.accent) {
@@ -648,7 +614,7 @@ const RadiusConfig: React.FC = () => {
                       }}
                       onMouseLeave={(e) => {
                         if (!loading) {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }
                       }}
                     >
@@ -667,9 +633,8 @@ const RadiusConfig: React.FC = () => {
             )}
 
             {radiusConfigs.length === 0 && !isCreating && (
-              <div className={`text-center py-8 ${
-                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-              }`}>
+              <div className={`text-center py-8 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>
                 <p className="text-base mb-1">No RADIUS configurations found</p>
               </div>
             )}
@@ -679,27 +644,23 @@ const RadiusConfig: React.FC = () => {
 
       {modal.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`border rounded-lg p-4 max-w-md w-full mx-4 ${
-            isDarkMode
+          <div className={`border rounded-lg p-4 max-w-md w-full mx-4 ${isDarkMode
               ? 'bg-gray-900 border-gray-700'
               : 'bg-white border-gray-300'
-          }`}>
-            <h3 className={`text-base font-semibold mb-3 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{modal.title}</h3>
-            <p className={`text-sm mb-4 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>{modal.message}</p>
+            }`}>
+            <h3 className={`text-base font-semibold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{modal.title}</h3>
+            <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>{modal.message}</p>
             <div className="flex items-center justify-end gap-2">
               {modal.type === 'confirm' ? (
                 <>
                   <button
                     onClick={modal.onCancel}
-                    className={`px-3 py-1.5 text-sm rounded transition-colors ${
-                      isDarkMode
+                    className={`px-3 py-1.5 text-sm rounded transition-colors ${isDarkMode
                         ? 'bg-gray-700 hover:bg-gray-600 text-white'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   >
                     Cancel
                   </button>
@@ -707,7 +668,7 @@ const RadiusConfig: React.FC = () => {
                     onClick={modal.onConfirm}
                     className="px-3 py-1.5 text-sm text-white rounded transition-colors"
                     style={{
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
@@ -715,7 +676,7 @@ const RadiusConfig: React.FC = () => {
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Confirm
@@ -726,7 +687,7 @@ const RadiusConfig: React.FC = () => {
                   onClick={() => setModal({ ...modal, isOpen: false })}
                   className="px-3 py-1.5 text-sm text-white rounded transition-colors"
                   style={{
-                    backgroundColor: colorPalette?.primary || '#ea580c'
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
                   }}
                   onMouseEnter={(e) => {
                     if (colorPalette?.accent) {
@@ -734,7 +695,7 @@ const RadiusConfig: React.FC = () => {
                     }
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }}
                 >
                   OK

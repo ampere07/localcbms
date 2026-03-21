@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { Search, Check, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import apiClient from '../config/api';
+
+const hexToRgba = (hex: string, opacity: number) => {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
 interface InvoiceFunnelFilterProps {
     isOpen: boolean;
@@ -11,8 +17,8 @@ interface InvoiceFunnelFilterProps {
 
 export interface FilterValues {
     [key: string]: {
-        type: 'text' | 'number' | 'date';
-        value?: string;
+        type: 'text' | 'number' | 'date' | 'checklist';
+        value?: string | string[];
         from?: string | number;
         to?: string | number;
     };
@@ -21,12 +27,12 @@ export interface FilterValues {
 interface Column {
     key: string;
     label: string;
-    dataType: 'varchar' | 'text' | 'int' | 'decimal' | 'date' | 'datetime';
+    dataType: 'varchar' | 'text' | 'int' | 'decimal' | 'date' | 'datetime' | 'checklist';
 }
 
 const STORAGE_KEY = 'invoiceFunnelFilters';
 
-const allColumns: Column[] = [
+export const allColumns: Column[] = [
     { key: 'id', label: 'Invoice ID', dataType: 'int' },
     { key: 'accountNo', label: 'Account Number', dataType: 'varchar' },
     { key: 'fullName', label: 'Full Name', dataType: 'varchar' },
@@ -39,13 +45,13 @@ const allColumns: Column[] = [
     { key: 'staggered', label: 'Staggered', dataType: 'decimal' },
     { key: 'totalAmount', label: 'Total Amount', dataType: 'decimal' },
     { key: 'receivedPayment', label: 'Received Payment', dataType: 'decimal' },
-    { key: 'status', label: 'Status', dataType: 'varchar' },
+    { key: 'status', label: 'Status', dataType: 'checklist' },
     { key: 'paymentPortalLogRef', label: 'Payment Portal Ref', dataType: 'varchar' },
     { key: 'transactionId', label: 'Transaction ID', dataType: 'varchar' },
     { key: 'address', label: 'Address', dataType: 'text' },
-    { key: 'barangay', label: 'Barangay', dataType: 'varchar' },
-    { key: 'city', label: 'City', dataType: 'varchar' },
-    { key: 'region', label: 'Region', dataType: 'varchar' },
+    { key: 'barangay', label: 'Barangay', dataType: 'checklist' },
+    { key: 'city', label: 'City', dataType: 'checklist' },
+    { key: 'region', label: 'Region', dataType: 'checklist' },
     { key: 'createdAt', label: 'Created At', dataType: 'datetime' },
     { key: 'createdBy', label: 'Created By', dataType: 'varchar' },
 ];
@@ -60,6 +66,12 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
     const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
     const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
     const [filterValues, setFilterValues] = useState<FilterValues>({});
+    const [searchTerm, setSearchTerm] = useState('');
+
+    // Checklist data states
+    const [barangays, setBarangays] = useState<string[]>([]);
+    const [cities, setCities] = useState<string[]>([]);
+    const [regions, setRegions] = useState<string[]>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -96,12 +108,32 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
         fetchColorPalette();
     }, []);
 
+    useEffect(() => {
+        if (isOpen) {
+            const fetchChecklistData = async () => {
+                try {
+                    const locRes = await apiClient.get<{ success: boolean; data: { barangays: string[], cities: string[], regions: string[] } }>('/lookup/customer-locations');
+                    if (locRes.data.success) {
+                        setBarangays(locRes.data.data.barangays);
+                        setCities(locRes.data.data.cities);
+                        setRegions(locRes.data.data.regions);
+                    }
+                } catch (err) {
+                    console.error('Failed to fetch checklist data:', err);
+                }
+            };
+            fetchChecklistData();
+        }
+    }, [isOpen]);
+
     const handleColumnClick = (column: Column) => {
         setSelectedColumn(column);
+        setSearchTerm('');
     };
 
     const handleBack = () => {
         setSelectedColumn(null);
+        setSearchTerm('');
     };
 
     const handleApply = () => {
@@ -156,10 +188,113 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
         }));
     };
 
+    const toggleOption = (columnKey: string, option: string) => {
+        setFilterValues(prev => {
+            const current = prev[columnKey] || { type: 'checklist', value: [] };
+            const selectedOptions = (current.value as string[]) || [];
+
+            const nextOptions = selectedOptions.includes(option)
+                ? selectedOptions.filter(o => o !== option)
+                : [...selectedOptions, option];
+
+            if (nextOptions.length === 0) {
+                const newFilters = { ...prev };
+                delete newFilters[columnKey];
+                return newFilters;
+            }
+
+            return {
+                ...prev,
+                [columnKey]: {
+                    type: 'checklist',
+                    value: nextOptions
+                }
+            };
+        });
+    };
+
     const renderFilterInput = () => {
         if (!selectedColumn) return null;
 
         const currentValue = filterValues[selectedColumn.key];
+
+        if (selectedColumn.dataType === 'checklist') {
+            let options: { label: string, value: string }[] = [];
+            if (selectedColumn.key === 'status') {
+                options = [
+                    { label: 'Paid', value: 'Paid' },
+                    { label: 'Unpaid', value: 'Unpaid' },
+                    { label: 'Partial', value: 'Partial' },
+                    { label: 'Overdue', value: 'Overdue' },
+                    { label: 'Cancelled', value: 'Cancelled' }
+                ];
+            } else if (selectedColumn.key === 'barangay') {
+                options = barangays.map(b => ({ label: b, value: b }));
+            } else if (selectedColumn.key === 'city') {
+                options = cities.map(c => ({ label: c, value: c }));
+            } else if (selectedColumn.key === 'region') {
+                options = regions.map(r => ({ label: r, value: r }));
+            }
+
+            const filteredOptions = options.filter(opt =>
+                opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+
+            return (
+                <div className="flex flex-col h-full overflow-hidden">
+                    <div className="relative mb-4">
+                        <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                        <input
+                            type="text"
+                            placeholder="Search options..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className={`w-full pl-10 pr-4 py-2 rounded-lg border text-sm focus:outline-none transition-all ${isDarkMode
+                                ? 'bg-gray-800 border-gray-700 text-white'
+                                : 'bg-gray-50 border-gray-200 text-gray-900'
+                                }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
+                        />
+                    </div>
+                    <div className="flex-1 overflow-y-auto pr-2 space-y-1 custom-scrollbar">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map((option, idx) => {
+                                const isSelected = (currentValue?.value as string[])?.includes(option.value);
+                                return (
+                                    <button
+                                        key={idx}
+                                        onClick={() => toggleOption(selectedColumn.key, option.value)}
+                                        className={`w-full flex items-center justify-between p-3 rounded-xl transition-all ${isSelected
+                                            ? ''
+                                            : (isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-50 text-gray-700')
+                                            }`}
+                                        style={isSelected ? {
+                                            backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', 0.1),
+                                            color: colorPalette?.primary || '#7c3aed'
+                                        } : {}}
+                                    >
+                                        <span className="text-sm font-medium">{option.label}</span>
+                                        {isSelected && <Check className="h-4 w-4" />}
+                                    </button>
+                                );
+                            })
+                        ) : (
+                            <div className="text-center py-8">
+                                <p className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>No results found</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+        }
 
         if (isNumericType(selectedColumn.dataType)) {
             return (
@@ -175,8 +310,8 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                             onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
                             placeholder="Minimum value"
                             className={`w-full px-3 py-2 rounded border ${isDarkMode
-                                    ? 'bg-gray-800 border-gray-700 text-white'
-                                    : 'bg-white border-gray-300 text-gray-900'
+                                ? 'bg-gray-800 border-gray-700 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
                                 }`}
                         />
                     </div>
@@ -190,10 +325,19 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                             value={currentValue?.to || ''}
                             onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
                             placeholder="Maximum value"
-                            className={`w-full px-3 py-2 rounded border ${isDarkMode
-                                    ? 'bg-gray-800 border-gray-700 text-white'
-                                    : 'bg-white border-gray-300 text-gray-900'
+                            className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
+                                ? 'bg-gray-800 border-gray-700 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
                                 }`}
+                            style={{ borderColor: 'transparent' }}
+                            onFocus={(e) => {
+                                if (colorPalette?.primary) {
+                                    e.currentTarget.style.borderColor = colorPalette.primary;
+                                }
+                            }}
+                            onBlur={(e) => {
+                                e.currentTarget.style.borderColor = 'transparent';
+                            }}
                         />
                     </div>
                 </div>
@@ -213,8 +357,8 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                             value={currentValue?.from || ''}
                             onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
                             className={`w-full px-3 py-2 rounded border ${isDarkMode
-                                    ? 'bg-gray-800 border-gray-700 text-white'
-                                    : 'bg-white border-gray-300 text-gray-900'
+                                ? 'bg-gray-800 border-gray-700 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
                                 }`}
                         />
                     </div>
@@ -228,8 +372,8 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                             value={currentValue?.to || ''}
                             onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
                             className={`w-full px-3 py-2 rounded border ${isDarkMode
-                                    ? 'bg-gray-800 border-gray-700 text-white'
-                                    : 'bg-white border-gray-300 text-gray-900'
+                                ? 'bg-gray-800 border-gray-700 text-white'
+                                : 'bg-white border-gray-300 text-gray-900'
                                 }`}
                         />
                     </div>
@@ -248,10 +392,19 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                     value={currentValue?.value || ''}
                     onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
                     placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
-                    className={`w-full px-3 py-2 rounded border ${isDarkMode
-                            ? 'bg-gray-800 border-gray-700 text-white'
-                            : 'bg-white border-gray-300 text-gray-900'
+                    className={`w-full px-3 py-2 rounded border focus:outline-none transition-all ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
                         }`}
+                    style={{ borderColor: 'transparent' }}
+                    onFocus={(e) => {
+                        if (colorPalette?.primary) {
+                            e.currentTarget.style.borderColor = colorPalette.primary;
+                        }
+                    }}
+                    onBlur={(e) => {
+                        e.currentTarget.style.borderColor = 'transparent';
+                    }}
                 />
             </div>
         );
@@ -279,8 +432,8 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                                             <button
                                                 onClick={handleBack}
                                                 className={`p-2 rounded-lg transition-colors ${isDarkMode
-                                                        ? 'hover:bg-gray-800 text-gray-400'
-                                                        : 'hover:bg-gray-100 text-gray-600'
+                                                    ? 'hover:bg-gray-800 text-gray-400'
+                                                    : 'hover:bg-gray-100 text-gray-600'
                                                     }`}
                                             >
                                                 <ChevronLeft className="h-5 w-5" />
@@ -294,8 +447,8 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                                     <button
                                         onClick={onClose}
                                         className={`p-2 rounded-lg transition-colors ${isDarkMode
-                                                ? 'hover:bg-gray-800 text-gray-400'
-                                                : 'hover:bg-gray-100 text-gray-600'
+                                            ? 'hover:bg-gray-800 text-gray-400'
+                                            : 'hover:bg-gray-100 text-gray-600'
                                             }`}
                                     >
                                         <X className="h-5 w-5" />
@@ -314,21 +467,54 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                                                 Invoice Details
                                             </h3>
                                             <div className="flex flex-col gap-2 w-full">
-                                                {allColumns.map(column => (
-                                                    <div
-                                                        key={column.key}
-                                                        onClick={() => handleColumnClick(column)}
-                                                        className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                                                            }`}
-                                                    >
-                                                        <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-                                                            }`}>
-                                                            {column.label}
-                                                        </span>
-                                                        <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                                                            }`} />
-                                                    </div>
-                                                ))}
+                                                {allColumns.map(column => {
+                                                    const isActive = !!filterValues[column.key];
+                                                    return (
+                                                        <div
+                                                            key={column.key}
+                                                            onClick={() => handleColumnClick(column)}
+                                                            className={`group w-full p-4 cursor-pointer transition-all flex items-center justify-between rounded-xl mb-1 ${isDarkMode
+                                                                ? 'hover:bg-gray-800/50'
+                                                                : 'hover:bg-gray-50 border border-transparent hover:border-gray-100'
+                                                                }`}
+                                                        >
+                                                            <div className="flex items-center space-x-3">
+                                                                <div className="relative">
+                                                                    <span className={`text-sm font-semibold transition-colors ${isActive ? '' : (isDarkMode ? 'text-gray-200' : 'text-gray-700')
+                                                                        }`}
+                                                                        style={isActive ? { color: colorPalette?.primary || '#7c3aed' } : {}}
+                                                                    >
+                                                                        {column.label}
+                                                                    </span>
+                                                                    {isActive && (
+                                                                        <div
+                                                                            className="absolute -left-3 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full"
+                                                                            style={{
+                                                                                backgroundColor: colorPalette?.primary || '#7c3aed',
+                                                                                boxShadow: `0 0 8px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.6)}`
+                                                                            }}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex items-center space-x-3">
+                                                                {isActive && (
+                                                                    <span
+                                                                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider`}
+                                                                        style={{
+                                                                            backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.2 : 0.1),
+                                                                            color: colorPalette?.primary || '#7c3aed'
+                                                                        }}
+                                                                    >
+                                                                        Active
+                                                                    </span>
+                                                                )}
+                                                                <ChevronRight className={`h-4 w-4 transition-transform group-hover:translate-x-0.5 ${isDarkMode ? 'text-gray-600' : 'text-gray-300'
+                                                                    }`} />
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>
@@ -341,26 +527,21 @@ const InvoiceFunnelFilter: React.FC<InvoiceFunnelFilterProps> = ({
                                     <button
                                         onClick={handleReset}
                                         className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
-                                                ? 'bg-gray-800 hover:bg-gray-700 text-white'
-                                                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                                            ? 'bg-gray-800 hover:bg-gray-700 text-white'
+                                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                                             }`}
                                     >
                                         Clear
                                     </button>
-                                    <button
+                                     <button
                                         onClick={handleApply}
-                                        className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
-                                        onMouseEnter={(e) => {
-                                            if (colorPalette?.accent) {
-                                                e.currentTarget.style.backgroundColor = colorPalette.accent;
-                                            }
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                                        className="flex-1 px-4 py-3 rounded-2xl font-bold text-sm text-white transition-all duration-200 active:scale-[0.98]"
+                                        style={{ 
+                                            backgroundColor: colorPalette?.primary || '#7c3aed',
+                                            boxShadow: `0 4px 12px ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
                                         }}
                                     >
-                                        Done
+                                        Apply Filters
                                     </button>
                                 </div>
                             </div>

@@ -12,9 +12,10 @@ class ServiceOrder extends Model
      * Specify the table name directly
      */
     protected $table = 'service_orders';
-    
+
     protected $fillable = [
         'ticket_id',
+        'Ticket_ID',
         'Timestamp',
         'Account_Number',
         'Full_Name',
@@ -64,8 +65,11 @@ class ServiceOrder extends Model
         'new_port',
         'new_vlan',
         'router_model',
+        'start_time',
+        'end_time',
+        'proof_image_url',
     ];
-    
+
     protected $dates = [
         'Timestamp',
         'Date_Installed',
@@ -73,7 +77,7 @@ class ServiceOrder extends Model
         'created_at',
         'updated_at',
     ];
-    
+
     /**
      * The primary key for the model.
      *
@@ -86,6 +90,6 @@ class ServiceOrder extends Model
      */
     public function application()
     {
-        return $this->belongsTo(Application::class, 'Account_Number', 'id');
+        return $this->belongsTo(Application::class , 'Account_Number', 'id');
     }
 }

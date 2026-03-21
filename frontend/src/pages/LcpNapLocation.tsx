@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, MapPin } from 'lucide-react';
+import { Loader2, MapPin, Search, X } from 'lucide-react';
 import AddLcpNapLocationModal from '../modals/AddLcpNapLocationModal';
 import LcpNapLocationDetails from '../components/LcpNapLocationDetails';
 import { GOOGLE_MAPS_API_KEY } from '../config/maps';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getAllLCPNAPsForMap, clearLCPNAPMapCache } from '../services/lcpnapService';
 import apiClient from '../config/api';
 
 interface LocationMarker {
@@ -29,6 +30,7 @@ interface LocationMarker {
   offline_sessions?: number;
   blocked_sessions?: number;
   not_found_sessions?: number;
+  total_technical_details?: number;
 }
 
 interface LcpNapGroup {
@@ -64,12 +66,21 @@ const LcpNapLocation: React.FC = () => {
   const [isMapReady, setIsMapReady] = useState<boolean>(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedLocation, setSelectedLocation] = useState<LocationMarker | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addressSuggestions, setAddressSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
+  const searchRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
+  const autocompleteServiceRef = useRef<google.maps.places.AutocompleteService | null>(null);
+  const placesServiceRef = useRef<google.maps.places.PlacesService | null>(null);
   const markersRef = useRef<google.maps.Marker[]>([]);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const searchMarkerRef = useRef<google.maps.Marker | null>(null);
+  const allMarkersMapRef = useRef<Map<number, google.maps.Marker>>(new Map());
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -89,6 +100,16 @@ const LcpNapLocation: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
     const fetchColorPalette = async () => {
       try {
         const activePalette = await settingsColorPaletteService.getActive();
@@ -99,6 +120,30 @@ const LcpNapLocation: React.FC = () => {
     };
     fetchColorPalette();
   }, []);
+
+  useEffect(() => {
+    if (!searchQuery) {
+      setAddressSuggestions([]);
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      if (autocompleteServiceRef.current && showSuggestions) {
+        autocompleteServiceRef.current.getPlacePredictions(
+          { input: searchQuery, componentRestrictions: { country: 'ph' } },
+          (predictions, status) => {
+            if (status === google.maps.places.PlacesServiceStatus.OK && predictions) {
+              setAddressSuggestions(predictions.slice(0, 5));
+            } else {
+              setAddressSuggestions([]);
+            }
+          }
+        );
+      }
+    }, 300);
+
+    return () => clearTimeout(handler);
+  }, [searchQuery, showSuggestions]);
 
   useEffect(() => {
     loadGoogleMapsScript();
@@ -122,10 +167,10 @@ const LcpNapLocation: React.FC = () => {
   }, [markers]);
 
   useEffect(() => {
-    if (isMapReady && markers.length > 0 && selectedLcpNapId === 'all') {
+    if (isMapReady && isDataLoaded && selectedLcpNapId === 'all') {
       updateMapMarkers(markers);
     }
-  }, [isMapReady]);
+  }, [isMapReady, isDataLoaded]);
 
   useEffect(() => {
     if (!isResizingSidebar) return;
@@ -166,7 +211,7 @@ const LcpNapLocation: React.FC = () => {
 
     const script = document.createElement('script');
     script.id = 'google-maps-script';
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=marker`;
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_API_KEY}&libraries=marker,places`;
     script.async = true;
     script.defer = true;
     script.onload = initializeMap;
@@ -184,6 +229,16 @@ const LcpNapLocation: React.FC = () => {
       const map = new google.maps.Map(mapRef.current, {
         center: { lat: 12.8797, lng: 121.7740 },
         zoom: 6,
+        minZoom: 6,
+        restriction: {
+          latLngBounds: {
+            north: 21.5,
+            south: 4.3,
+            west: 114.0,
+            east: 127.5,
+          },
+          strictBounds: true,
+        },
         mapTypeControl: true,
         streetViewControl: true,
         fullscreenControl: true,
@@ -231,6 +286,8 @@ const LcpNapLocation: React.FC = () => {
 
       infoWindowRef.current = new google.maps.InfoWindow();
       mapInstanceRef.current = map;
+      autocompleteServiceRef.current = new google.maps.places.AutocompleteService();
+      placesServiceRef.current = new google.maps.places.PlacesService(map);
       setIsMapReady(true);
     } catch (error) {
       console.error('Error initializing map:', error);
@@ -252,11 +309,11 @@ const LcpNapLocation: React.FC = () => {
     return { latitude, longitude };
   };
 
-  const loadLocations = async () => {
+  const loadLocations = async (forceRefresh: boolean = false) => {
     setIsLoading(true);
     try {
-      const response = await apiClient.get<ApiResponse<any[]>>('/lcp-nap-locations');
-      const data = response.data;
+      const response = await getAllLCPNAPsForMap(forceRefresh);
+      const data = response;
 
       if (data.success && data.data) {
         const locationData = data.data
@@ -286,15 +343,18 @@ const LcpNapLocation: React.FC = () => {
               inactive_sessions: item.inactive_sessions,
               offline_sessions: item.offline_sessions,
               blocked_sessions: item.blocked_sessions,
-              not_found_sessions: item.not_found_sessions
+              not_found_sessions: item.not_found_sessions,
+              total_technical_details: item.total_technical_details
             } as LocationMarker;
           })
           .filter((marker): marker is LocationMarker => marker !== null);
 
         setMarkers(locationData);
+        setIsDataLoaded(true);
 
+        // Pre-create markers after data is loaded and map is ready
         if (mapInstanceRef.current) {
-          updateMapMarkers(locationData);
+          initializeAllMarkers(locationData);
         }
       }
     } catch (error) {
@@ -302,6 +362,82 @@ const LcpNapLocation: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const initializeAllMarkers = (locations: LocationMarker[]) => {
+    if (!mapInstanceRef.current || !window.google?.maps) return;
+
+    // Clear existing markers mapping
+    allMarkersMapRef.current.forEach(m => m.setMap(null));
+    allMarkersMapRef.current.clear();
+
+    locations.forEach(location => {
+      const isFull = location.port_total && location.total_technical_details !== undefined && location.total_technical_details >= location.port_total;
+      const markerColor = isFull ? '#ef4444' : '#22c55e'; // Red if full, Green otherwise
+
+      const marker = new google.maps.Marker({
+        position: { lat: location.latitude, lng: location.longitude },
+        icon: createMarkerIcon(markerColor),
+        title: location.lcpnap_name
+      });
+
+      marker.addListener('click', () => {
+        setSelectedLocation(location);
+      });
+
+      marker.addListener('mouseover', () => {
+        if (infoWindowRef.current && mapInstanceRef.current) {
+          const addressParts = [
+            location.street,
+            location.barangay,
+            location.city,
+            location.region
+          ].filter(Boolean);
+
+          const address = addressParts.length > 0
+            ? addressParts.join(', ')
+            : 'No address available';
+
+          const contentString = `
+            <div style="padding: 8px; min-width: 200px;">
+              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #1f2937;">
+                ${location.lcpnap_name}
+              </h3>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                <strong>LCP:</strong> ${location.lcp_name}
+              </div>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                <strong>NAP:</strong> ${location.nap_name}
+              </div>
+              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
+                <strong>Ports:</strong> ${location.total_technical_details || 0} / ${location.port_total || 0}
+              </div>
+              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+                <div style="font-size: 11px;">
+                  <span style="color: #22c55e;">On: ${location.active_sessions || 0}</span> | 
+                  <span style="color: #f59e0b;">Off: ${location.offline_sessions || 0}</span> | 
+                  <span style="color: #ef4444;">Blk: ${location.blocked_sessions || 0}</span>
+                </div>
+              </div>
+              <div style="font-size: 11px; color: #9ca3af; margin-top: 4px;">
+                ${address}
+              </div>
+            </div>
+          `;
+
+          infoWindowRef.current.setContent(contentString);
+          infoWindowRef.current.open(mapInstanceRef.current, marker);
+        }
+      });
+
+      marker.addListener('mouseout', () => {
+        if (infoWindowRef.current) {
+          infoWindowRef.current.close();
+        }
+      });
+
+      allMarkersMapRef.current.set(location.id, marker);
+    });
   };
 
   const groupLocationsByLcpNap = () => {
@@ -328,120 +464,48 @@ const LcpNapLocation: React.FC = () => {
   };
 
   const clearMarkers = () => {
-    markersRef.current.forEach(marker => marker.setMap(null));
-    markersRef.current = [];
+    allMarkersMapRef.current.forEach(marker => marker.setMap(null));
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.setMap(null);
+      searchMarkerRef.current = null;
+    }
   };
 
-  const createMarkerIcon = (): google.maps.Symbol => {
+  const createMarkerIcon = (color: string = '#22c55e'): google.maps.Symbol => {
     return {
       path: google.maps.SymbolPath.CIRCLE,
       scale: 8,
-      fillColor: '#22c55e',
+      fillColor: color,
       fillOpacity: 1,
       strokeColor: '#ffffff',
-      strokeWeight: 2,
+      strokeWeight: 1,
     };
   };
 
   const updateMapMarkers = (locations: LocationMarker[]) => {
-    if (!mapInstanceRef.current || !window.google?.maps) {
-      console.warn('Map not ready');
-      return;
-    }
+    if (!mapInstanceRef.current || !window.google?.maps) return;
 
-    clearMarkers();
-
+    // Use a fresh set for fast lookup
+    const locationIds = new Set(locations.map(l => l.id));
     const bounds = new google.maps.LatLngBounds();
+    let hasVisibleMarkers = false;
 
-    locations.forEach(location => {
-      const position = { lat: location.latitude, lng: location.longitude };
-
-      const marker = new google.maps.Marker({
-        position,
-        map: mapInstanceRef.current,
-        icon: createMarkerIcon(),
-        title: location.lcpnap_name
-      });
-
-      marker.addListener('click', () => {
-        setSelectedLocation(location);
-      });
-
-      // Add hover event listeners to show info window
-      marker.addListener('mouseover', () => {
-        if (infoWindowRef.current) {
-          const addressParts = [
-            location.street,
-            location.barangay,
-            location.city,
-            location.region
-          ].filter(Boolean);
-
-          const address = addressParts.length > 0
-            ? addressParts.join(', ')
-            : 'No address available';
-
-          const contentString = `
-            <div style="padding: 8px; min-width: 200px;">
-              <h3 style="margin: 0 0 8px 0; font-size: 14px; font-weight: 600; color: #1f2937;">
-                ${location.lcpnap_name}
-              </h3>
-              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                <strong>LCP:</strong> ${location.lcp_name}
-              </div>
-              <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                <strong>NAP:</strong> ${location.nap_name}
-              </div>
-              ${location.port_total ? `
-                <div style="font-size: 12px; color: #6b7280; margin-bottom: 4px;">
-                  <strong>Ports:</strong> ${location.port_total}
-                </div>
-              ` : ''}
-              <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #22c55e;">Online:</strong> 
-                  <span style="color: #22c55e; font-weight: 600;">${location.active_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #f59e0b;">Offline:</strong> 
-                  <span style="color: #f59e0b; font-weight: 600;">${location.offline_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #6b7280;">Inactive:</strong> 
-                  <span style="color: #6b7280; font-weight: 600;">${location.inactive_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #ef4444;">Blocked:</strong> 
-                  <span style="color: #ef4444; font-weight: 600;">${location.blocked_sessions || 0}</span>
-                </div>
-                <div style="font-size: 12px; margin-bottom: 4px;">
-                  <strong style="color: #8b5cf6;">Not Found:</strong> 
-                  <span style="color: #8b5cf6; font-weight: 600;">${location.not_found_sessions || 0}</span>
-                </div>
-              </div>
-              <div style="font-size: 12px; color: #6b7280; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
-                ${address}
-              </div>
-            </div>
-          `;
-
-          infoWindowRef.current.setContent(contentString);
-          infoWindowRef.current.open(mapInstanceRef.current, marker);
-        }
-      });
-
-      marker.addListener('mouseout', () => {
-        if (infoWindowRef.current) {
-          infoWindowRef.current.close();
-        }
-      });
-
-      markersRef.current.push(marker);
-      bounds.extend(position);
+    allMarkersMapRef.current.forEach((marker, id) => {
+      if (locationIds.has(id)) {
+        marker.setMap(mapInstanceRef.current);
+        const pos = marker.getPosition();
+        if (pos) bounds.extend(pos);
+        hasVisibleMarkers = true;
+      } else {
+        marker.setMap(null);
+      }
     });
 
-    if (locations.length > 0) {
+    if (hasVisibleMarkers && locations.length > 0) {
       mapInstanceRef.current.fitBounds(bounds, { top: 50, right: 50, bottom: 50, left: 50 });
+      if (locations.length === 1) {
+        mapInstanceRef.current.setZoom(18);
+      }
     }
   };
 
@@ -461,17 +525,69 @@ const LcpNapLocation: React.FC = () => {
   const handleLocationSelect = (location: LocationMarker) => {
     if (!mapInstanceRef.current) return;
 
-    mapInstanceRef.current.setCenter({ lat: location.latitude, lng: location.longitude });
-    mapInstanceRef.current.setZoom(15);
+    if (searchMarkerRef.current) {
+      searchMarkerRef.current.setMap(null);
+    }
+
+    const position = { lat: location.latitude, lng: location.longitude };
+    mapInstanceRef.current.setCenter(position);
+    mapInstanceRef.current.setZoom(18);
+
+    // Add a red pin at the selected LCPNAP location
+    searchMarkerRef.current = new google.maps.Marker({
+      position,
+      map: mapInstanceRef.current,
+      title: location.lcpnap_name,
+      animation: google.maps.Animation.DROP
+    });
 
     const marker = markersRef.current.find(m => {
       const pos = m.getPosition();
-      return pos && pos.lat() === location.latitude && pos.lng() === location.longitude;
+      return pos && Math.abs(pos.lat() - location.latitude) < 0.000001 && Math.abs(pos.lng() - location.longitude) < 0.000001;
     });
 
     if (marker && infoWindowRef.current) {
       google.maps.event.trigger(marker, 'click');
     }
+  };
+
+  const handleAddressSelect = (placeId: string, description: string) => {
+    setSearchQuery(description);
+    setShowSuggestions(false);
+
+    if (!placesServiceRef.current || !mapInstanceRef.current) return;
+
+    placesServiceRef.current.getDetails(
+      { placeId, fields: ['geometry', 'formatted_address', 'name'] },
+      (place, status) => {
+        if (status === google.maps.places.PlacesServiceStatus.OK && place?.geometry?.location) {
+          const location = place.geometry.location;
+          mapInstanceRef.current?.setCenter(location);
+          mapInstanceRef.current?.setZoom(18);
+
+          if (searchMarkerRef.current) {
+            searchMarkerRef.current.setMap(null);
+          }
+
+          searchMarkerRef.current = new google.maps.Marker({
+            position: location,
+            map: mapInstanceRef.current,
+            title: description,
+            animation: google.maps.Animation.DROP
+          });
+
+          if (infoWindowRef.current) {
+            infoWindowRef.current.setContent(`
+              <div style="padding: 8px; min-width: 150px;">
+                <h3 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #1f2937;">Selected Location</h3>
+                <p style="margin: 0; font-size: 12px; color: #6b7280;">${description}</p>
+              </div>
+            `);
+            infoWindowRef.current.open(mapInstanceRef.current, searchMarkerRef.current);
+          }
+        }
+      }
+    );
   };
 
   const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
@@ -482,10 +598,11 @@ const LcpNapLocation: React.FC = () => {
   };
 
   const handleSaveLocation = () => {
-    loadLocations();
+    clearLCPNAPMapCache();
+    loadLocations(true);
   };
 
-  const lcpNapItems: LcpNapItem[] = [
+  const lcpNapItems: LcpNapItem[] = React.useMemo(() => [
     {
       id: 0,
       name: 'All',
@@ -496,14 +613,17 @@ const LcpNapLocation: React.FC = () => {
       name: group.lcpnap_name,
       count: group.count
     }))
-  ];
+  ], [markers, lcpNapGroups]);
 
-  const getSelectedGroup = () => {
-    if (selectedLcpNapId === 'all') return null;
-    return lcpNapGroups.find(g => g.lcpnap_id === selectedLcpNapId);
-  };
-
-  const selectedGroup = getSelectedGroup();
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery) return [];
+    const query = searchQuery.toLowerCase();
+    return markers.filter(marker =>
+      marker.lcpnap_name.toLowerCase().includes(query) ||
+      (marker.lcp_name && marker.lcp_name.toLowerCase().includes(query)) ||
+      (marker.nap_name && marker.nap_name.toLowerCase().includes(query))
+    ).slice(0, 5);
+  }, [markers, searchQuery]);
 
   return (
     <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
@@ -518,26 +638,34 @@ const LcpNapLocation: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {lcpNapItems.map((item) => (
             <button
               key={item.id === 0 ? 'all' : item.id}
               onClick={() => handleLcpNapSelect(item.id === 0 ? 'all' : item.id)}
               className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id)
-                  ? 'bg-orange-500 bg-opacity-20 text-orange-400 font-medium'
+                  ? 'font-medium'
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
+              style={(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id) ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
+              } : {}}
             >
               <div className="flex items-center">
-                <MapPin className="h-4 w-4 mr-2" />
+                {item.name !== 'All' && <MapPin className="h-4 w-4 mr-2" />}
                 <span>{item.name}</span>
               </div>
               {item.count > 0 && (
                 <span className={`px-2 py-1 rounded-full text-xs ${(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id)
-                  ? 'bg-orange-600 text-white'
+                  ? 'text-white'
                   : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}>
+                  }`}
+                  style={(item.id === 0 && selectedLcpNapId === 'all') || (item.id !== 0 && selectedLcpNapId === item.id) ? {
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
+                  } : {}}
+                >
                   {item.count}
                 </span>
               )}
@@ -546,7 +674,16 @@ const LcpNapLocation: React.FC = () => {
         </div>
 
         <div
-          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-orange-500 transition-colors z-10"
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
+          style={{
+            backgroundColor: 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           onMouseDown={handleMouseDownSidebarResize}
         />
       </div>
@@ -554,16 +691,99 @@ const LcpNapLocation: React.FC = () => {
       <div className={`overflow-hidden flex-1 ${isDarkMode ? 'bg-gray-900' : 'bg-white'
         }`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`p-4 border-b flex-shrink-0 relative z-10 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center justify-between">
               <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Map View</h3>
+
+              <div className="flex-1 max-w-md mx-4 relative" ref={searchRef}>
+                <div className="relative">
+                  <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <input
+                    type="text"
+                    placeholder="Search location..."
+                    value={searchQuery}
+                    onChange={(e) => {
+                      setSearchQuery(e.target.value);
+                      setShowSuggestions(true);
+                    }}
+                    onFocus={() => setShowSuggestions(true)}
+                    className={`w-full pl-10 pr-10 py-2 rounded-lg border text-sm transition-colors focus:outline-none ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white focus:border-gray-600'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-gray-400'
+                      }`}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => {
+                        setSearchQuery('');
+                        setShowSuggestions(false);
+                      }}
+                      className={`absolute right-3 top-1/2 transform -translate-y-1/2 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+                {showSuggestions && searchQuery && (searchResults.length > 0 || addressSuggestions.length > 0) && (
+                  <div className={`absolute top-full left-0 mt-1 w-full rounded-md shadow-lg border overflow-hidden z-[1001] max-h-96 overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    }`}>
+                    {searchResults.length > 0 && (
+                      <div className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400 bg-gray-900 border-b border-gray-700' : 'text-gray-500 bg-gray-50 border-b border-gray-200'}`}>
+                        LCP / NAP Locations
+                      </div>
+                    )}
+                    {searchResults.map(result => (
+                      <button
+                        key={result.id}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors border-b last:border-0 ${isDarkMode
+                          ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
+                          : 'border-gray-100 hover:bg-gray-50 text-gray-800'
+                          }`}
+                        onClick={() => {
+                          setSearchQuery(result.lcpnap_name);
+                          setShowSuggestions(false);
+                          handleLocationSelect(result);
+                        }}
+                      >
+                        <div className="font-medium">{result.lcpnap_name}</div>
+                        <div className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                          LCP: {result.lcp_name} • NAP: {result.nap_name}
+                        </div>
+                      </button>
+                    ))}
+
+                    {addressSuggestions.length > 0 && (
+                      <div className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider ${isDarkMode ? 'text-gray-400 bg-gray-900 border-b border-gray-700' : 'text-gray-500 bg-gray-50 border-b border-gray-200'}`}>
+                        Address Suggestions
+                      </div>
+                    )}
+                    {addressSuggestions.map(suggestion => (
+                      <button
+                        key={suggestion.place_id}
+                        className={`w-full text-left px-4 py-2 text-sm transition-colors border-b last:border-0 ${isDarkMode
+                          ? 'border-gray-700 hover:bg-gray-700 text-gray-200'
+                          : 'border-gray-100 hover:bg-gray-50 text-gray-800'
+                          }`}
+                        onClick={() => handleAddressSelect(suggestion.place_id, suggestion.description)}
+                      >
+                        <div className="flex items-start gap-2">
+                          <MapPin className={`h-4 w-4 mt-0.5 flex-shrink-0 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                          <span className="font-medium">{suggestion.description}</span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={() => setShowAddModal(true)}
                 className="px-4 py-2 text-white rounded flex items-center gap-2 text-sm transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -571,7 +791,7 @@ const LcpNapLocation: React.FC = () => {
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 <MapPin className="h-4 w-4" />
@@ -590,7 +810,10 @@ const LcpNapLocation: React.FC = () => {
               <div className={`absolute inset-0 bg-opacity-75 flex items-center justify-center z-[1000] ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
                 }`}>
                 <div className="flex flex-col items-center gap-3">
-                  <Loader2 className="h-8 w-8 animate-spin text-orange-500" />
+                  <Loader2
+                    className="h-8 w-8 animate-spin"
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  />
                   <p className={`text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>Loading map...</p>
                 </div>

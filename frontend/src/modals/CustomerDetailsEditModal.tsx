@@ -46,6 +46,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [editType, setEditType] = useState<'customer_details' | 'billing_details' | 'technical_details'>(initialEditType);
 
+
   const [formData, setFormData] = useState<any>({});
 
   const [regions, setRegions] = useState<any[]>([]);
@@ -190,7 +191,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         };
 
         setFormData({
-          billingStatus: recordData.billing_status_id || recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || ''
+          billingStatus: recordData.billing_status_id || recordData.billingStatus || recordData.billingAccount?.billingStatusName || recordData.status || recordData.billing_status || recordData.billingAccount?.billing_status || '',
+          billingDay: recordData.billing_day || recordData.billingDay || recordData.Billing_Day || recordData.billingAccount?.billing_day || ''
         });
       } else if (editType === 'technical_details') {
         let lcpnapValue = recordData.lcpnap || recordData.LCPNAP || '';
@@ -224,7 +226,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         });
       }
     }
-  }, [isOpen, recordData, editType]);
+    // Using granular IDs instead of the whole recordData object prevents 
+    // the form from resetting when background polling updates the record data object reference
+  }, [isOpen, editType, recordData?.id, recordData?.job_order_id, recordData?.JobOrder_ID]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -555,7 +559,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (!formData.city?.trim()) newErrors.city = 'City is required';
       if (!formData.barangay?.trim()) newErrors.barangay = 'Barangay is required';
     } else if (editType === 'billing_details') {
-      if (!formData.billingStatus?.trim()) newErrors.billingStatus = 'Billing Status is required';
+      if (!formData.billingStatus?.toString().trim()) newErrors.billingStatus = 'Billing Status is required';
+      if (!formData.billingDay) newErrors.billingDay = 'Billing Day is required';
     } else if (editType === 'technical_details') {
       if (!formData.username?.trim()) newErrors.username = 'Username is required';
       if (!formData.connectionType?.trim()) newErrors.connectionType = 'Connection Type is required';
@@ -564,7 +569,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       if (formData.connectionType === 'Fiber') {
         if (!formData.lcpnap?.trim()) newErrors.lcpnap = 'LCPNAP is required';
         if (!formData.port?.trim()) newErrors.port = 'Port is required';
-        if (!formData.vlan?.trim()) newErrors.vlan = 'VLAN is required';
+        if (!formData.vlan?.toString().trim()) newErrors.vlan = 'VLAN is required';
       }
 
       if (formData.connectionType === 'Antenna' || formData.connectionType === 'Local') {
@@ -715,7 +720,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -723,7 +728,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -862,6 +867,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
+                  <p className={`text-[10px] mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    * Updating this will also update the user's login email and password.
+                  </p>
                 </div>
 
                 <div>
@@ -886,6 +894,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                       } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
                   />
                   {errors.contactNumberPrimary && <p className="text-red-500 text-xs mt-1">{errors.contactNumberPrimary}</p>}
+                  <p className={`text-[10px] mt-1 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                    * Updating this will also update the user's login contact number and password.
+                  </p>
                 </div>
 
                 <div>
@@ -1144,6 +1155,43 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   </div>
                   {errors.billingStatus && <p className="text-red-500 text-xs mt-1">{errors.billingStatus}</p>}
                 </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Billing Day (1-30)<span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Enter day (1-30)"
+                    value={formData.billingDay || ''}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, ''); // Remove letters
+                      if (val === '') {
+                        handleInputChange('billingDay', '');
+                      } else {
+                        const num = parseInt(val);
+                        if (num >= 1 && num <= 30) {
+                          handleInputChange('billingDay', num.toString());
+                        } else if (num > 30) {
+                          handleInputChange('billingDay', '30'); // Cap at 30
+                        }
+                      }
+                    }}
+                    onFocus={(e) => {
+                      if (colorPalette?.primary) {
+                        e.currentTarget.style.borderColor = colorPalette.primary;
+                        e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                      }
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = errors.billingDay ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                    className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors ${errors.billingDay ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                      } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                  />
+                  {errors.billingDay && <p className="text-red-500 text-xs mt-1">{errors.billingDay}</p>}
+                </div>
               </>
             )}
 
@@ -1186,8 +1234,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={{
-                        backgroundColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#ea580c') : undefined,
-                        borderColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#ea580c') : undefined
+                        backgroundColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        borderColor: formData.connectionType === 'Antenna' ? (colorPalette?.primary || '#7c3aed') : undefined
                       }}
                     >
                       Antenna
@@ -1200,8 +1248,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={{
-                        backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : undefined,
-                        borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : undefined
+                        backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#7c3aed') : undefined
                       }}
                     >
                       Fiber
@@ -1214,8 +1262,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         : (isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-gray-100 border-gray-300 text-gray-700')
                         }`}
                       style={{
-                        backgroundColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#ea580c') : undefined,
-                        borderColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#ea580c') : undefined
+                        backgroundColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        borderColor: formData.connectionType === 'Local' ? (colorPalette?.primary || '#7c3aed') : undefined
                       }}
                     >
                       Local
@@ -1423,7 +1471,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             return <option value={currentPort}>{currentPort}</option>;
                           })()}
                           {Array.from({ length: totalPorts }, (_, i) => {
-                            const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+                            const portVal = `P${(i + 1).toString().padStart(2, '0')}`;
 
                             // Hide port if it is used AND not the one currently selected
                             if (usedPorts.has(portVal) && formData.port !== portVal) {
@@ -1550,7 +1598,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                           onClick={modal.onConfirm}
                           className="px-4 py-2 text-white rounded transition-colors"
                           style={{
-                            backgroundColor: colorPalette?.primary || '#ea580c'
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
                           }}
                           onMouseEnter={(e) => {
                             if (colorPalette?.accent) {
@@ -1558,7 +1606,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                           }}
                         >
                           Confirm
@@ -1575,7 +1623,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         }}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -1583,7 +1631,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         OK

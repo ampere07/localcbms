@@ -1,7 +1,7 @@
 import { Layout } from 'react-grid-layout';
 
 export type ViewType = 'bar' | 'line' | 'pie' | 'doughnut' | 'list' | 'grid' | 'table';
-export type ScopeType = 'overall' | 'today' | 'custom';
+export type ScopeType = 'overall' | 'today' | 'weekly' | 'monthly' | 'yearly' | 'custom';
 
 export interface WidgetData {
   label: string;
@@ -62,7 +62,7 @@ export interface DashboardTemplate {
 
 export const CHART_COLORS = [
   '#2563eb', '#16a34a', '#f59e0b', '#ef4444', '#8b5cf6', '#14b8a6',
-  '#f97316', '#ec4899', '#64748b', '#22c55e', '#3b82f6', '#eab308',
+  '#7c3aed', '#ec4899', '#64748b', '#22c55e', '#3b82f6', '#eab308',
 ];
 
 // Widgets that should display currency formatting in tooltips/list
@@ -221,7 +221,7 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     filterType: 'date',
   },
   pay_method_mon: {
-    title: 'Payment Methods',
+    title: 'Payment Methods(Manual Transactions)',
     api: 'pay_method_mon',
     param: '',
     w: 4,
@@ -255,6 +255,14 @@ export const WIDGETS: Record<string, WidgetConfig> = {
   team_detailed_queue: {
     title: 'Team Detailed Queue',
     api: 'team_detailed_queue',
+    param: '',
+    w: 12, // Full width table
+    hasFilters: false,
+    filterType: 'none',
+  },
+  agent_detailed_queue: {
+    title: 'Agent Detailed Queue',
+    api: 'agent_detailed_queue',
     param: '',
     w: 12, // Full width table
     hasFilters: false,

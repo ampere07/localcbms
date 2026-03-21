@@ -25,8 +25,10 @@ import ApplicationManagement from './ApplicationManagement';
 import Customer from './Customer';
 import BillingListView from './BillingListView';
 import TransactionList from './TransactionList';
+import TransactionsRevert from './TransactionsRevert';
 import PaymentPortal from './PaymentPortal';
 import JobOrder from './JobOrder';
+import WorkOrder from './WorkOrder';
 import ServiceOrder from './ServiceOrder';
 // import ApplicationVisit from './ApplicationVisit';
 import LocationList from './LocationList';
@@ -43,12 +45,14 @@ import Invoice from './Invoice';
 import InventoryCategoryList from './InventoryCategoryList';
 import SOAGeneration from './SOAGeneration';
 import UsageTypeList from './UsageTypeList';
+import WorkCategoryList from './WorkCategoryList';
 import Ports from './Ports';
 import StatusRemarksList from './StatusRemarksList';
 import Settings from './Settings';
 import LcpNapLocation from './LcpNapLocation';
 import BillingConfig from './BillingConfig';
 import RadiusConfig from './RadiusConfig';
+import SmartOltConfig from './SmartOltConfig';
 import SmsConfig from './SmsConfig';
 import SMSTemplate from './SMSTemplate';
 import EmailTemplates from './EmailTemplates';
@@ -58,6 +62,7 @@ import LiveMonitor from './LiveMonitor';
 import ConcernConfig from './ConcernConfig';
 import DashboardCustomer from './DashboardCustomer';
 import Bills from './Bills';
+import Reports from './Reports';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DashboardProps {
@@ -80,14 +85,24 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             const authData = localStorage.getItem('authData');
             if (authData) {
                 const user = JSON.parse(authData);
-                if (user.role === 'customer' || String(user.role_id) === '3') {
+                const normalizedRole = user.role?.toLowerCase().replace(/\s+/g, '') || '';
+                if (normalizedRole === 'customer' || String(user.role_id) === '3') {
                     return 'customer-dashboard';
                 }
-                if (user.role?.toLowerCase() === 'technician' || String(user.role_id) === '2') {
+                if (normalizedRole === 'technician' || String(user.role_id) === '2' || normalizedRole === 'agent' || String(user.role_id) === '4') {
                     return 'job-order';
                 }
-                if (user.role?.toLowerCase() === 'administrator' || String(user.role_id) === '1') {
+                if (String(user.role_id) === '7' || normalizedRole === 'superadmin') {
                     return 'live-monitor';
+                }
+                if (normalizedRole === 'administrator' || String(user.role_id) === '1') {
+                    return 'dashboard';
+                }
+                if (normalizedRole === 'osp' || String(user.role_id) === '6') {
+                    return 'work-order';
+                }
+                if (normalizedRole === 'inventorystaff' || String(user.role_id) === '5') {
+                    return 'inventory';
                 }
             }
         } catch (e) {
@@ -103,6 +118,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
     const [billsInitialTab, setBillsInitialTab] = useState<'soa' | 'invoices' | 'payments'>('soa');
     const [customerInitialSearch, setCustomerInitialSearch] = useState('');
     const [customerAutoOpenAccountNo, setCustomerAutoOpenAccountNo] = useState('');
+    const [planInitialSearch, setPlanInitialSearch] = useState('');
     const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
         try {
             const authData = localStorage.getItem('authData');
@@ -185,6 +201,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <BillingConfig />;
             case 'radius-config':
                 return <RadiusConfig />;
+            case 'smart-olt':
+                return <SmartOltConfig />;
             case 'sms-config':
                 return <SmsConfig />;
             case 'sms-template':
@@ -216,25 +234,31 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             case 'group-management':
                 return <GroupManagement />;
             case 'application-management':
-                return <ApplicationManagement />;
+                return <ApplicationManagement onNavigate={handleSectionChange} />;
             case 'customer':
                 return <Customer initialSearchQuery={customerInitialSearch} autoOpenAccountNo={customerAutoOpenAccountNo} />;
             case 'transaction-list':
                 return (
                     <TransactionList onNavigate={(section, search) => handleSectionChange(section, search)} />
                 );
+            case 'transactions-revert':
+                return <TransactionsRevert />;
             case 'payment-portal':
                 return <PaymentPortal />;
             case 'job-order':
                 return <JobOrder />;
+            case 'work-order':
+                return <WorkOrder />;
             case 'service-order':
                 return <ServiceOrder />;
+            case 'reports':
+                return <Reports />;
             // case 'application-visit':
             //     return <ApplicationVisit />;
             case 'location-list':
                 return <LocationList />;
             case 'plan-list':
-                return <PlanList />;
+                return <PlanList onNavigate={handleSectionChange} initialSearchQuery={planInitialSearch} />;
             case 'promo-list':
                 return <PromoList />;
             case 'router-models':
@@ -247,6 +271,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <LcpNapLocation />;
             case 'usage-type':
                 return <UsageTypeList />;
+            case 'work-category':
+                return <WorkCategoryList />;
             case 'ports':
                 return <Ports />;
             case 'status-remarks-list':
@@ -257,7 +283,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <InventoryCategoryList />;
             case 'expenses-log':
                 return <ExpensesLog />;
-            case 'logs':
+            case 'system-logs':
                 return <Logs />;
             case 'soa-generation':
                 return <SOAGeneration />;
@@ -296,6 +322,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
         } else if (section === 'customer') {
             setCustomerInitialSearch(extra || '');
             setCustomerAutoOpenAccountNo(extra || '');
+        } else if (section === 'plan-list') {
+            setPlanInitialSearch(extra || '');
         }
 
         if (window.innerWidth < 768) {

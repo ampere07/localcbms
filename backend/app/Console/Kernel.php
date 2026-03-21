@@ -119,6 +119,21 @@ class Kernel extends ConsoleKernel
                  });
 
         // ===================================================================
+        // AUTOMATED REPORTS QUEUING
+        // ===================================================================
+        
+        $schedule->command('reports:queue')
+                 ->everyMinute()
+                 ->withoutOverlapping()
+                 ->runInBackground()
+                 ->onSuccess(function () {
+                     // \Illuminate\Support\Facades\Log::info('Reports queue cron completed successfully');
+                 })
+                 ->onFailure(function () {
+                     \Illuminate\Support\Facades\Log::error('Reports queue cron failed');
+                 });
+
+        // ===================================================================
         // RADIUS STATUS SYNC
         // ===================================================================
 
@@ -205,4 +220,5 @@ class Kernel extends ConsoleKernel
         require base_path('routes/console.php');
     }
 }
+
 

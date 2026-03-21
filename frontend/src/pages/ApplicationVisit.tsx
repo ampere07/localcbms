@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { FileText, Search, ChevronDown, RefreshCw, ListFilter, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Search, ChevronDown, RefreshCw, Columns3, ArrowUp, ArrowDown, Menu, X, ArrowLeft, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import ApplicationVisitDetails from '../components/ApplicationVisitDetails';
 import ApplicationVisitFunnelFilter, { FilterValues } from '../filter/ApplicationVisitFunnelFilter';
 import { useApplicationVisitContext, type ApplicationVisit } from '../contexts/ApplicationVisitContext';
@@ -155,9 +155,14 @@ const ApplicationVisitPage: React.FC = () => {
   }, [dropdownRef, filterDropdownRef]);
 
   const formatDate = (dateStr?: string): string => {
-    if (!dateStr) return 'Not scheduled';
+    if (!dateStr || dateStr === 'Not scheduled') return dateStr || 'Not scheduled';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -206,7 +211,7 @@ const ApplicationVisitPage: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -783,7 +788,7 @@ const ApplicationVisitPage: React.FC = () => {
                   }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center">
@@ -797,7 +802,7 @@ const ApplicationVisitPage: React.FC = () => {
                       : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                       }`}
                     style={selectedLocation === location.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
                     {location.count}
@@ -812,7 +817,7 @@ const ApplicationVisitPage: React.FC = () => {
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
             onMouseDown={handleMouseDownSidebarResize}
             style={{
-              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isResizingSidebar && colorPalette?.primary) {
@@ -847,7 +852,7 @@ const ApplicationVisitPage: React.FC = () => {
                   }`}
                 style={selectedLocation === location.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center">
@@ -858,7 +863,7 @@ const ApplicationVisitPage: React.FC = () => {
                   <span
                     className="px-3 py-1 rounded-full text-sm"
                     style={selectedLocation === location.id ? {
-                      backgroundColor: colorPalette?.primary || '#ea580c',
+                      backgroundColor: colorPalette?.primary || '#7c3aed',
                       color: 'white'
                     } : {
                       backgroundColor: isDarkMode ? '#374151' : '#d1d5db',
@@ -899,7 +904,7 @@ const ApplicationVisitPage: React.FC = () => {
                     }`}
                   style={selectedLocation === location.id ? {
                     backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                    color: colorPalette?.primary || '#fb923c'
+                    color: colorPalette?.primary || '#7c3aed'
                   } : {}}
                 >
                   <div className="flex items-center">
@@ -913,7 +918,7 @@ const ApplicationVisitPage: React.FC = () => {
                         : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                         }`}
                       style={selectedLocation === location.id ? {
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       } : {}}
                     >
                       {location.count}
@@ -988,7 +993,7 @@ const ApplicationVisitPage: React.FC = () => {
                         }`}
                       onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
                     >
-                      <ListFilter className="h-5 w-5" />
+                      <Columns3 className="h-5 w-5" />
                     </button>
                     {filterDropdownOpen && (
                       <>
@@ -1012,7 +1017,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 className={`text-sm px-3 py-1 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
                                   }`}
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                               >
                                 Select All
@@ -1022,7 +1027,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 className={`text-sm px-3 py-1 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
                                   }`}
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                               >
                                 Deselect All
@@ -1060,7 +1065,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 onClick={handleSelectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1080,7 +1085,7 @@ const ApplicationVisitPage: React.FC = () => {
                                 onClick={handleDeselectAllColumns}
                                 className="text-xs transition-colors"
                                 style={{
-                                  color: colorPalette?.primary || '#fb923c'
+                                  color: colorPalette?.primary || '#7c3aed'
                                 }}
                                 onMouseEnter={(e) => {
                                   if (colorPalette?.accent) {
@@ -1127,7 +1132,7 @@ const ApplicationVisitPage: React.FC = () => {
                       }`}
                     onClick={() => setDropdownOpen(!dropdownOpen)}
                   >
-                    <span>{displayMode === 'card' ? 'Card View' : 'Table View'}</span>
+                    <span>{displayMode === 'card' ? 'Card' : 'Table'}</span>
                     <ChevronDown className="w-4 h-4 ml-1" />
                   </button>
                   {dropdownOpen && (
@@ -1141,7 +1146,7 @@ const ApplicationVisitPage: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'card' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1156,7 +1161,7 @@ const ApplicationVisitPage: React.FC = () => {
                         className={`block w-full text-left px-4 py-2 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
                           }`}
                         style={displayMode === 'table' ? {
-                          color: colorPalette?.primary || '#f97316'
+                          color: colorPalette?.primary || '#7c3aed'
                         } : {
                           color: isDarkMode ? '#ffffff' : '#111827'
                         }}
@@ -1170,7 +1175,7 @@ const ApplicationVisitPage: React.FC = () => {
                   disabled={isRefreshing}
                   className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors"
                   style={{
-                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isRefreshing && colorPalette?.accent) {
@@ -1295,14 +1300,14 @@ const ApplicationVisitPage: React.FC = () => {
                                     <ArrowDown
                                       className="h-4 w-4"
                                       style={{
-                                        color: colorPalette?.primary || '#fb923c'
+                                        color: colorPalette?.primary || '#7c3aed'
                                       }}
                                     />
                                   ) : (
                                     <ArrowUp
                                       className="h-4 w-4 text-gray-400 transition-colors"
                                       style={{
-                                        color: hoveredColumn === column.key ? (colorPalette?.primary || '#fb923c') : undefined
+                                        color: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                       }}
                                     />
                                   )}
@@ -1313,7 +1318,7 @@ const ApplicationVisitPage: React.FC = () => {
                               <div
                                 className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize group-hover:bg-gray-600"
                                 style={{
-                                  backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#f97316') : undefined
+                                  backgroundColor: hoveredColumn === column.key ? (colorPalette?.primary || '#7c3aed') : undefined
                                 }}
                                 onMouseDown={(e) => handleMouseDownResize(e, column.key)}
                               />

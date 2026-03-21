@@ -25,6 +25,7 @@ export interface PaymentPortalLog {
   payment_url?: string;
   json_payload?: string;
   callback_payload?: string;
+  account_balance_before?: number;
   updated_at?: string;
   // Joined account details
   accountNo?: string;
@@ -62,6 +63,7 @@ export const paymentPortalLogsService = {
     search?: string;
     limit?: number;
     offset?: number;
+    updated_since?: string;
   }): Promise<any> => {
     try {
       const authData = localStorage.getItem('authData');

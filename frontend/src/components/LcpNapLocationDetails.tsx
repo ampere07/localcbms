@@ -1,6 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, ChevronRight, ChevronDown, User } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { getRelatedCustomers } from '../services/lcpnapService';
+
+// Fix Leaflet default icon issue
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+// Component to update map center when coordinates change
+const MapUpdater: React.FC<{ center: [number, number] }> = ({ center }) => {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, map.getZoom());
+  }, [center, map]);
+  return null;
+};
 
 interface LocationMarker {
   id: number;
@@ -25,25 +46,31 @@ interface LocationMarker {
   offline_sessions?: number;
   blocked_sessions?: number;
   not_found_sessions?: number;
+  total_technical_details?: number;
 }
 
 interface LcpNapLocationDetailsProps {
   location: LocationMarker;
   onClose: () => void;
   isMobile?: boolean;
+  externalWidth?: number;
 }
 
 const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
   location,
   onClose,
-  isMobile = false
+  isMobile = false,
+  externalWidth
 }) => {
-  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [detailsWidth, setDetailsWidth] = useState<number>(externalWidth || 600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [relatedCustomers, setRelatedCustomers] = useState<any[]>([]);
+
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -73,6 +100,25 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
     };
     fetchColorPalette();
   }, []);
+
+  useEffect(() => {
+    const fetchRelated = async () => {
+      setIsLoadingRelated(true);
+      try {
+        const response = await getRelatedCustomers(location.id);
+        if (response.success) {
+          setRelatedCustomers(response.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch related customers:', err);
+      } finally {
+        setIsLoadingRelated(false);
+      }
+    };
+    if (location.id) {
+      fetchRelated();
+    }
+  }, [location.id]);
 
   useEffect(() => {
     if (!isResizing) return;
@@ -106,10 +152,15 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
     startWidthRef.current = detailsWidth;
   };
 
-  const formatDate = (dateStr: string | undefined) => {
+  const formatDate = (dateStr: string | undefined): string => {
     if (!dateStr) return 'Not available';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -117,20 +168,31 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
 
   const getDriveDirectUrl = (url: string | undefined) => {
     if (!url) return '';
-    // Handle Google Drive /view links by converting them to direct download links
-    if (url.includes('drive.google.com') && (url.includes('/view') || url.includes('id='))) {
+
+    // Check for Google Drive URLs
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
       let fileId = '';
-      if (url.includes('id=')) {
-        fileId = url.split('id=')[1].split('&')[0];
-      } else {
-        const parts = url.split('/');
-        const viewIndex = parts.indexOf('view');
-        if (viewIndex > 0) {
-          fileId = parts[viewIndex - 1];
+
+      // Try to match /d/ID pattern
+      const matchD = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchD && matchD[1]) {
+        fileId = matchD[1];
+      }
+
+      // If not found, try id=ID pattern
+      if (!fileId) {
+        const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (matchId && matchId[1]) {
+          fileId = matchId[1];
         }
       }
-      return fileId ? `https://drive.google.com/uc?export=view&id=${fileId}` : url;
+
+      if (fileId) {
+        // Use thumbnail endpoint which is more reliable for images
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+      }
     }
+
     return url;
   };
 
@@ -142,8 +204,14 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
     >
       {!isMobile && (
         <div
-          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
-            }`}
+          className="hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
+          style={{ backgroundColor: 'transparent' }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
           onMouseDown={handleMouseDownResize}
         />
       )}
@@ -170,7 +238,7 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
           }`}>
           <div className="space-y-4">
@@ -236,95 +304,45 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
               </div>
             )}
 
-            {/* Port Total */}
+            {/* Port Usage */}
             {location.port_total !== undefined && (
               <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
                 }`}>
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Port Total:</div>
-                <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{location.port_total}</div>
+                  }`}>Port Usage:</div>
+                <div className={`flex-1 font-medium ${location.total_technical_details !== undefined && location.total_technical_details >= location.port_total
+                  ? 'text-red-500'
+                  : isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>
+                  {location.total_technical_details || 0} / {location.port_total}
+                  {location.total_technical_details !== undefined && location.total_technical_details >= location.port_total && (
+                    <span className="ml-2 text-xs px-1.5 py-0.5 rounded bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">FULL</span>
+                  )}
+                </div>
               </div>
             )}
 
-            {/* Session Status */}
-            <div className={`border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-              }`}>
-              <div className={`w-40 text-sm mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>Session Status:</div>
-              <div className="flex-1 space-y-2">
-                {/* Online */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-green-500">Online</span>
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
-                    {location.active_sessions || 0}
-                  </span>
-                </div>
-
-                {/* Offline */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-orange-500">Offline</span>
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
-                    {location.offline_sessions || 0}
-                  </span>
-                </div>
-
-                {/* Inactive */}
-                <div className="flex items-center justify-between">
-                  <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Inactive</span>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                    {location.inactive_sessions || 0}
-                  </span>
-                </div>
-
-                {/* Blocked */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-red-500">Blocked</span>
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
-                    {location.blocked_sessions || 0}
-                  </span>
-                </div>
-
-                {/* Not Found */}
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-purple-500">Not Found</span>
-                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
-                    {location.not_found_sessions || 0}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Coordinates */}
-            <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
-              }`}>
-              <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>Coordinates:</div>
-              <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
-              </div>
-            </div>
-
             {/* Reading Image */}
             {location.reading_image_url && (
-              <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+              <div className={`flex flex-col border-b pb-4 gap-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
                 }`}>
-                <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>Reading Image</div>
-                <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>
-                  <span className="truncate mr-2">
-                    {location.reading_image_url}
-                  </span>
-                  <button
-                    className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                      }`}
+                <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>Reading Image:</div>
+                <div className="relative group">
+                  <img
+                    src={getDriveDirectUrl(location.reading_image_url)}
+                    alt="Reading Image"
+                    className="w-full h-auto max-h-64 object-cover rounded-lg border border-gray-300 dark:border-gray-700 shadow-sm transition-transform hover:scale-[1.01] cursor-pointer"
                     onClick={() => window.open(location.reading_image_url)}
+                  />
+                  <button
+                    className={`absolute top-2 right-2 p-1.5 bg-black bg-opacity-50 text-white rounded-full hover:bg-opacity-70 transition-all opacity-0 group-hover:opacity-100`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.open(location.reading_image_url);
+                    }}
                   >
-                    <ExternalLink size={16} />
+                    <ExternalLink size={14} />
                   </button>
                 </div>
               </div>
@@ -381,6 +399,169 @@ const LcpNapLocationDetails: React.FC<LcpNapLocationDetailsProps> = ({
                 </div>
               </div>
             )}
+
+            {/* Session Status */}
+            <div className={`border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
+              }`}>
+              <div className={`w-40 text-sm mb-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Session Status:</div>
+              <div className="flex-1 space-y-2">
+                {/* Online */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-green-500">Online</span>
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
+                    {location.active_sessions || 0}
+                  </span>
+                </div>
+
+                {/* Offline */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-orange-500">Offline</span>
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200">
+                    {location.offline_sessions || 0}
+                  </span>
+                </div>
+
+                {/* Inactive */}
+                <div className="flex items-center justify-between">
+                  <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                    }`}>Inactive</span>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                    {location.inactive_sessions || 0}
+                  </span>
+                </div>
+
+                {/* Blocked */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-red-500">Blocked</span>
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200">
+                    {location.blocked_sessions || 0}
+                  </span>
+                </div>
+
+                {/* Not Found */}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-purple-500">Not Found</span>
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200">
+                    {location.not_found_sessions || 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Coordinates */}
+            <div className={`flex flex-col border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className={`w-full text-sm mb-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Coordinates:
+              </div>
+
+              {location.latitude !== undefined && location.longitude !== undefined ? (
+                <div className={`w-full h-64 border rounded overflow-hidden relative ${isDarkMode ? 'border-gray-700' : 'border-gray-300'}`} style={{ zIndex: 1 }}>
+                  <MapContainer
+                    center={[location.latitude, location.longitude]}
+                    zoom={16}
+                    minZoom={6}
+                    maxBounds={L.latLngBounds([4.3, 114.0], [21.5, 127.5])}
+                    maxBoundsViscosity={1.0}
+                    style={{ height: '100%', width: '100%', zIndex: 1 }}
+                    scrollWheelZoom={false}
+                  >
+                    <MapUpdater center={[location.latitude, location.longitude]} />
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[location.latitude, location.longitude]}>
+                      <Popup>
+                        <strong>{location.lcpnap_name}</strong><br />
+                        {location.street && <span>{location.street}<br /></span>}
+                        {location.latitude?.toFixed(6) || 'N/A'}, {location.longitude?.toFixed(6) || 'N/A'}
+                      </Popup>
+                    </Marker>
+                  </MapContainer>
+                </div>
+              ) : (
+                <div className={`w-full h-64 border rounded flex items-center justify-center ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300'}`}>
+                  <span className={`text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    No valid coordinates available for this location.
+                  </span>
+                </div>
+              )}
+
+              <div className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                long and lat : {location.latitude?.toFixed(6) || 'N/A'}, {location.longitude?.toFixed(6) || 'N/A'}
+              </div>
+            </div>
+
+            {/* Related Customers Dropdown */}
+            <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <div className="w-full py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    Related Customers
+                  </span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-200 text-gray-700'
+                    }`}>
+                    {relatedCustomers.length}
+                  </span>
+                </div>
+              </div>
+
+
+              <div className="pb-4 space-y-3">
+                {isLoadingRelated ? (
+                  <div className="flex justify-center py-4">
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-orange-500"></div>
+                  </div>
+                ) : relatedCustomers.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className={isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-gray-100 text-gray-600'}>
+                        <tr>
+                          <th className="px-3 py-2 font-medium">Account No</th>
+                          <th className="px-3 py-2 font-medium">Full Name</th>
+                          <th className="px-3 py-2 font-medium text-center">Port</th>
+                          <th className="px-3 py-2 font-medium text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDarkMode ? 'divide-gray-800' : 'divide-gray-200'}`}>
+                        {relatedCustomers.map((customer, idx) => (
+                          <tr key={idx} className={isDarkMode ? 'hover:bg-gray-900' : 'hover:bg-gray-50'}>
+                            <td className={`px-3 py-2 font-mono ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {customer.account_no}
+                            </td>
+                            <td className={`px-3 py-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                              {customer.full_name}
+                            </td>
+                            <td className={`px-3 py-2 text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                              {customer.port}
+                            </td>
+                            <td className="px-3 py-2 text-right">
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${customer.status?.toLowerCase() === 'online' || customer.status?.toLowerCase() === 'active'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : customer.status?.toLowerCase() === 'offline'
+                                  ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
+                                  : 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400'
+                                }`}>
+                                {customer.status || 'Unknown'}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className={`text-center py-6 border-2 border-dashed rounded-lg ${isDarkMode ? 'border-gray-800 text-gray-500' : 'border-gray-200 text-gray-400'
+                    }`}>
+                    <User size={24} className="mx-auto mb-2 opacity-20" />
+                    <p className="text-sm">No customers related to this LCPNAP</p>
+                  </div>
+                )}
+              </div>
+
+            </div>
 
             {/* Modified By */}
             {location.modified_by && (

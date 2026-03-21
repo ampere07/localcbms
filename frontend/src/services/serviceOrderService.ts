@@ -58,6 +58,25 @@ export interface ServiceOrderData {
   created_by_user?: string;
   updated_at?: string;
   updated_by_user?: string;
+  referred_by?: string;
+  old_lcp?: string;
+  old_nap?: string;
+  old_port?: string;
+  old_vlan?: string;
+  old_lcpnap?: string;
+  new_lcp?: string;
+  new_nap?: string;
+  new_port?: string;
+  new_vlan?: string;
+  router_model?: string;
+  billing_day?: string;
+  onsite_remarks?: string;
+  status_remarks?: string;
+  contract_template?: string;
+  ip_address?: string;
+  usage_type?: string;
+  start_time?: string | null;
+  end_time?: string | null;
 }
 
 export const createServiceOrder = async (serviceOrderData: Partial<ServiceOrderData>) => {
@@ -70,9 +89,9 @@ export const createServiceOrder = async (serviceOrderData: Partial<ServiceOrderD
   }
 };
 
-export const getServiceOrders = async (assignedEmail?: string, page: number = 1, limit: number = 50, search: string = '') => {
+export const getServiceOrders = async (assignedEmail?: string, page: number = 1, limit: number = 50, search: string = '', updatedSince?: string) => {
   try {
-    const params: { assigned_email?: string; user_role?: string; page: number; limit: number; search?: string } = {
+    const params: { assigned_email?: string; user_role?: string; page: number; limit: number; search?: string; updated_since?: string } = {
       page,
       limit
     };
@@ -83,6 +102,10 @@ export const getServiceOrders = async (assignedEmail?: string, page: number = 1,
 
     if (search) {
       params.search = search;
+    }
+
+    if (updatedSince) {
+      params.updated_since = updatedSince;
     }
 
     const authData = localStorage.getItem('authData');

@@ -20,23 +20,23 @@ export const getInventoryCategories = async (): Promise<InventoryCategory[]> => 
     const response = await apiClient.get('/inventory-categories');
     console.log('Raw inventory categories response:', response);
     console.log('Inventory categories response.data:', response.data);
-    
+
     const data = response.data as any;
-    
+
     if (Array.isArray(data)) {
       console.log(`Successfully retrieved ${data.length} inventory categories from direct array`);
       return data;
     }
-    
+
     if (data.success && Array.isArray(data.data)) {
       const categories = data.data;
       console.log(`Successfully retrieved ${categories.length} inventory categories from wrapped response`);
       return categories;
     }
-    
+
     console.log('Using empty categories array as fallback. Data type:', typeof data, 'Is array:', Array.isArray(data));
     return [];
-    
+
   } catch (error: any) {
     console.error('Error fetching inventory categories:', error);
     console.error('Error details:', error.response ? error.response.data : 'No response data');
@@ -57,7 +57,7 @@ export const getInventoryCategoryById = async (id: number): Promise<InventoryCat
   }
 };
 
-export const createInventoryCategory = async (data: { 
+export const createInventoryCategory = async (data: {
   name: string;
   modified_by?: string;
 }): Promise<InventoryCategory> => {
@@ -73,7 +73,7 @@ export const createInventoryCategory = async (data: {
   }
 };
 
-export const updateInventoryCategory = async (id: number, data: { 
+export const updateInventoryCategory = async (id: number, data: {
   name: string;
   modified_by?: string;
 }): Promise<InventoryCategory> => {

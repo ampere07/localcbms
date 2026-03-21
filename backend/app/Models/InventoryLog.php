@@ -22,6 +22,7 @@ class InventoryLog extends Model
     protected $fillable = [
         'id',
         'date',
+        'log_type',
         'item_name',
         'item_description',
         'account_no',
@@ -52,3 +53,4 @@ class InventoryLog extends Model
         return $this->belongsTo(Inventory::class, 'item_id');
     }
 }
+

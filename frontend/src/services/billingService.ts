@@ -15,10 +15,14 @@ interface BillingDetailApiResponse {
   status?: string;
 }
 
-export const getBillingRecords = async (page: number = 1, perPage: number = 50): Promise<{ data: BillingRecord[], total: number, hasMore: boolean }> => {
+export const getBillingRecords = async (page: number = 1, perPage: number = 50, updatedSince?: string): Promise<{ data: BillingRecord[], total: number, hasMore: boolean, serverTime?: string }> => {
   try {
+    const params: any = { page, per_page: perPage };
+    if (updatedSince) {
+      params.updated_since = updatedSince;
+    }
     const response = await apiClient.get<any>('/billing', {
-      params: { page, per_page: perPage }
+      params
     });
     const responseData = response.data;
 
@@ -64,20 +68,42 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50):
         city: item.City || '',
         region: item.Region || '',
         usageType: item.Usage_Type || item.usage_type || '',
-        lcpnapport: item.LCP_NAP_PORT || item.LCPNAPPORT || ''
+        lcpnapport: item.LCP_NAP_PORT || item.LCPNAPPORT || '',
+        referredBy: item.referred_by || item.Referred_By || '',
+        sessionIP: item.ip_address || item.IP_Address || '',
+        houseFrontPicture: item.house_front_picture_url || item.House_Front_Picture || '',
+        housingStatus: item.housing_status || item.Housing_Status || '',
+        addressCoordinates: item.address_coordinates || item.Address_Coordinates || '',
+        location: item.location || item.Location || '',
+        groupName: item.group_name || item.Group_Name || '',
+        desiredPlan: item.desired_plan || item.Desired_Plan || '',
+        accountBalance: parseFloat(item.account_balance) || 0,
+        balanceUpdateDate: item.balance_update_date || '',
+        billingAccountCreatedBy: item.billing_account_created_by || '',
+        billingAccountCreatedAt: item.billing_account_created_at || '',
+        billingAccountUpdatedBy: item.billing_account_updated_by || '',
+        billingAccountUpdatedAt: item.billing_account_updated_at || '',
+        customerCreatedAt: item.customer_created_at || '',
+        customerCreatedBy: item.customer_created_by || '',
+        usernameStatus: item.username_status || '',
+        techCreatedAt: item.tech_created_at || '',
+        techCreatedBy: item.tech_created_by || '',
+        techUpdatedAt: item.tech_updated_at || '',
+        techUpdatedBy: item.tech_updated_by || ''
       }));
 
       return {
         data,
         total: responseData.total || data.length,
-        hasMore: responseData.pagination?.has_more || false
+        hasMore: responseData.pagination?.has_more || false,
+        serverTime: responseData.server_time || undefined
       };
     }
 
-    return { data: [], total: 0, hasMore: false };
+    return { data: [], total: 0, hasMore: false, serverTime: undefined };
   } catch (error) {
     console.error('Error fetching billing records:', error);
-    return { data: [], total: 0, hasMore: false };
+    return { data: [], total: 0, hasMore: false, serverTime: undefined };
   }
 };
 
@@ -281,5 +307,16 @@ export const deleteBillingRecord = async (id: string): Promise<boolean> => {
   } catch (error) {
     console.error('Error deleting billing record:', error);
     throw error;
+  }
+};
+
+export const checkForBillingUpdates = async (since: string): Promise<{ has_updates: boolean; count: number; server_time?: string }> => {
+  try {
+    const response = await apiClient.get<any>('/billing/check-updates', {
+      params: { since }
+    });
+    return response.data;
+  } catch (error) {
+    return { has_updates: false, count: 0 };
   }
 };

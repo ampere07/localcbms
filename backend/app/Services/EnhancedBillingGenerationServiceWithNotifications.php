@@ -125,11 +125,27 @@ class EnhancedBillingGenerationServiceWithNotifications
         ?StatementOfAccount $soa
     ): array {
         try {
-            dispatch(function() use ($account, $invoice, $soa) {
-                $this->notificationService->notifyBillingGenerated(
-                    $account,
-                    $invoice,
-                    $soa
+            $accountId = $account->id;
+            $invoiceId = $invoice ? $invoice->id : null;
+            $soaId = $soa ? $soa->id : null;
+
+            dispatch(function() use ($accountId, $invoiceId, $soaId) {
+                /** @var \App\Services\BillingNotificationService $notificationService */
+                $notificationService = app(\App\Services\BillingNotificationService::class);
+                
+                $accountModel = \App\Models\BillingAccount::find($accountId);
+                if (!$accountModel) {
+                    Log::warning("Queue Notification: Account not found for ID {$accountId}");
+                    return;
+                }
+
+                $invoiceModel = $invoiceId ? \App\Models\Invoice::find($invoiceId) : null;
+                $soaModel = $soaId ? \App\Models\StatementOfAccount::find($soaId) : null;
+
+                $notificationService->notifyBillingGenerated(
+                    $accountModel,
+                    $invoiceModel,
+                    $soaModel
                 );
             })->afterResponse();
             
@@ -234,8 +250,9 @@ class EnhancedBillingGenerationServiceWithNotifications
                 throw new \Exception("Plan '{$planName}' has invalid price: " . ($plan->price ?? 'NULL'));
             }
 
+            $dueDateOffset = $this->getDueDateOffset();
             $adjustedDate = $this->calculateAdjustedBillingDate($account, $statementDate);
-            $dueDate = $adjustedDate->copy()->addDays(self::DAYS_UNTIL_DUE);
+            $dueDate = $adjustedDate->copy()->addDays($dueDateOffset);
 
             $prorateAmount = $this->calculateProrateAmount($account, $plan->price, $adjustedDate);
             $monthlyFeeGross = $prorateAmount / (1 + self::VAT_RATE);
@@ -286,6 +303,33 @@ class EnhancedBillingGenerationServiceWithNotifications
 
             DB::commit();
             
+            // GENERATE PDF AND SAVE TO GOOGLE DRIVE IMMEDIATELY AFTER COMMIT
+            try {
+                $pdfService = app(\App\Services\GoogleDrivePdfGenerationService::class);
+                $pdfResult = $pdfService->generateBillingPdf($account, null, $statement);
+                
+                if (isset($pdfResult['success']) && $pdfResult['success'] && !empty($pdfResult['url'])) {
+                    $statement->print_link = $pdfResult['url'];
+                    $statement->save();
+                    
+                    $this->log('info', 'SOA PDF generated and saved to Google Drive immediately', [
+                        'account_no' => $account->account_no,
+                        'statement_id' => $statement->id,
+                        'print_link' => $pdfResult['url']
+                    ]);
+                } else {
+                    $this->log('error', 'Failed to generate SOA PDF immediately', [
+                        'account_no' => $account->account_no,
+                        'error' => $pdfResult['error'] ?? 'Unknown error'
+                    ]);
+                }
+            } catch (\Exception $e) {
+                $this->log('error', 'Exception generating SOA PDF immediately', [
+                    'account_no' => $account->account_no,
+                    'error' => $e->getMessage()
+                ]);
+            }
+            
             $this->log('info', 'SOA created successfully', [
                 'account_no' => $account->account_no,
                 'statement_id' => $statement->id,
@@ -327,8 +371,9 @@ class EnhancedBillingGenerationServiceWithNotifications
                 throw new \Exception("Plan '{$planName}' has invalid price: " . ($plan->price ?? 'NULL'));
             }
 
+            $dueDateOffset = $this->getDueDateOffset();
             $adjustedDate = $this->calculateAdjustedBillingDate($account, $invoiceDate);
-            $dueDate = $adjustedDate->copy()->addDays(self::DAYS_UNTIL_DUE);
+            $dueDate = $adjustedDate->copy()->addDays($dueDateOffset);
 
             $invoiceId = $this->generateInvoiceId($invoiceDate);
             
@@ -392,6 +437,7 @@ class EnhancedBillingGenerationServiceWithNotifications
             
             $this->markDiscountsAsUsed($account, $userId, $invoiceId);
             $this->markRebatesAsUsed($account, $userId, $invoiceId);
+            $this->markPlanChangesAsUsed($account, $userId, $invoiceId);
             $this->trackStaggeredInvoiceAssociation($account->account_no, $invoice->id);
 
             DB::commit();
@@ -426,18 +472,84 @@ class EnhancedBillingGenerationServiceWithNotifications
         if ($account->billing_day === self::END_OF_MONTH_BILLING) {
             return $baseDate->copy()->endOfMonth();
         }
-
-        if ($account->billing_day != 30) {
-            $daysRemaining = 30 - $account->billing_day;
-            return $baseDate->copy()->addDays($daysRemaining);
-        }
         
-        return $baseDate->copy();
+        return $baseDate->copy()->day($account->billing_day);
     }
 
     protected function calculateProrateAmount(BillingAccount $account, float $monthlyFee, Carbon $currentDate): float
     {
-        // Always return the fixed monthly plan price (No Prorating)
+        // Try to find an unused plan change log for this account
+        $planChange = DB::table('plan_change_logs')
+            ->where('account_id', $account->id)
+            ->where('status', 'Unused')
+            ->orderBy('date_changed', 'desc')
+            ->first();
+
+        if (!$planChange) {
+            // No plan change, return the fixed monthly plan price
+            return $monthlyFee;
+        }
+
+        // Get the old and new plan details
+        $oldPlan = AppPlan::find($planChange->old_plan_id);
+        $newPlan = AppPlan::find($planChange->new_plan_id);
+
+        if (!$oldPlan || !$newPlan) {
+            $this->log('warning', 'Plan change log found but plans not found', [
+                'account_no' => $account->account_no,
+                'old_plan_id' => $planChange->old_plan_id,
+                'new_plan_id' => $planChange->new_plan_id
+            ]);
+            return $monthlyFee;
+        }
+
+        $oldPrice = (float)$oldPlan->price;
+        $newPrice = (float)$newPlan->price;
+        $dateChanged = Carbon::parse($planChange->date_changed);
+
+        // Define the billing cycle period (one month)
+        // $currentDate is the adjusted billing date (end of the period)
+        $cycleEnd = $currentDate->copy();
+        $cycleStart = $cycleEnd->copy()->subMonth();
+        
+        // Dynamic days based on the actual billing period (e.g., 28 for Feb, 31 for Mar)
+        $totalDays = $cycleStart->diffInDays($cycleEnd);
+        if ($totalDays <= 0) $totalDays = self::DAYS_IN_MONTH; 
+
+        // Check if the plan change occurred within this billing cycle
+        if ($dateChanged->lte($cycleEnd)) {
+            
+            if ($dateChanged->gt($cycleStart)) {
+                // Change happened during the cycle
+                $daysOnOldPlan = $cycleStart->diffInDays($dateChanged);
+                // Ensure we don't exceed the total days in the period
+                if ($daysOnOldPlan > $totalDays) $daysOnOldPlan = $totalDays;
+                
+                $daysOnNewPlan = $totalDays - $daysOnOldPlan;
+            } else {
+                // Change happened before the cycle start but was not used (pushed to this bill)
+                // If it's unused, we'll assume they were on the new plan for the whole month
+                // since they officially switched but it hasn't been applied to a bill yet.
+                return $monthlyFee;
+            }
+
+            $proratedAmount = (($daysOnOldPlan / $totalDays) * $oldPrice) + (($daysOnNewPlan / $totalDays) * $newPrice);
+            
+            $this->log('info', 'Prorating monthly fee due to plan change', [
+                'account_no' => $account->account_no,
+                'old_plan' => $oldPlan->plan_name,
+                'new_plan' => $newPlan->plan_name,
+                'days_old' => $daysOnOldPlan,
+                'days_new' => $daysOnNewPlan,
+                'old_price' => $oldPrice,
+                'new_price' => $newPrice,
+                'total_days_in_month' => $totalDays,
+                'total_amount' => $proratedAmount
+            ]);
+
+            return round($proratedAmount, 2);
+        }
+
         return $monthlyFee;
     }
 
@@ -445,6 +557,18 @@ class EnhancedBillingGenerationServiceWithNotifications
     {
         $endDateWithBuffer = $endDate->copy()->addDays(self::DAYS_UNTIL_DUE);
         return $startDate->diffInDays($endDateWithBuffer) + 1;
+    }
+
+    protected function getDueDateOffset(): int
+    {
+        $billingConfig = BillingConfig::first();
+        
+        if (!$billingConfig || $billingConfig->due_date_day === null) {
+            $this->log('info', 'No due_date_day configured, using default ' . self::DAYS_UNTIL_DUE);
+            return self::DAYS_UNTIL_DUE;
+        }
+        
+        return (int)$billingConfig->due_date_day;
     }
 
     protected function getAdvanceGenerationDay(): int
@@ -791,6 +915,7 @@ class EnhancedBillingGenerationServiceWithNotifications
         $transactions = DB::table('transactions')
             ->where('account_no', $account->account_no)
             ->where('status', 'Done')
+            ->whereNotIn('transaction_type', ['Security Deposit', 'Installation Fee'])
             ->whereMonth('payment_date', $lastMonth->month)
             ->whereYear('payment_date', $lastMonth->year)
             ->sum('received_payment');
@@ -800,8 +925,15 @@ class EnhancedBillingGenerationServiceWithNotifications
 
     protected function extractPlanName(string $desiredPlan): string
     {
+        // First handle " - " separator
         if (strpos($desiredPlan, ' - ') !== false) {
             $parts = explode(' - ', $desiredPlan);
+            $desiredPlan = trim($parts[0]);
+        }
+        
+        // Then handle space separator (e.g., "SWIFT 1000" -> "SWIFT")
+        if (strpos($desiredPlan, ' ') !== false) {
+            $parts = explode(' ', $desiredPlan);
             return trim($parts[0]);
         }
         
@@ -848,6 +980,20 @@ class EnhancedBillingGenerationServiceWithNotifications
                 ]);
             }
         }
+    }
+
+    protected function markPlanChangesAsUsed(BillingAccount $account, int $userId, string $invoiceId): void
+    {
+        DB::table('plan_change_logs')
+            ->where('account_id', $account->id)
+            ->where('status', 'Unused')
+            ->update([
+                'status' => 'Used',
+                'date_used' => now(),
+                'remarks' => DB::raw("CONCAT(IFNULL(remarks, ''), ' [Applied to Invoice: ', '$invoiceId', ']')"),
+                'updated_by_user' => (string) $userId,
+                'updated_at' => now()
+            ]);
     }
 
     protected function markRebatesAsUsed(BillingAccount $account, int $userId, string $invoiceId): void
@@ -1108,3 +1254,4 @@ class EnhancedBillingGenerationServiceWithNotifications
         return $results;
     }
 }
+

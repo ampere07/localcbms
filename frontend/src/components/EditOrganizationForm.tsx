@@ -13,7 +13,7 @@ interface EditOrganizationFormProps {
 const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organization, onCancel, onOrganizationUpdated }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  
+
   const [formData, setFormData] = useState({
     organization_name: organization?.organization_name || '',
     address: organization?.address || '',
@@ -23,7 +23,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  
+
   useEffect(() => {
     const fetchColorPalette = async () => {
       try {
@@ -35,7 +35,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
     };
     fetchColorPalette();
   }, []);
-  
+
   useEffect(() => {
     const checkDarkMode = () => {
       const theme = localStorage.getItem('theme');
@@ -52,7 +52,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
 
     return () => observer.disconnect();
   }, []);
-  
+
   useEffect(() => {
     if (organization) {
       setFormData({
@@ -63,23 +63,22 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
       });
     }
   }, [organization]);
-  
+
   if (!organization) {
     console.error('EditOrganizationForm received invalid organization data');
     return (
       <div className="p-6">
-        <div className={`border rounded p-4 ${
-          isDarkMode
+        <div className={`border rounded p-4 ${isDarkMode
             ? 'bg-red-900 border-red-600 text-red-200'
             : 'bg-red-100 border-red-300 text-red-800'
-        }`}>
+          }`}>
           <h3 className="text-lg font-semibold mb-2">Invalid Organization Data</h3>
           <p>Cannot edit organization: No organization data provided.</p>
-          <button 
+          <button
             onClick={onCancel}
             className="mt-4 px-4 py-2 rounded transition-colors text-white"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -87,7 +86,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
             }}
           >
             Back to Organizations
@@ -127,17 +126,17 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
 
     setLoading(true);
     try {
-      const dataToSend: { 
+      const dataToSend: {
         organization_name?: string;
         address?: string | null;
         contact_number?: string | null;
         email_address?: string | null;
       } = {};
-      
+
       if (formData.organization_name.trim() !== (organization.organization_name || '')) {
         dataToSend.organization_name = formData.organization_name.trim();
       }
-      
+
       if (formData.address !== (organization.address || '')) {
         dataToSend.address = formData.address.trim() || null;
       }
@@ -149,9 +148,9 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
       if (formData.email_address !== (organization.email_address || '')) {
         dataToSend.email_address = formData.email_address.trim() || null;
       }
-      
+
       const response = await organizationService.updateOrganization(organization.id, dataToSend);
-      
+
       if (response.success && response.data) {
         onOrganizationUpdated(response.data);
         onCancel();
@@ -160,12 +159,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
       }
     } catch (error: any) {
       console.error('Update organization error:', error);
-      
+
       if (error.response?.status === 422) {
         if (error.response?.data?.errors) {
           const backendErrors: Record<string, string> = {};
           const errorData = error.response.data.errors;
-          
+
           Object.keys(errorData).forEach(key => {
             if (Array.isArray(errorData[key])) {
               backendErrors[key] = errorData[key][0];
@@ -173,7 +172,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               backendErrors[key] = errorData[key];
             }
           });
-          
+
           setErrors(backendErrors);
         } else if (error.response?.data?.message) {
           setErrors({ general: error.response.data.message });
@@ -181,7 +180,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
           setErrors({ general: 'Validation error: Please check all required fields' });
         }
       } else {
-        setErrors({ 
+        setErrors({
           general: error.response?.data?.message || error.message || 'Failed to update organization'
         });
       }
@@ -196,31 +195,27 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
         { label: 'Organizations', onClick: onCancel },
         { label: 'Edit Organization' }
       ]} />
-      <div className={`rounded-lg border overflow-hidden ${
-        isDarkMode
+      <div className={`rounded-lg border overflow-hidden ${isDarkMode
           ? 'bg-gray-800 border-gray-600 text-white'
           : 'bg-white border-gray-300 text-gray-900'
-      }`}>
+        }`}>
         <div className="p-6">
           <div className="mb-8">
-            <h2 className={`text-2xl font-semibold mb-2 ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>
+            <h2 className={`text-2xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
               Edit Organization
             </h2>
-            <p className={`text-sm ${
-              isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>
               Update organization information
             </p>
           </div>
 
           {errors.general && (
-            <div className={`mb-6 p-4 border rounded ${
-              isDarkMode
+            <div className={`mb-6 p-4 border rounded ${isDarkMode
                 ? 'bg-red-900 border-red-600 text-red-200'
                 : 'bg-red-100 border-red-300 text-red-800'
-            }`}>
+              }`}>
               {errors.general}
             </div>
           )}
@@ -228,9 +223,8 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
           <div className="max-w-2xl">
             <div className="grid grid-cols-1 gap-6">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Organization Name *
                 </label>
                 <input
@@ -238,13 +232,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   name="organization_name"
                   value={formData.organization_name}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
-                    errors.organization_name
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.organization_name
                       ? 'border-red-600'
                       : isDarkMode
                         ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
                         : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                  }`}
+                    }`}
                   placeholder="Enter organization name"
                   required
                 />
@@ -254,9 +247,8 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Address
                 </label>
                 <textarea
@@ -264,13 +256,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   value={formData.address}
                   onChange={handleInputChange}
                   rows={3}
-                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
-                    errors.address
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.address
                       ? 'border-red-600'
                       : isDarkMode
                         ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
                         : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                  }`}
+                    }`}
                   placeholder="Enter organization address"
                 />
                 {errors.address && (
@@ -279,9 +270,8 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Contact Number
                 </label>
                 <input
@@ -289,13 +279,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   name="contact_number"
                   value={formData.contact_number}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
-                    errors.contact_number
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.contact_number
                       ? 'border-red-600'
                       : isDarkMode
                         ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
                         : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                  }`}
+                    }`}
                   placeholder="Enter contact number"
                 />
                 {errors.contact_number && (
@@ -304,9 +293,8 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               </div>
 
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Email Address
                 </label>
                 <input
@@ -314,13 +302,12 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                   name="email_address"
                   value={formData.email_address}
                   onChange={handleInputChange}
-                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${
-                    errors.email_address
+                  className={`w-full px-4 py-3 border rounded placeholder-gray-500 focus:outline-none ${errors.email_address
                       ? 'border-red-600'
                       : isDarkMode
                         ? 'bg-gray-900 border-gray-600 text-white focus:border-gray-400'
                         : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                  }`}
+                    }`}
                   placeholder="Enter email address"
                 />
                 {errors.email_address && (
@@ -333,11 +320,10 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
               <button
                 onClick={onCancel}
                 disabled={loading}
-                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${
-                  isDarkMode
+                className={`px-6 py-3 border rounded transition-colors text-sm font-medium disabled:opacity-50 ${isDarkMode
                     ? 'border-gray-600 text-white hover:bg-gray-800'
                     : 'border-gray-300 text-gray-900 hover:bg-gray-100'
-                }`}
+                  }`}
               >
                 Cancel
               </button>
@@ -346,7 +332,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                 disabled={loading}
                 className="px-6 py-3 rounded transition-colors text-sm font-medium disabled:opacity-50 text-white"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -355,7 +341,7 @@ const EditOrganizationForm: React.FC<EditOrganizationFormProps> = ({ organizatio
                 }}
                 onMouseLeave={(e) => {
                   if (!loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                   }
                 }}
               >

@@ -40,6 +40,27 @@ export interface BillingRecord {
   region?: string;
   usageType?: string;
   lcpnapport?: string;
+  referredBy?: string;
+  sessionIP?: string;
+  houseFrontPicture?: string;
+  housingStatus?: string;
+  addressCoordinates?: string;
+  location?: string;
+  groupName?: string;
+  desiredPlan?: string;
+  accountBalance?: number;
+  balanceUpdateDate?: string;
+  billingAccountCreatedBy?: string;
+  billingAccountCreatedAt?: string;
+  billingAccountUpdatedBy?: string;
+  billingAccountUpdatedAt?: string;
+  customerCreatedAt?: string;
+  customerCreatedBy?: string;
+  usernameStatus?: string;
+  techCreatedAt?: string;
+  techCreatedBy?: string;
+  techUpdatedAt?: string;
+  techUpdatedBy?: string;
 }
 
 export interface BillingDetailRecord extends BillingRecord {

@@ -11,6 +11,7 @@ interface TransactionState {
     fetchTransactions: (force?: boolean, silent?: boolean) => Promise<void>;
     silentRefresh: () => Promise<void>;
     refreshTransactions: () => Promise<void>;
+    fetchUpdates: () => Promise<void>;
 }
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
@@ -103,5 +104,49 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
     refreshTransactions: async () => {
         await get().fetchTransactions(true, false);
+    },
+
+    fetchUpdates: async () => {
+        const { lastUpdated, transactions } = get();
+        if (!lastUpdated) {
+            await get().silentRefresh();
+            return;
+        }
+
+        try {
+            const formattedDate = lastUpdated.toISOString().slice(0, 19).replace('T', ' ');
+            console.log(`[TransactionStore] Polling for updates since: ${formattedDate}`);
+
+            const result = await transactionService.getAllTransactions(1000, 0, formattedDate);
+
+            if (result && result.success && result.data && result.data.length > 0) {
+                console.log(`[TransactionStore] Received ${result.data.length} transaction updates`);
+                const updatedTransactions = result.data;
+
+                set((state) => {
+                    const currentMap = new Map();
+                    state.transactions.forEach((t: Transaction) => currentMap.set(t.id, t));
+                    
+                    updatedTransactions.forEach((t: Transaction) => {
+                        currentMap.set(t.id, t);
+                    });
+
+                    return {
+                        transactions: Array.from(currentMap.values()).sort((a: any, b: any) => {
+                            const dateA = new Date(a.created_at || a.payment_date || 0).getTime();
+                            const dateB = new Date(b.created_at || b.payment_date || 0).getTime();
+                            return dateB - dateA;
+                        }),
+                        totalCount: result.total || 
+                                   (state.totalCount + updatedTransactions.filter((t: Transaction) => !state.transactions.find(o => o.id === t.id)).length),
+                        lastUpdated: new Date()
+                    };
+                });
+            } else {
+                set({ lastUpdated: new Date() });
+            }
+        } catch (err) {
+            console.error('[TransactionStore] Polling failed:', err);
+        }
     }
 }));

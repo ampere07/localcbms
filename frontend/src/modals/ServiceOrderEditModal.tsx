@@ -11,6 +11,7 @@ import { concernService, Concern } from '../services/concernService';
 import { getUsedPorts } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
+import { getBillingRecordDetails } from '../services/billingService';
 
 
 interface ServiceOrderEditModalProps {
@@ -111,7 +112,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
   const isTechnician = currentUser?.role_id === 2 || (typeof currentUser?.role === 'string' && currentUser.role.toLowerCase() === 'technician');
 
   const [technicians, setTechnicians] = useState<Array<{ name: string; email: string }>>([]);
@@ -125,6 +126,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const [plans, setPlans] = useState<string[]>([]);
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
+  const [billingStatusId, setBillingStatusId] = useState<number | null>(null);
 
   const [orderItems, setOrderItems] = useState<OrderItem[]>([{ itemId: '', quantity: '' }]);
 
@@ -432,7 +434,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
         const planResponse = await apiClient.get<{ success: boolean; data: any[] }>('/plans');
         if (planResponse.data.success && Array.isArray(planResponse.data.data)) {
-          setPlans(planResponse.data.data.map(p => p.plan_name || p.name).filter(Boolean));
+          setPlans(planResponse.data.data.map(p => {
+            const name = p.plan_name || p.name;
+            const price = p.price ? Math.floor(p.price) : '';
+            return price ? `${name} - ${price}` : name;
+          }).filter(Boolean));
         }
 
         if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
@@ -525,10 +531,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         nap: serviceOrderData.nap || '',
         port: normalizePort(serviceOrderData.port || serviceOrderData.PORT),
         vlan: serviceOrderData.vlan || '',
-        supportStatus: (serviceOrderData.supportStatus || serviceOrderData.support_status) === 'Pending'
-          ? 'In Progress'
-          : (serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress'),
-        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status === 'Pending' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'),
+        supportStatus: serviceOrderData.supportStatus || serviceOrderData.support_status || 'In Progress',
+        visitStatus: serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress',
         repairCategory: serviceOrderData.repairCategory || serviceOrderData.repair_category || '',
         visitBy: serviceOrderData.visitBy || serviceOrderData.visit_by || '',
         visitWith: serviceOrderData.visitWith || serviceOrderData.visit_with || '',
@@ -556,6 +560,25 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       }));
     }
   }, [serviceOrderData, isOpen, currentUserEmail]);
+
+  useEffect(() => {
+    const fetchBillingStatus = async () => {
+      const accountNo = serviceOrderData?.accountNumber || serviceOrderData?.account_no;
+      if (isOpen && accountNo) {
+        try {
+          const details = await getBillingRecordDetails(accountNo);
+          if (details) {
+            setBillingStatusId(details.billing_status_id || null);
+          }
+        } catch (error) {
+          console.error('Error fetching billing status:', error);
+        }
+      } else if (!isOpen) {
+        setBillingStatusId(null);
+      }
+    };
+    fetchBillingStatus();
+  }, [isOpen, serviceOrderData]);
 
   const handleInputChange = (field: keyof ServiceOrderEditFormData, value: string) => {
     setFormData(prev => {
@@ -664,7 +687,6 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
     const totalFiles = filesToUpload.length;
     if (totalFiles === 0) {
-      setUploadProgress(100);
       return urls;
     }
 
@@ -673,7 +695,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       if (file) {
         const url = await uploadImageToGoogleDrive(file);
         urls[key as keyof typeof urls] = url;
-        setUploadProgress(Math.round(((i + 1) / totalFiles) * 100));
+        // Map 10% to 75% for image uploads phase
+        setUploadProgress(10 + Math.round(((i + 1) / totalFiles) * 65));
       }
     }
 
@@ -694,39 +717,28 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.accountNo.trim()) newErrors.accountNo = 'Account No is required';
-    if (!formData.fullName.trim()) newErrors.fullName = 'Full Name is required';
-    if (!formData.contactNumber.trim()) newErrors.contactNumber = 'Contact Number is required';
-
-    if (!formData.emailAddress.trim()) {
-      newErrors.emailAddress = 'Email Address is required';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.emailAddress.trim())) {
-      newErrors.emailAddress = 'Please enter a valid email address';
-    }
-
-    if (!formData.plan.trim()) newErrors.plan = 'Plan is required';
-    if (!formData.username.trim()) newErrors.username = 'Username is required';
-    if (!formData.connectionType.trim()) newErrors.connectionType = 'Connection Type is required';
     if (!formData.supportStatus.trim()) newErrors.supportStatus = 'Support Status is required';
-    if (!formData.concern.trim()) newErrors.concern = 'Concern is required';
+    if (!formData.concern.trim() && !isTechnician) newErrors.concern = 'Concern is required';
 
     // Only validate newPlan if the concern is 'Upgrade/Downgrade Plan' (when the field is visible)
     if (formData.concern === 'Upgrade/Downgrade Plan' && !formData.newPlan.trim()) {
       newErrors.newPlan = 'New Plan is required';
     }
 
-    const validItems = orderItems.filter(item => item.itemId && item.quantity);
-    if (validItems.length === 0) {
-      newErrors.items = 'At least one item with quantity is required';
-    } else {
-      for (let i = 0; i < orderItems.length; i++) {
-        const item = orderItems[i];
-        if (item.itemId || item.quantity) {
-          if (!item.itemId) {
-            newErrors[`item_${i}`] = 'Item is required';
-          }
-          if (!item.quantity || parseInt(item.quantity) <= 0) {
-            newErrors[`quantity_${i}`] = 'Valid quantity is required';
+    if (formData.visitStatus === 'Done') {
+      const validItems = orderItems.filter(item => item.itemId && item.quantity);
+      if (validItems.length === 0) {
+        newErrors.items = 'At least one item with quantity is required';
+      } else {
+        for (let i = 0; i < orderItems.length; i++) {
+          const item = orderItems[i];
+          if (item.itemId || item.quantity) {
+            if (!item.itemId) {
+              newErrors[`item_${i}`] = 'Item is required';
+            }
+            if (!item.quantity || parseInt(item.quantity) <= 0) {
+              newErrors[`quantity_${i}`] = 'Valid quantity is required';
+            }
           }
         }
       }
@@ -794,6 +806,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       })
     };
 
+    if (updatedFormData.supportStatus === 'Resolved') {
+      const originalVisitStatus = serviceOrderData.visitStatus || (serviceOrderData.visit_status === 'In Progress' ? 'In Progress' : (serviceOrderData.visitStatus || serviceOrderData.visit_status || 'In Progress'));
+      updatedFormData.visitStatus = originalVisitStatus;
+    }
+
     setFormData(updatedFormData);
 
     if (!validateForm()) {
@@ -806,74 +823,33 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       return;
     }
 
+    // Validation: Reconnect concern on Active account
+    if (formData.concern.toLowerCase() === 'reconnect' && billingStatusId === 1) { // 1 is Active
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Validation Error',
+        message: 'The account number is currently active'
+      });
+      return;
+    }
+
     // SmartOLT Validation Logic
     if (formData.connectionType === 'Fiber') {
-      // Validate Router Modem SN if provided
-      if (formData.routerModemSN?.trim()) {
-        try {
-          console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.routerModemSN);
+      // Check if New Router Modem SN field is visible
+      const isNewRouterModemSNVisible = updatedFormData.visitStatus === 'Done' &&
+        ['Migrate', 'Relocate', 'Relocate Router', 'Transfer LCP/NAP/PORT', 'Replace Router'].includes(updatedFormData.repairCategory);
 
-          // Use modal for loading feedback here as ServiceOrderEditModal uses modal for loading
-          setModal({
-            isOpen: true,
-            type: 'loading',
-            title: 'Validating',
-            message: 'Validating Router Modem SN...'
-          });
-
-          const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
-            params: { sn: formData.routerModemSN }
-          });
-
-          if (!(smartOltResponse.data as any).success) {
-            console.log('[SMARTOLT VALIDATION] Failed:', smartOltResponse.data);
-
-            const errorMessage = (smartOltResponse.data as any).message || 'Invalid Modem SN';
-            setErrors(prev => ({
-              ...prev,
-              routerModemSN: errorMessage
-            }));
-
-            setModal({
-              isOpen: true,
-              type: 'error',
-              title: 'SmartOLT Verification Failed',
-              message: errorMessage,
-              onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
-            });
-            return;
-          }
-          console.log('[SMARTOLT VALIDATION] Router Modem SN Success');
-        } catch (error: any) {
-          console.error('[SMARTOLT VALIDATION] API Error:', error);
-          const errorMessage = error.response?.data?.message || 'Failed to validate Modem SN with SmartOLT system.';
-
-          setErrors(prev => ({
-            ...prev,
-            routerModemSN: errorMessage
-          }));
-
-          setModal({
-            isOpen: true,
-            type: 'error',
-            title: 'Validation Error',
-            message: errorMessage,
-            onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
-          });
-          return;
-        }
-      }
-
-      // Validate New Router Modem SN if provided
-      if (formData.newRouterModemSN?.trim()) {
+      // Validate New Router Modem SN if provided and visible
+      if (isNewRouterModemSNVisible && formData.newRouterModemSN?.trim()) {
         try {
           console.log('[SMARTOLT VALIDATION] Validating New Modem SN:', formData.newRouterModemSN);
 
           setModal({
             isOpen: true,
             type: 'loading',
-            title: 'Validating',
-            message: 'Validating New Router Modem SN...'
+            title: '',
+            message: ''
           });
 
           const smartOltResponse = await apiClient.get('/smart-olt/validate-sn', {
@@ -899,6 +875,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
             return;
           }
           console.log('[SMARTOLT VALIDATION] New Router Modem SN Success');
+          setModal(prev => ({ ...prev, isOpen: false }));
         } catch (error: any) {
           console.error('[SMARTOLT VALIDATION] API Error:', error);
           const errorMessage = error.response?.data?.message || 'Failed to validate New Modem SN with SmartOLT system.';
@@ -920,6 +897,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       }
     }
 
+
+
     if (!serviceOrderData?.id) {
       setModal({
         isOpen: true,
@@ -933,8 +912,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     setModal({
       isOpen: true,
       type: 'loading',
-      title: 'Saving',
-      message: 'Please wait while we save your changes...'
+      title: '',
+      message: ''
     });
 
     setLoading(true);
@@ -946,8 +925,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       setModal({
         isOpen: true,
         type: 'loading',
-        title: 'Uploading Images',
-        message: `Uploading images to Google Drive... 0%`
+        title: '',
+        message: ''
       });
 
       let tempSigFile: File | null = null;
@@ -977,13 +956,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
 
+      setUploadProgress(10);
       const imageUrls = await uploadAllImages(tempSigFile);
+      setUploadProgress(78);
 
       setModal({
         isOpen: true,
         type: 'loading',
-        title: 'Saving Service Order',
-        message: 'Saving service order details...'
+        title: '',
+        message: ''
       });
 
       const serviceOrderUpdateData: any = {
@@ -1002,7 +983,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         port: updatedFormData.port,
         vlan: updatedFormData.vlan,
         support_status: updatedFormData.supportStatus,
-        visit_status: updatedFormData.visitStatus,
+        ...(updatedFormData.supportStatus !== 'Resolved' ? { visit_status: updatedFormData.visitStatus } : {}),
         repair_category: updatedFormData.repairCategory,
         visit_by_user: updatedFormData.visitBy,
         visit_with: updatedFormData.visitWith,
@@ -1018,6 +999,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         concern: updatedFormData.concern,
         concern_remarks: updatedFormData.concernRemarks,
         updated_by: updatedFormData.modifiedBy,
+        updated_by_user: updatedFormData.modifiedBy,
         support_remarks: updatedFormData.supportRemarks,
         service_charge: parseFloat(updatedFormData.serviceCharge),
         status: updatedFormData.status,
@@ -1029,17 +1011,34 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         new_plan: updatedFormData.newPlan
       };
 
-      const response = await apiClient.put<{
-        success: boolean;
-        message?: string;
-        data?: any;
-        reconnect_status?: string | null;
-        migration_status?: string | null;
-        pullout_status?: string | null;
-      }>(
-        `/service-orders/${serviceOrderId}`,
-        serviceOrderUpdateData
-      );
+      setUploadProgress(85);
+
+      // Increment steadily 85 -> 98 while waiting for API
+      const progressTicker = setInterval(() => {
+        setUploadProgress(prev => {
+          const next = Math.floor(prev) + 1;
+          return next >= 98 ? 98 : next;
+        });
+      }, 300);
+
+      let response;
+      try {
+        response = await apiClient.put<{
+          success: boolean;
+          message?: string;
+          data?: any;
+          reconnect_status?: string | null;
+          migration_status?: string | null;
+          pullout_status?: string | null;
+        }>(
+          `/service-orders/${serviceOrderId}`,
+          serviceOrderUpdateData
+        );
+      } finally {
+        clearInterval(progressTicker);
+      }
+
+      setUploadProgress(96);
 
       if (!response.data.success) {
         throw new Error(response.data.message || 'Service order update failed');
@@ -1058,14 +1057,14 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
           if (existingItemsResponse.data.success && existingItemsResponse.data.data.length > 0) {
             const existingItems = existingItemsResponse.data.data;
-
-            for (const item of existingItems) {
-              try {
-                await apiClient.delete(`/service-order-items/${item.id}`);
-              } catch (deleteErr) {
-                console.error('Error deleting existing item:', deleteErr);
-              }
-            }
+            // Delete all existing items in parallel for speed
+            await Promise.all(
+              existingItems.map(item =>
+                apiClient.delete(`/service-order-items/${item.id}`).catch(err => {
+                  console.error('Error deleting existing item:', err);
+                })
+              )
+            );
           }
         } catch (deleteError: any) {
           console.error('Error fetching/deleting existing items:', deleteError);
@@ -1102,6 +1101,10 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         }
       }
 
+      // Animate to 100% then show success
+      setUploadProgress(100);
+      await new Promise(resolve => setTimeout(resolve, 400));
+
       let successMessage = 'Service Order updated successfully!';
 
       // Reconnection Messages
@@ -1136,6 +1139,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         message: successMessage,
         onConfirm: () => {
           setErrors({});
+          setUploadProgress(0);
           onSave(updatedFormData);
           onClose();
           setModal({ ...modal, isOpen: false });
@@ -1144,6 +1148,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     } catch (error: any) {
       console.error('Error updating service order:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      setUploadProgress(0);
       setModal({
         isOpen: true,
         type: 'error',
@@ -1155,7 +1160,6 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
       });
     } finally {
       setLoading(false);
-      setUploadProgress(0);
     }
   };
 
@@ -1165,7 +1169,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
     <>
       <style>{`
         .focus-primary:focus {
-          border-color: ${colorPalette?.primary || '#ea580c'} !important;
+          border-color: ${colorPalette?.primary || '#7c3aed'} !important;
         }
       `}</style>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
@@ -1188,8 +1192,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   : 'bg-gray-400 hover:bg-gray-500 text-white'
                   }`}
                 style={isDarkMode ? {
-                  borderColor: colorPalette?.primary || '#ea580c',
-                  color: colorPalette?.primary || '#ea580c'
+                  borderColor: colorPalette?.primary || '#7c3aed',
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
                 onMouseEnter={(e) => {
                   if (isDarkMode && colorPalette?.primary) {
@@ -1211,7 +1215,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 text-white rounded text-sm"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -1232,7 +1236,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
           <div className="flex-1 overflow-y-auto p-6 space-y-4">
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Account No<span className="text-red-500">*</span></label>
+                }`}>Account No</label>
               <input
                 type="text"
                 value={formData.accountNo}
@@ -1241,18 +1245,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   } ${errors.accountNo ? 'border-red-500' : ''}`}
                 placeholder="Account No"
               />
-              {errors.accountNo && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                </div>
-              )}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Date Installed<span className="text-red-500">*</span></label>
+                }`}>Date Installed</label>
               <div className="relative">
                 <input
                   type="date"
@@ -1264,18 +1261,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 <Calendar className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`} size={20} />
               </div>
-              {errors.dateInstalled && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                </div>
-              )}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Full Name<span className="text-red-500">*</span></label>
+                }`}>Full Name</label>
               <input
                 type="text"
                 value={formData.fullName}
@@ -1283,12 +1273,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.fullName ? 'border-red-500' : ''}`}
               />
-              {errors.fullName && <p className="text-red-500 text-xs mt-1">{errors.fullName}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Contact Number<span className="text-red-500">*</span></label>
+                }`}>Contact Number</label>
               <input
                 type="text"
                 value={formData.contactNumber}
@@ -1296,12 +1285,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.contactNumber ? 'border-red-500' : ''}`}
               />
-              {errors.contactNumber && <p className="text-red-500 text-xs mt-1">{errors.contactNumber}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Email Address<span className="text-red-500">*</span></label>
+                }`}>Email Address</label>
               <input
                 type="text"
                 value={formData.emailAddress}
@@ -1309,12 +1297,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.emailAddress ? 'border-red-500' : ''}`}
               />
-              {errors.emailAddress && <p className="text-red-500 text-xs mt-1">{errors.emailAddress}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Plan<span className="text-red-500">*</span></label>
+                }`}>Plan</label>
               <input
                 type="text"
                 value={formData.plan}
@@ -1322,14 +1309,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.plan ? 'border-red-500' : ''}`}
               />
-              {errors.plan && <p className="text-red-500 text-xs mt-1">{errors.plan}</p>}
             </div>
 
 
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Username<span className="text-red-500">*</span></label>
+                }`}>Username</label>
               <input
                 type="text"
                 value={formData.username}
@@ -1337,38 +1323,23 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.username ? 'border-red-500' : ''}`}
               />
-              {errors.username && <p className="text-red-500 text-xs mt-1">{errors.username}</p>}
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Connection Type<span className="text-red-500">*</span></label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => handleInputChange('connectionType', 'Fiber')}
-                  className={`py-2 px-4 rounded border transition-colors duration-200 text-white`}
-                  style={{
-                    backgroundColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : 'transparent',
-                    borderColor: formData.connectionType === 'Fiber' ? (colorPalette?.primary || '#ea580c') : (isDarkMode ? '#374151' : '#d1d5db'),
-                    color: formData.connectionType === 'Fiber' ? 'white' : (isDarkMode ? '#9ca3af' : '#4b5563')
-                  }}
-                >
-                  Fiber
-                </button>
-              </div>
-              {errors.connectionType && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                </div>
-              )}
+                }`}>Connection Type</label>
+              <input
+                type="text"
+                value={formData.connectionType}
+                readOnly
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
+                  }`}
+              />
             </div>
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Router/Modem SN<span className="text-red-500">*</span></label>
+                }`}>Router/Modem SN</label>
               <input
                 type="text"
                 value={formData.routerModemSN}
@@ -1376,13 +1347,6 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 className={`w-full px-3 py-2 border rounded focus:outline-none focus-primary cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-gray-400 border-gray-700' : 'bg-gray-100 text-gray-500 border-gray-300'
                   } ${errors.routerModemSN ? 'border-red-500' : ''}`}
               />
-              {errors.routerModemSN && (
-                <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
-                </div>
-              )}
             </div>
 
             <div>
@@ -1413,7 +1377,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>PORT<span className="text-red-500">*</span></label>
+                }`}>PORT</label>
               <input
                 type="text"
                 value={formData.port}
@@ -1426,7 +1390,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>VLAN<span className="text-red-500">*</span></label>
+                }`}>VLAN</label>
               <input
                 type="text"
                 value={formData.vlan}
@@ -1480,8 +1444,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   </div>
                   {errors.visitStatus && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -1515,8 +1479,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                   </div>
                   {errors.assignedEmail && (
                     <div className="flex items-center mt-1">
-                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                      <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                      <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                     </div>
                   )}
                 </div>
@@ -1553,8 +1517,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.repairCategory && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1574,8 +1538,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           />
                           {errors.newRouterModemSN && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1650,8 +1614,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                           {errors.newLcpnap && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1668,7 +1632,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             >
                               <option value="">{formData.newLcpnap ? 'Select Port' : 'Select LCP-NAP first'}</option>
                               {Array.from({ length: totalPorts }, (_, i) => {
-                                const portVal = `p${(i + 1).toString().padStart(2, '0')}`;
+                                const portVal = `P${(i + 1).toString().padStart(2, '0')}`;
                                 const isUsed = usedPorts.includes(portVal);
                                 const isSelected = formData.newPort === portVal;
 
@@ -1686,8 +1650,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           </div>
                           {errors.newPort && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1713,8 +1677,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           </div>
                           {errors.newVlan && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1743,8 +1707,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                           </div>
                           {errors.routerModel && (
                             <div className="flex items-center mt-1">
-                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                              <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                              <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                              <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                             </div>
                           )}
                         </div>
@@ -1765,8 +1729,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         />
                         {errors.newRouterModemSN && (
                           <div className="flex items-center mt-1">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                            <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                           </div>
                         )}
                       </div>
@@ -1795,8 +1759,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </div>
                         {errors.newVlan && (
                           <div className="flex items-center mt-1">
-                            <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                            <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                            <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                            <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                           </div>
                         )}
                       </div>
@@ -1824,8 +1788,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitBy && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1886,8 +1850,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       />
                       {errors.visitRemarks && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -1954,8 +1918,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
                       {errors.clientSignature && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2079,7 +2043,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                                 )}
                               </div>
                               {errors[`item_${index}`] && (
-                                <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`item_${index}`]}</p>
+                                <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors[`item_${index}`]}</p>
                               )}
                             </div>
 
@@ -2095,7 +2059,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                                     }`}
                                 />
                                 {errors[`quantity_${index}`] && (
-                                  <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors[`quantity_${index}`]}</p>
+                                  <p className="text-xs mt-1" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors[`quantity_${index}`]}</p>
                                 )}
                               </div>
                             )}
@@ -2116,9 +2080,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <div className="flex items-center mt-1">
                           <div
                             className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                            style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                            style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                           >!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.items}</p>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors.items}</p>
                         </div>
                       )}
                     </div>
@@ -2165,8 +2129,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </label>
                       {errors.timeIn && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2213,8 +2177,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </label>
                       {errors.modemSetupImage && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2261,8 +2225,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </label>
                       {errors.timeOut && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2291,8 +2255,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitBy && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2317,8 +2281,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitWith && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2343,8 +2307,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       </div>
                       {errors.visitWithOther && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2359,8 +2323,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                       />
                       {errors.visitRemarks && (
                         <div className="flex items-center mt-1">
-                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                          <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                          <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                          <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                         </div>
                       )}
                     </div>
@@ -2373,7 +2337,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Concern<span className="text-red-500">*</span></label>
+                }`}>Concern{!isTechnician && <span className="text-red-500">*</span>}</label>
               <div className="relative">
                 {isTechnician ? (
                   <input
@@ -2407,8 +2371,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               {errors.concern && (
                 <div className="flex items-center mt-1">
                   <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2437,8 +2401,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 {errors.newPlan && (
                   <div className="flex items-center mt-1">
                     <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                      style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                    <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>{errors.newPlan}</p>
+                      style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                    <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>{errors.newPlan}</p>
                   </div>
                 )}
               </div>
@@ -2446,7 +2410,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Concern Remarks<span className="text-red-500">*</span></label>
+                }`}>Concern Remarks{!isTechnician && <span className="text-red-500">*</span>}</label>
               <textarea
                 value={formData.concernRemarks}
                 onChange={(e) => handleInputChange('concernRemarks', e.target.value)}
@@ -2464,8 +2428,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               {errors.concernRemarks && (
                 <div className="flex items-center mt-1">
                   <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2535,7 +2499,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>Support Remarks<span className="text-red-500">*</span></label>
+                }`}>Support Remarks{!isTechnician && <span className="text-red-500">*</span>}</label>
               <textarea
                 value={formData.supportRemarks}
                 onChange={(e) => handleInputChange('supportRemarks', e.target.value)}
@@ -2553,8 +2517,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               {errors.supportRemarks && (
                 <div className="flex items-center mt-1">
                   <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2607,8 +2571,8 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               </div>
               {errors.serviceCharge && (
                 <div className="flex items-center mt-1">
-                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}>!</div>
-                  <p className="text-xs" style={{ color: colorPalette?.primary || '#ea580c' }}>This entry is required</p>
+                  <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>
+                  <p className="text-xs" style={{ color: colorPalette?.primary || '#7c3aed' }}>This entry is required</p>
                 </div>
               )}
             </div>
@@ -2616,54 +2580,44 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
         </div>
 
         {modal.isOpen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]">
-            <div className={`border rounded-lg p-6 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+            <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
               }`}>
               {modal.type === 'loading' ? (
-                <>
-                  <div className="flex flex-col items-center justify-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 mb-4"
-                      style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
-                    {modal.title === 'Uploading Images' && uploadProgress > 0 && (
-                      <h3 className="text-4xl font-bold text-white">{uploadProgress}%</h3>
-                    )}
+                <div className="text-center">
+                  <div className="flex justify-center mb-6">
+                    <div className="relative">
+                      <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-t-4" style={{ borderColor: colorPalette?.primary || '#7c3aed', borderTopColor: 'transparent' }}></div>
+                    </div>
                   </div>
-                </>
+                  <div className="mb-6">
+                    <p className={`text-5xl font-extrabold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{Math.round(uploadProgress)}%</p>
+                  </div>
+                  <div className={`w-full h-3 bg-gray-200 rounded-full overflow-hidden mb-2 ${isDarkMode ? 'bg-gray-800' : 'bg-gray-200'}`}>
+                    <div
+                      className="h-full transition-all duration-500 ease-out rounded-full"
+                      style={{
+                        width: `${uploadProgress}%`,
+                        backgroundColor: colorPalette?.primary || '#7c3aed',
+                        boxShadow: `0 0 15px ${colorPalette?.primary || '#7c3aed'}40`
+                      }}
+                    ></div>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <div className="flex items-center justify-center mb-4">
-                    {modal.type === 'success' && (
-                      <div className="rounded-full bg-green-500 p-3">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                    )}
-                    {modal.type === 'error' && (
-                      <div className="rounded-full bg-red-500 p-3">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </div>
-                    )}
-                    {modal.type === 'warning' && (
-                      <div className="rounded-full bg-yellow-500 p-3">
-                        <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
-                      </div>
-                    )}
-                  </div>
-                  <h3 className={`text-lg font-semibold mb-4 text-center ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>{modal.title}</h3>
-                  <p className={`mb-6 whitespace-pre-line text-center ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                     }`}>{modal.message}</p>
-                  <div className="flex items-center justify-center gap-3">
+                  <div className="flex items-center justify-end gap-3">
                     {modal.type === 'confirm' ? (
                       <>
                         <button
                           onClick={modal.onCancel}
-                          className={`px-4 py-2 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-300 hover:bg-gray-400 text-gray-900'
+                          className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                            ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                            : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                             }`}
                         >
                           Cancel
@@ -2671,12 +2625,16 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         <button
                           onClick={modal.onConfirm}
                           className="px-4 py-2 text-white rounded transition-colors"
-                          style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                          style={{
+                            backgroundColor: colorPalette?.primary || '#7c3aed'
+                          }}
                           onMouseEnter={(e) => {
-                            if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+                            if (colorPalette?.accent) {
+                              e.currentTarget.style.backgroundColor = colorPalette.accent;
+                            }
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                            e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                           }}
                         >
                           Confirm
@@ -2691,13 +2649,17 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                             setModal({ ...modal, isOpen: false });
                           }
                         }}
-                        className="px-6 py-2 text-white rounded transition-colors"
-                        style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
                         onMouseEnter={(e) => {
-                          if (colorPalette?.accent) e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         OK
@@ -2707,9 +2669,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                 </>
               )}
             </div>
-          </div>
+          </div >
         )}
-      </div>
+      </div >
     </>
   );
 };

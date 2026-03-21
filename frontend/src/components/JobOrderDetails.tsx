@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  X, ExternalLink, Edit, Settings
+  X, ExternalLink, Edit, Settings, Loader, ArrowRightCircle
 } from 'lucide-react';
 import { updateJobOrder, approveJobOrder } from '../services/jobOrderService';
 import { getBillingStatuses, BillingStatus } from '../services/lookupService';
@@ -13,6 +13,16 @@ import ConfirmationModal from '../modals/MoveToJoModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { getApplication } from '../services/applicationService';
 import { Application } from '../types/application';
+import { planService, Plan } from '../services/planService';
+import { userService } from '../services/userService';
+import { User as UserType } from '../types/api';
+import { getBillingRecords, getBillingRecordDetails, BillingDetailRecord } from '../services/billingService';
+import { getAllInventoryItems } from '../services/inventoryItemService';
+
+const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
+const UserDetails = React.lazy(() => import('./UserDetails'));
+const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
+const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
 
 const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -32,12 +42,24 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [showLoadingModal, setShowLoadingModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [shouldCloseOnSuccess, setShouldCloseOnSuccess] = useState(false);
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
+  const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
+  const [selectedUserForOverlay, setSelectedUserForOverlay] = useState<UserType | null>(null);
+  const [loadingUserOverlay, setLoadingUserOverlay] = useState(false);
+  const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
+  const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
+  const [selectedInventoryForOverlay, setSelectedInventoryForOverlay] = useState<any | null>(null);
+  const [loadingInventoryOverlay, setLoadingInventoryOverlay] = useState(false);
+
+  const hasActiveOverlay = !!selectedPlanForOverlay || !!selectedUserForOverlay || loadingPlanOverlay || loadingUserOverlay || !!selectedCustomerForOverlay || loadingCustomerOverlay || !!selectedInventoryForOverlay || loadingInventoryOverlay;
 
   const FIELD_VISIBILITY_KEY = 'jobOrderDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'jobOrderDetailsFieldOrder';
@@ -60,7 +82,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'connectionType',
     'modemRouterSn',
     'routerModel',
-
+    'installationFee',
     'lcpnap',
     'port',
     'vlan',
@@ -72,6 +94,9 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'visitWith',
     'visitWithOther',
     'onsiteStatus',
+    'startTime',
+    'endTime',
+    'duration',
     'jobOrderItems',
 
     'modifiedBy',
@@ -88,15 +113,31 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
     const saved = localStorage.getItem(FIELD_VISIBILITY_KEY);
+    const initialVisibility = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
     if (saved) {
-      return JSON.parse(saved);
+      try {
+        const parsed = JSON.parse(saved);
+        return { ...initialVisibility, ...parsed };
+      } catch (e) {
+        return initialVisibility;
+      }
     }
-    return defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    return initialVisibility;
   });
 
   const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem(FIELD_ORDER_KEY);
-    return saved ? JSON.parse(saved) : defaultFields;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        // Ensure new fields are added to the end of the order if they're not in the saved order
+        const missingFields = defaultFields.filter(f => !parsed.includes(f));
+        return [...parsed, ...missingFields];
+      } catch (e) {
+        return defaultFields;
+      }
+    }
+    return defaultFields;
   });
 
   useEffect(() => {
@@ -141,8 +182,43 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        setUserRole(userData.role?.toLowerCase() || '');
-        setRoleId(userData.role_id || null);
+        const role = userData.role?.toLowerCase() || '';
+        const id = userData.role_id || null;
+        setUserRole(role);
+        setRoleId(id);
+
+        const isAgent = role === 'agent' || String(id) === '4';
+        const isTechnician = role === 'technician' || String(id) === '2';
+        
+        if (isAgent) {
+          const agentAllowedFields = [
+            'timestamp',
+            'jobOrderNumber',
+            'referredBy',
+            'fullName',
+            'contactNumber',
+            'emailAddress',
+            'fullAddress',
+            'installationFee',
+            'billingStatus',
+            'billingDay',
+            'dateInstalled',
+            'onsiteStatus'
+          ];
+          setFieldOrder(agentAllowedFields);
+          const newVisibility: Record<string, boolean> = {};
+          defaultFields.forEach(f => {
+            newVisibility[f] = agentAllowedFields.includes(f);
+          });
+          setFieldVisibility(newVisibility);
+        } else if (isTechnician) {
+          setFieldOrder(defaultFields);
+          const allVisible: Record<string, boolean> = {};
+          defaultFields.forEach(f => {
+            allVisible[f] = true;
+          });
+          setFieldVisibility(allVisible);
+        }
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
@@ -232,9 +308,42 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'Not scheduled';
     try {
-      return new Date(dateStr).toLocaleString();
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
+    }
+  };
+
+  const formatOnlyDate = (dateStr?: string | null): string => {
+    return formatDate(dateStr);
+  };
+
+  const calculateDuration = (start?: string | null, end?: string | null): string => {
+    if (!start || !end) return 'N/A';
+    try {
+      const startTime = new Date(start);
+      const endTime = new Date(end);
+      const diffMs = endTime.getTime() - startTime.getTime();
+      
+      if (diffMs < 0) return 'Invalid duration';
+
+      const diffHrs = Math.floor(diffMs / 3600000);
+      const diffMins = Math.floor((diffMs % 3600000) / 60000);
+      const diffSecs = Math.floor((diffMs % 60000) / 1000);
+
+      const parts = [];
+      if (diffHrs > 0) parts.push(`${diffHrs}h`);
+      if (diffMins > 0) parts.push(`${diffMins}m`);
+      if (diffSecs > 0 || parts.length === 0) parts.push(`${diffSecs}s`);
+
+      return parts.join(' ');
+    } catch (e) {
+      return 'N/A';
     }
   };
 
@@ -328,15 +437,22 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         case 'done':
         case 'active':
         case 'completed':
+        case 'vip':
+        case 'service account':
           return 'text-green-400';
         case 'pending':
         case 'in progress':
           return 'text-orange-400';
         case 'suspended':
         case 'overdue':
-          return 'text-red-500';
         case 'cancelled':
+        case 'blacklisted':
+        case 'pullout':
           return 'text-red-500';
+        case 'freeze':
+          return 'text-blue-400';
+        case 'inactive':
+          return 'text-gray-400';
         default:
           return 'text-gray-400';
       }
@@ -376,6 +492,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     setIsEditModalOpen(false);
   };
 
+
   const handleApproveClick = () => {
     setIsApprovalModalOpen(true);
   };
@@ -406,27 +523,60 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
         setShowLoadingModal(false);
         setSuccessMessage(message);
+        setShouldCloseOnSuccess(true);
         setShowSuccessModal(true);
         if (onRefresh) {
           onRefresh();
         }
-        onClose();
       } else {
-        throw new Error(response.message || 'Failed to approve job order');
+        setShowLoadingModal(false);
+        const backendMsg = response.error || response.message || 'Failed to approve job order';
+        let displayMsg = backendMsg;
+
+        // Map duplicate errors to more specific messages
+        if (backendMsg.includes('already data') || backendMsg.includes('duplicate') || backendMsg.toLowerCase().includes('serial number')) {
+          if (backendMsg.toLowerCase().includes('serial number') || backendMsg.toLowerCase().includes('modem')) {
+            displayMsg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
+          } else if (backendMsg.includes("already data") || backendMsg.toLowerCase().includes('duplicate')) {
+            displayMsg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
+          }
+
+          if (response.table && !displayMsg.includes('Customer Details')) {
+            displayMsg = `Duplicate Entry Error: ${displayMsg}\nTable: ${response.table}`;
+          }
+        }
+
+        setErrorMessage(displayMsg);
+        setShowErrorModal(true);
       }
     } catch (err: any) {
       setShowLoadingModal(false);
 
-      let msg = 'Failed to approve job order';
-      if (err.response?.data?.message === 'theirs already a data in database') {
-        msg = 'theirs already a data in database';
-      } else if (err.response?.data?.message) {
-        msg = `Failed to approve job order: ${err.response.data.message}`;
+      let displayMsg = 'Failed to approve job order';
+      let tableInfo = '';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+        const rawMsg = data.error || data.message || 'Failed to approve job order';
+        displayMsg = rawMsg;
+
+        // Map duplicate errors to more specific messages
+        if (rawMsg.includes('already data') || rawMsg.includes('duplicate') || rawMsg.toLowerCase().includes('serial number') || rawMsg.includes('already been approved')) {
+          if (rawMsg.toLowerCase().includes('serial number') || rawMsg.toLowerCase().includes('modem')) {
+            displayMsg = "SN Duplicate, Please check on Customer Details. SN Duplicate Detected.";
+          } else if (rawMsg.includes("already data") || rawMsg.toLowerCase().includes('duplicate')) {
+            displayMsg = "Username Duplicate, Please check on Customer Details. Username Duplicate Detected.";
+          }
+
+          if (data.table && !displayMsg.includes('Customer Details')) {
+            tableInfo = `\nTable: ${data.table}`;
+          }
+        }
       } else if (err.message) {
-        msg = `Failed to approve job order: ${err.message}`;
+        displayMsg = err.message;
       }
 
-      setErrorMessage(msg);
+      setErrorMessage(`${displayMsg}${tableInfo}`);
       setShowErrorModal(true);
       console.error('Approve error:', err);
     } finally {
@@ -437,9 +587,31 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const shouldShowApproveButton = () => {
     const onsiteStatus = (jobOrder.Onsite_Status || '').toLowerCase();
     const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
-    const isAdministrator = userRole === 'administrator' || roleId === 1;
+    const isAdministrator = userRole === 'administrator' || roleId === 1 || roleId === 7;
 
     return onsiteStatus === 'done' && billingStatus !== 'done' && isAdministrator;
+  };
+
+  const shouldShowEditButton = () => {
+    const isAdministrator = userRole === 'administrator' || roleId === 1 || roleId === 7;
+    const isTechnician = userRole === 'technician' || roleId === 2;
+
+    const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
+    const onsiteStatus = (jobOrder.Onsite_Status || jobOrder.onsite_status || '').toLowerCase();
+
+    if (onsiteStatus === 'reschedule' || onsiteStatus === 'failed') {
+      return true;
+    }
+
+    if (isAdministrator) {
+      return billingStatus === 'in progress' || jobOrder.billing_status_id === 1 || jobOrder.Billing_Status_ID === 1;
+    }
+
+    if (isTechnician) {
+      return onsiteStatus === 'in progress' || onsiteStatus === 'inprogress';
+    }
+
+    return false;
   };
 
   const handleStatusUpdate = async (newStatus: string) => {
@@ -490,7 +662,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       connectionType: 'Connection Type',
       modemRouterSn: 'Modem/Router SN',
       routerModel: 'Router Model',
-
+      installationFee: 'Installation Fee',
       lcpnap: 'LCPNAP',
       port: 'PORT',
       vlan: 'VLAN',
@@ -502,7 +674,10 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       visitWith: 'Visit With',
       visitWithOther: 'Visit With Other',
       onsiteStatus: 'Onsite Status',
-      jobOrderItems: 'Job Order Items',
+      startTime: 'Start Time',
+      endTime: 'End Time',
+      duration: 'Duration',
+      jobOrderItems: 'Item Used',
 
       modifiedBy: 'Modified By',
       modifiedDate: 'Modified Date',
@@ -568,10 +743,12 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
 
     switch (fieldKey) {
       case 'timestamp':
+        const tsValue = jobOrder.Create_DateTime || jobOrder.created_at || jobOrder.timestamp;
+        if (!tsValue) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Timestamp:</div>
-            <div className={valueClass}>{formatDate(jobOrder.Create_DateTime || jobOrder.created_at || jobOrder.timestamp)}</div>
+            <div className={valueClass}>{formatDate(tsValue)}</div>
           </div>
         );
 
@@ -584,226 +761,466 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'referredBy':
+        const referredBy = jobOrder.Referred_By || jobOrder.referred_by || applicationData?.referred_by;
+        if (!referredBy || referredBy === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Referred By:</div>
-            <div className={valueClass}>{jobOrder.Referred_By || jobOrder.referred_by || (applicationData?.referred_by) || 'None'}</div>
+            <div className={valueClass}>{referredBy}</div>
           </div>
         );
 
       case 'fullName':
+        const fullName = getClientFullName();
+        if (!fullName || fullName === 'Unknown Client') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Full Name:</div>
-            <div className={valueClass}>{getClientFullName()}</div>
+            <div className={valueClass}>{fullName}</div>
           </div>
         );
 
       case 'contactNumber':
+        const contactNum = jobOrder.Contact_Number || jobOrder.mobile_number || applicationData?.mobile_number;
+        if (!contactNum) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Contact Number:</div>
             <div className={valueClass}>
-              {jobOrder.Contact_Number || jobOrder.mobile_number || (applicationData?.mobile_number) || 'Not provided'}
+              {contactNum}
             </div>
           </div>
         );
 
       case 'secondContactNumber':
+        const secondContact = jobOrder.Second_Contact_Number || jobOrder.secondary_mobile_number || applicationData?.secondary_mobile_number;
+        if (!secondContact) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Second Contact Number:</div>
             <div className={valueClass}>
-              {jobOrder.Second_Contact_Number || jobOrder.secondary_mobile_number || (applicationData?.secondary_mobile_number) || 'Not provided'}
+              {secondContact}
             </div>
           </div>
         );
 
       case 'emailAddress':
+        const emailAddress = jobOrder.Email_Address || jobOrder.email_address || applicationData?.email_address;
+        if (!emailAddress) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Email Address:</div>
             <div className={valueClass}>
-              {jobOrder.Email_Address || jobOrder.email_address || (applicationData?.email_address) || 'Not provided'}
+              {emailAddress}
             </div>
           </div>
         );
 
       case 'fullAddress':
+        const fullAddr = getClientFullAddress();
+        if (!fullAddr || fullAddr === 'No address provided') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Full Address:</div>
-            <div className={valueClass}>{getClientFullAddress()}</div>
+            <div className={valueClass}>{fullAddr}</div>
           </div>
         );
 
       case 'billingStatus':
+        const billingStatus = jobOrder.billing_status || jobOrder.Billing_Status;
+        if (!billingStatus || billingStatus === 'Not Set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Billing Status:</div>
-            <div className={valueClass}>{jobOrder.billing_status || jobOrder.Billing_Status || 'Not Set'}</div>
+            <div className={valueClass}>{billingStatus}</div>
           </div>
         );
 
       case 'billingDay':
+        const billingDayDisp = getBillingDayDisplay(jobOrder.Billing_Day || jobOrder.billing_day);
+        if (billingDayDisp === 'Not set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Billing Day:</div>
-            <div className={valueClass}>{getBillingDayDisplay(jobOrder.Billing_Day || jobOrder.billing_day)}</div>
+            <div className={valueClass}>{billingDayDisp}</div>
           </div>
         );
 
       case 'choosePlan':
+        const plan = jobOrder.Desired_Plan || jobOrder.desired_plan || jobOrder.Choose_Plan || jobOrder.choose_plan || applicationData?.desired_plan;
+        if (!plan) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Choose Plan:</div>
-            <div className={valueClass}>
-              {jobOrder.Desired_Plan || jobOrder.desired_plan || jobOrder.Choose_Plan || jobOrder.choose_plan || (applicationData?.desired_plan) || 'Not specified'}
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{plan}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingPlanOverlay(true);
+                    const allPlans = await planService.getAllPlans();
+                    const desiredPlanStr = typeof plan === 'string' ? plan.split('-')[0].trim().toLowerCase() : '';
+                    const match = allPlans.find(p => 
+                      p.name.toLowerCase() === desiredPlanStr ||
+                      (typeof plan === 'string' && plan.toLowerCase().includes(p.name.toLowerCase()))
+                    );
+                    if (match) {
+                      setSelectedPlanForOverlay(match);
+                    } else {
+                      alert('Plan details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding plan', err);
+                  } finally {
+                    setLoadingPlanOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingPlanOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Plan Details"
+                disabled={loadingPlanOverlay}
+              >
+                {loadingPlanOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
             </div>
           </div>
         );
 
       case 'statusRemarks':
+        const statusRemarks = jobOrder.Status_Remarks || jobOrder.status_remarks;
+        if (!statusRemarks) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Status Remarks:</div>
-            <div className={valueClass}>{jobOrder.Status_Remarks || jobOrder.status_remarks || 'No remarks'}</div>
+            <div className={valueClass}>{statusRemarks}</div>
           </div>
         );
 
       case 'remarks':
+        const remarks = jobOrder.Remarks || jobOrder.onsite_remarks;
+        if (!remarks) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Remarks:</div>
-            <div className={valueClass}>{jobOrder.Remarks || jobOrder.onsite_remarks || 'No remarks'}</div>
+            <div className={valueClass}>{remarks}</div>
           </div>
         );
 
       case 'installationLandmark':
+        const installationLandmark = jobOrder.Installation_Landmark || jobOrder.installation_landmark || jobOrder.landmark || applicationData?.landmark;
+        if (!installationLandmark) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Installation Landmark:</div>
-            <div className={valueClass}>{jobOrder.Installation_Landmark || jobOrder.installation_landmark || jobOrder.landmark || (applicationData?.landmark) || 'Not provided'}</div>
+            <div className={valueClass}>{installationLandmark}</div>
           </div>
         );
 
       case 'connectionType':
+        const connType = jobOrder.Connection_Type || jobOrder.connection_type;
+        if (!connType) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Connection Type:</div>
-            <div className={valueClass}>{jobOrder.Connection_Type || jobOrder.connection_type || 'Not specified'}</div>
+            <div className={valueClass}>{connType}</div>
           </div>
         );
 
       case 'modemRouterSn':
+        const sn = jobOrder.Modem_Router_SN || jobOrder.modem_router_sn || jobOrder.Modem_SN || jobOrder.modem_sn;
+        if (!sn) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Modem/Router SN:</div>
-            <div className={valueClass}>{jobOrder.Modem_Router_SN || jobOrder.modem_router_sn || jobOrder.Modem_SN || jobOrder.modem_sn || 'Not specified'}</div>
+            <div className={valueClass}>{sn}</div>
           </div>
         );
 
       case 'routerModel':
+        const model = jobOrder.Router_Model || jobOrder.router_model;
+        if (!model || model === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Router Model:</div>
-            <div className={valueClass}>{jobOrder.Router_Model || jobOrder.router_model || 'Not specified'}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{model}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingInventoryOverlay(true);
+                    const allInventoryRes = await getAllInventoryItems('', 1, 1000);
+                    const allInventory = allInventoryRes.data || [];
+                    const match = allInventory.find(inv => 
+                      inv.item_name.toLowerCase() === model.toLowerCase() ||
+                      inv.item_name.toLowerCase().includes(model.toLowerCase()) ||
+                      model.toLowerCase().includes(inv.item_name.toLowerCase())
+                    );
+                    if (match) {
+                      setSelectedInventoryForOverlay({
+                        item_id: match.id,
+                        item_name: match.item_name,
+                        item_description: match.item_description,
+                        category: match.category_id ? String(match.category_id) : 'Item',
+                        quantity_alert: match.quantity_alert,
+                        image: match.image_url,
+                      });
+                    } else {
+                      alert('Inventory details not found for this router model.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding inventory', err);
+                  } finally {
+                    setLoadingInventoryOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingInventoryOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Inventory Details"
+                disabled={loadingInventoryOverlay}
+              >
+                {loadingInventoryOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
-
+      case 'installationFee':
+        const fee = jobOrder.Installation_Fee || jobOrder.installation_fee;
+        if (fee === null || fee === undefined) return null;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Installation Fee:</div>
+            <div className={valueClass}>{formatPrice(fee)}</div>
+          </div>
+        );
 
       case 'lcpnap':
+        const lcpnap = jobOrder.LCPNAP || jobOrder.lcpnap;
+        if (!lcpnap) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>LCPNAP:</div>
-            <div className={valueClass}>{jobOrder.LCPNAP || jobOrder.lcpnap || 'Not specified'}</div>
+            <div className={valueClass}>{lcpnap}</div>
           </div>
         );
 
       case 'port':
+        const port = jobOrder.PORT || jobOrder.Port || jobOrder.port;
+        if (!port) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>PORT:</div>
-            <div className={valueClass}>{jobOrder.PORT || jobOrder.Port || jobOrder.port || 'Not specified'}</div>
+            <div className={valueClass}>{port}</div>
           </div>
         );
 
       case 'vlan':
+        const vlan = jobOrder.VLAN || jobOrder.vlan;
+        if (!vlan) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>VLAN:</div>
-            <div className={valueClass}>{jobOrder.VLAN || jobOrder.vlan || 'Not specified'}</div>
+            <div className={valueClass}>{vlan}</div>
           </div>
         );
 
       case 'username':
+        const username = jobOrder.Username || jobOrder.username || jobOrder.pppoe_username;
+        if (!username) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Username:</div>
-            <div className={valueClass}>{jobOrder.Username || jobOrder.username || jobOrder.pppoe_username || 'Not provided'}</div>
+            <div className={valueClass}>{username}</div>
           </div>
         );
 
       case 'ipAddress':
+        const ip = jobOrder.IP_Address || jobOrder.ip_address || jobOrder.IP || jobOrder.ip;
+        if (!ip) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>IP Address:</div>
-            <div className={valueClass}>{jobOrder.IP_Address || jobOrder.ip_address || jobOrder.IP || jobOrder.ip || 'Not specified'}</div>
+            <div className={valueClass}>{ip}</div>
           </div>
         );
 
       case 'usageType':
+        const usage = jobOrder.Usage_Type || jobOrder.usage_type;
+        if (!usage) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Usage Type:</div>
-            <div className={valueClass}>{jobOrder.Usage_Type || jobOrder.usage_type || 'Not specified'}</div>
+            <div className={valueClass}>{usage}</div>
           </div>
         );
 
       case 'dateInstalled':
+        const dateInstalled = jobOrder.Date_Installed || jobOrder.date_installed;
+        if (!dateInstalled) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Date Installed:</div>
             <div className={valueClass}>
-              {(jobOrder.Date_Installed || jobOrder.date_installed)
-                ? formatDate(jobOrder.Date_Installed || jobOrder.date_installed)
-                : 'Not installed yet'}
+              {formatOnlyDate(dateInstalled)}
             </div>
           </div>
         );
 
       case 'visitBy':
+        const visitBy = jobOrder.Visit_By || jobOrder.visit_by;
+        if (!visitBy) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit By:</div>
-            <div className={valueClass}>{jobOrder.Visit_By || jobOrder.visit_by || 'Not assigned'}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitBy}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitBy ||
+                      u.username === visitBy ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitBy.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitBy.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
       case 'visitWith':
+        const visitWith = jobOrder.Visit_With || jobOrder.visit_with;
+        if (!visitWith || visitWith === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit With:</div>
-            <div className={valueClass}>{jobOrder.Visit_With || jobOrder.visit_with || 'None'}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitWith}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitWith ||
+                      u.username === visitWith ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitWith.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitWith.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
       case 'visitWithOther':
+        const visitWithOther = jobOrder.Visit_With_Other || jobOrder.visit_with_other;
+        if (!visitWithOther || visitWithOther === 'None') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Visit With Other:</div>
-            <div className={valueClass}>{jobOrder.Visit_With_Other || jobOrder.visit_with_other || 'None'}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{visitWithOther}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitWithOther ||
+                      u.username === visitWithOther ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitWithOther.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitWithOther.toLowerCase()
+                    );
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
       case 'onsiteStatus':
+        const onsiteStatus = jobOrder.Onsite_Status;
+        if (!onsiteStatus || onsiteStatus === 'Not set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Onsite Status:</div>
-            <div className={`${getStatusColor(jobOrder.Onsite_Status, 'onsite')} flex-1 capitalize`}>
-              {jobOrder.Onsite_Status === 'inprogress' ? 'In Progress' : (jobOrder.Onsite_Status || 'Not set')}
+            <div className={`${getStatusColor(onsiteStatus, 'onsite')} flex-1 capitalize`}>
+              {onsiteStatus === 'inprogress' ? 'In Progress' : onsiteStatus}
             </div>
+          </div>
+        );
+
+      case 'startTime':
+        const startTime = jobOrder.start_time;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Start Time:</div>
+            <div className={valueClass}>{formatDate(startTime)}</div>
+          </div>
+        );
+
+      case 'endTime':
+        const endTime = jobOrder.end_time;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>End Time:</div>
+            <div className={valueClass}>{formatDate(endTime)}</div>
+          </div>
+        );
+
+      case 'duration':
+        const st = jobOrder.start_time;
+        const et = jobOrder.end_time;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Duration:</div>
+            <div className={valueClass}>{calculateDuration(st, et)}</div>
           </div>
         );
 
@@ -814,7 +1231,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       case 'jobOrderItems':
         return (
           <div className={`flex flex-col border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-            <div className={`text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Job Order Items</div>
+            <div className={`text-sm mb-2 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Item Used</div>
             {jobOrder.job_order_items && jobOrder.job_order_items.length > 0 ? (
               <div className={`overflow-x-auto rounded border ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <table className={`min-w-full text-sm text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -841,14 +1258,17 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'modifiedBy':
+        const modifiedBy = jobOrder.Modified_By;
+        if (!modifiedBy) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Modified By:</div>
-            <div className={valueClass}>{jobOrder.Modified_By || 'System'}</div>
+            <div className={valueClass}>{modifiedBy}</div>
           </div>
         );
 
       case 'modifiedDate':
+        if (!jobOrder.Modified_Date) return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Modified Date:</div>
@@ -857,25 +1277,57 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'assignedEmail':
+        const assignedEmail = jobOrder.Assigned_Email || jobOrder.assigned_email;
+        if (!assignedEmail || assignedEmail === 'Not set') return null;
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Assigned Email:</div>
-            <div className={valueClass}>{jobOrder.Assigned_Email || 'Not assigned'}</div>
+            <div className={`flex-1 flex items-center gap-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span>{assignedEmail}</span>
+              <button
+                onClick={async () => {
+                  try {
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      u.email_address?.toLowerCase() === assignedEmail.toLowerCase()
+                    );
+                    
+                    if (match) {
+                      setSelectedUserForOverlay(match);
+                    } else {
+                      alert('User details not found for this email.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding user', err);
+                  } finally {
+                    setLoadingUserOverlay(false);
+                  }
+                }}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
+              >
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <ArrowRightCircle className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         );
 
       case 'setupImage':
+        const setupImg = jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url;
+        if (!setupImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Setup Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || 'No image available'}
+                {setupImg}
               </span>
-              {(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url) && (
+              {setupImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.setup_image_url || jobOrder.Setup_Image_URL || jobOrder.Setup_Image_Url || '')}
+                  onClick={() => window.open(setupImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -885,17 +1337,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'speedtestImage':
+        const speedtestImg = jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image;
+        if (!speedtestImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Speedtest Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || 'No image available'}
+                {speedtestImg}
               </span>
-              {(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image) && (
+              {speedtestImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.speedtest_image_url || jobOrder.Speedtest_Image_URL || jobOrder.speedtest_image || jobOrder.Speedtest_Image || '')}
+                  onClick={() => window.open(speedtestImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -905,17 +1359,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'signedContractImage':
+        const contractImg = jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL;
+        if (!contractImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Signed Contract Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || 'No image available'}
+                {contractImg}
               </span>
-              {(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL) && (
+              {contractImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.signed_contract_image_url || jobOrder.Signed_Contract_Image_URL || jobOrder.signed_contract_url || jobOrder.Signed_Contract_URL || '')}
+                  onClick={() => window.open(contractImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -925,17 +1381,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'boxReadingImage':
+        const boxReadingImg = jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL;
+        if (!boxReadingImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Box Reading Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || 'No image available'}
+                {boxReadingImg}
               </span>
-              {(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL) && (
+              {boxReadingImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.box_reading_image_url || jobOrder.Box_Reading_Image_URL || jobOrder.box_reading_url || jobOrder.Box_Reading_URL || '')}
+                  onClick={() => window.open(boxReadingImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -945,17 +1403,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'routerReadingImage':
+        const routerReadingImg = jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL;
+        if (!routerReadingImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Router Reading Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || 'No image available'}
+                {routerReadingImg}
               </span>
-              {(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL) && (
+              {routerReadingImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.router_reading_image_url || jobOrder.Router_Reading_Image_URL || jobOrder.router_reading_url || jobOrder.Router_Reading_URL || '')}
+                  onClick={() => window.open(routerReadingImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -965,17 +1425,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'portLabelImage':
+        const portLabelImg = jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL;
+        if (!portLabelImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Port Label Image</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || 'No image available'}
+                {portLabelImg}
               </span>
-              {(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL) && (
+              {portLabelImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.port_label_image_url || jobOrder.Port_Label_Image_URL || jobOrder.port_label_url || jobOrder.Port_Label_URL || '')}
+                  onClick={() => window.open(portLabelImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -985,17 +1447,19 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'houseFrontPicture':
+        const houseFrontImg = jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture;
+        if (!houseFrontImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>House Front Picture</div>
             <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               <span className="truncate mr-2">
-                {jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || 'No image available'}
+                {houseFrontImg}
               </span>
-              {(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture) && (
+              {houseFrontImg && (
                 <button
                   className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
-                  onClick={() => window.open(jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || '')}
+                  onClick={() => window.open(houseFrontImg)}
                 >
                   <ExternalLink size={16} />
                 </button>
@@ -1022,8 +1486,145 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           onMouseDown={handleMouseDownResize}
         />
       )}
-      <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
+
+      {hasActiveOverlay && (
+        <div className="absolute inset-0 z-50 bg-white dark:bg-gray-900 overflow-hidden flex flex-col h-full w-full">
+          {loadingPlanOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-orange-500" />
+                <p>Loading plan details...</p>
+              </div>
+            </div>
+          )}
+          {loadingUserOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-blue-500" />
+                <p>Loading user details...</p>
+              </div>
+            </div>
+          )}
+          {loadingCustomerOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-green-500" />
+                <p>Loading customer details...</p>
+              </div>
+            </div>
+          )}
+          {loadingInventoryOverlay && (
+            <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+              <div className="flex flex-col items-center gap-3">
+                <Loader className="w-8 h-8 animate-spin text-yellow-500" />
+                <p>Loading inventory details...</p>
+              </div>
+            </div>
+          )}
+          {selectedPlanForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading plan overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <PlanListDetails
+                  plan={selectedPlanForOverlay}
+                  onClose={() => setSelectedPlanForOverlay(null)}
+                  isMobile={isMobile}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <UserDetails
+                  user={selectedUserForOverlay}
+                  onClose={() => setSelectedUserForOverlay(null)}
+                  onEdit={() => {}}
+                  onDelete={() => {}}
+                  isMobile={isMobile}
+                  isDarkMode={isDarkMode}
+                  colorPalette={colorPalette}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedCustomerForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
+                  <p>Loading customer overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <CustomerDetails
+                  billingRecord={selectedCustomerForOverlay}
+                  onClose={() => setSelectedCustomerForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedInventoryForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin" />
+                  <p>Loading inventory overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0">
+                <InventoryDetails
+                  item={selectedInventoryForOverlay}
+                  onClose={() => setSelectedInventoryForOverlay(null)}
+                />
+              </div>
+            </React.Suspense>
+          )}
+          {selectedUserForOverlay && (
+            <React.Suspense fallback={
+              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
+                <div className="flex flex-col items-center gap-3">
+                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
+                  <p>Loading user overlay...</p>
+                </div>
+              </div>
+            }>
+              <div className="w-full h-full relative border-0 flex justify-center p-0 md:p-6 bg-gray-50 dark:bg-gray-950">
+                <div className="bg-white dark:bg-gray-900 w-full h-full shadow-lg rounded-none md:rounded-lg overflow-hidden border dark:border-gray-800">
+                  <UserDetails
+                    user={selectedUserForOverlay}
+                    onClose={() => setSelectedUserForOverlay(null)}
+                    onEdit={() => {}}
+                    onDelete={() => {}}
+                    isMobile={true}
+                    isDarkMode={isDarkMode}
+                    colorPalette={colorPalette}
+                  />
+                </div>
+              </div>
+            </React.Suspense>
+          )}
+        </div>
+      )}
+
+      <div className={hasActiveOverlay ? 'hidden' : 'block h-full flex flex-col w-full'}>
+        <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
         <div className="flex items-center flex-1 min-w-0">
           <h2 className={`font-medium truncate ${isMobile ? 'max-w-[200px] text-sm' : ''} ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{getClientFullName()}</h2>
@@ -1032,6 +1633,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
 
         <div className="flex items-center space-x-3">
+
           {shouldShowApproveButton() && (
             <button
               className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded-sm flex items-center"
@@ -1041,11 +1643,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
               <span>Approve</span>
             </button>
           )}
-          {!(jobOrder.Onsite_Status && jobOrder.Onsite_Status.toLowerCase() === 'done') && (
+          {shouldShowEditButton() && (
             <button
               className="text-white px-3 py-1 rounded-sm flex items-center transition-colors text-sm md:text-base font-medium"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent) {
@@ -1053,7 +1655,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
               onClick={handleDoneClick}
               disabled={loading}
@@ -1062,84 +1664,86 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             </button>
           )}
 
-          <div className="relative">
-            <button
-              onClick={() => setShowFieldSettings(!showFieldSettings)}
-              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
-              title="Field Settings"
-            >
-              <Settings size={16} />
-            </button>
-            {showFieldSettings && (
-              <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-white border-gray-200'
-                }`}>
-                <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+          {!(userRole === 'agent' || String(roleId) === '4') && (
+            <div className="relative">
+              <button
+                onClick={() => setShowFieldSettings(!showFieldSettings)}
+                className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+                title="Field Settings"
+              >
+                <Settings size={16} />
+              </button>
+              {showFieldSettings && (
+                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700'
+                  : 'bg-white border-gray-200'
                   }`}>
-                  <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>Field Visibility & Order</h3>
-                  <div className="flex items-center space-x-2">
-                    <button
-                      onClick={selectAllFields}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Show All
-                    </button>
-                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
-                    <button
-                      onClick={deselectAllFields}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Hide All
-                    </button>
-                    <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
-                    <button
-                      onClick={resetFieldSettings}
-                      className="text-blue-600 hover:text-blue-700 text-xs"
-                    >
-                      Reset
-                    </button>
-                  </div>
-                </div>
-                <div className="p-2">
-                  <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
                     }`}>
-                    Drag to reorder fields
-                  </div>
-                  {fieldOrder.map((fieldKey, index) => (
-                    <div
-                      key={fieldKey}
-                      draggable
-                      onDragStart={() => handleDragStart(index)}
-                      onDragOver={handleDragOver}
-                      onDrop={() => handleDrop(index)}
-                      onDragEnd={handleDragEnd}
-                      className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
-                        } ${draggedIndex === index
-                          ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
-                          : ''
-                        }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={fieldVisibility[fieldKey]}
-                        onChange={() => toggleFieldVisibility(fieldKey)}
-                        onClick={(e) => e.stopPropagation()}
-                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                      />
-                      <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                        }`}>☰</span>
-                      <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                        }`}>
-                        {getFieldLabel(fieldKey)}
-                      </span>
+                    <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                      }`}>Field Visibility & Order</h3>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={selectAllFields}
+                        className="text-blue-600 hover:text-blue-700 text-xs"
+                      >
+                        Show All
+                      </button>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                      <button
+                        onClick={deselectAllFields}
+                        className="text-blue-600 hover:text-blue-700 text-xs"
+                      >
+                        Hide All
+                      </button>
+                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                      <button
+                        onClick={resetFieldSettings}
+                        className="text-blue-600 hover:text-blue-700 text-xs"
+                      >
+                        Reset
+                      </button>
                     </div>
-                  ))}
+                  </div>
+                  <div className="p-2">
+                    <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                      }`}>
+                      Drag to reorder fields
+                    </div>
+                    {fieldOrder.map((fieldKey, index) => (
+                      <div
+                        key={fieldKey}
+                        draggable
+                        onDragStart={() => handleDragStart(index)}
+                        onDragOver={handleDragOver}
+                        onDrop={() => handleDrop(index)}
+                        onDragEnd={handleDragEnd}
+                        className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'
+                          } ${draggedIndex === index
+                            ? isDarkMode ? 'bg-gray-600' : 'bg-gray-200'
+                            : ''
+                          }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={fieldVisibility[fieldKey]}
+                          onChange={() => toggleFieldVisibility(fieldKey)}
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                          }`}>☰</span>
+                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                          }`}>
+                          {getFieldLabel(fieldKey)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
 
           <button
             onClick={onClose}
@@ -1160,7 +1764,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         </div>
       )}
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto w-full">
         <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
           }`}>
           <div className="space-y-4">
@@ -1171,6 +1775,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             ))}
           </div>
         </div>
+      </div>
       </div>
 
       <JobOrderDoneFormModal
@@ -1207,8 +1812,18 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         message={successMessage}
         confirmText="OK"
         cancelText="Close"
-        onConfirm={() => setShowSuccessModal(false)}
-        onCancel={() => setShowSuccessModal(false)}
+        onConfirm={() => {
+          setShowSuccessModal(false);
+          if (shouldCloseOnSuccess) {
+            onClose();
+          }
+        }}
+        onCancel={() => {
+          setShowSuccessModal(false);
+          if (shouldCloseOnSuccess) {
+            onClose();
+          }
+        }}
       />
 
       {/* Loading Modal */}
@@ -1218,7 +1833,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             }`}>
             <div className="flex flex-col items-center">
               <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-t-2 mb-4"
-                style={{ borderColor: colorPalette?.primary || '#ea580c' }}
+                style={{ borderColor: colorPalette?.primary || '#7c3aed' }}
               ></div>
               <h2 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Processing Approval</h2>

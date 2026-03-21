@@ -4,9 +4,10 @@ import { soaService } from '../services/soaService';
 import { invoiceService } from '../services/invoiceService';
 import { paymentPortalLogsService } from '../services/paymentPortalLogsService';
 import { transactionService } from '../services/transactionService';
-import { getCustomerDetail } from '../services/customerDetailService';
 import { paymentService, PendingPayment } from '../services/paymentService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { useCustomerDashboardStore } from '../store/customerDashboardStore';
+import pusher from '../services/pusherService';
 
 // Interfaces
 interface SOARecord {
@@ -40,13 +41,19 @@ interface BillsProps {
 const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'soa' | 'invoices' | 'payments'>(initialTab);
-    const [soaRecords, setSoaRecords] = useState<SOARecord[]>([]);
-    const [invoiceRecords, setInvoiceRecords] = useState<InvoiceRecord[]>([]);
-    const [paymentRecords, setPaymentRecords] = useState<PaymentRecord[]>([]);
-    const [balance, setBalance] = useState(0);
-    const [accountNo, setAccountNo] = useState('');
     const [displayName, setDisplayName] = useState('');
     const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+    const { soaRecords, invoiceRecords, paymentRecords, customerDetail, isLoading, fetchCustomerData } = useCustomerDashboardStore();
+
+    const accountNo = customerDetail?.billingAccount?.accountNo || '';
+    const balance = customerDetail?.billingAccount?.accountBalance || 0;
+
+    // Pagination States
+    const [soaPage, setSoaPage] = useState(1);
+    const [invoicePage, setInvoicePage] = useState(1);
+    const [paymentPage, setPaymentPage] = useState(1);
+    const ITEMS_PER_PAGE = 10;
 
     // Payment State (Mirrored from Dashboard)
     const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
@@ -66,63 +73,13 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                     const parsedUser = JSON.parse(storedUser);
                     setDisplayName(parsedUser.full_name || 'Customer');
 
-                    // 1. Get Detailed Customer Info (to get IDs and Real Balance)
-                    if (parsedUser.username) { // Username is AccountNo
-                        const detail = await getCustomerDetail(parsedUser.username);
+                    if (parsedUser.username) {
+                        await fetchCustomerData(parsedUser.username, parsedUser.role === 'customer');
 
-                        if (detail && detail.billingAccount) {
-                            setAccountNo(detail.billingAccount.accountNo);
-                            setBalance(detail.billingAccount.accountBalance);
-
-                            const billingId = detail.billingAccount.id;
-                            const accNo = detail.billingAccount.accountNo;
-
-                            // 2. Fetch Data in Parallel
-                            const isCustomer = parsedUser.role === 'customer';
-                            const [soaRes, invoiceRes, logsRes, txRes] = await Promise.all([
-                                (isCustomer ? soaService.getStatementsByAccountNo(accNo) : soaService.getStatementsByAccount(billingId)).catch(e => []),
-                                (isCustomer ? invoiceService.getInvoicesByAccountNo(accNo) : invoiceService.getInvoicesByAccount(billingId)).catch(e => []),
-                                paymentPortalLogsService.getLogsByAccountNo(accNo).catch(e => []),
-                                transactionService.getAllTransactions().catch(e => ({ success: false, data: [] }))
-                            ]);
-
-                            // Process SOA
-                            setSoaRecords(soaRes || []);
-
-                            // Process Invoices
-                            setInvoiceRecords(invoiceRes || []);
-
-                            // Process Payments (Merge & Sort)
-                            const formattedLogs: PaymentRecord[] = Array.isArray(logsRes) ? logsRes.map((l: any) => ({
-                                id: `log-${l.id}`,
-                                date: l.date_time,
-                                reference: l.reference_no,
-                                amount: parseFloat(l.total_amount),
-                                source: 'Online',
-                                status: l.status
-                            })) : [];
-
-                            let formattedTxs: PaymentRecord[] = [];
-                            if (txRes && txRes.success && Array.isArray(txRes.data)) {
-                                formattedTxs = txRes.data
-                                    .filter((t: any) => t.account_no === accNo)
-                                    .map((t: any) => ({
-                                        id: `tx-${t.id}`,
-                                        date: t.payment_date || t.created_at,
-                                        reference: t.or_no || t.reference_no || `TR-${t.id}`,
-                                        amount: parseFloat(t.received_payment || t.amount || 0),
-                                        source: 'Manual',
-                                        status: 'Computed'
-                                    }));
-                            }
-
-                            const allPayments = [...formattedLogs, ...formattedTxs].sort((a, b) =>
-                                new Date(b.date).getTime() - new Date(a.date).getTime()
-                            );
-                            setPaymentRecords(allPayments);
-
-                            // Check for pending payments on load
+                        const updatedDetail = useCustomerDashboardStore.getState().customerDetail;
+                        if (updatedDetail && updatedDetail.billingAccount) {
                             try {
+                                const accNo = updatedDetail.billingAccount.accountNo;
                                 const pending = await paymentService.checkPendingPayment(accNo);
                                 setPendingPayment(pending);
                             } catch (pendingErr) {
@@ -150,6 +107,46 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
         fetchData();
         fetchColorPalette();
     }, []);
+
+    // Real-time updates via Pusher/Soketi
+    useEffect(() => {
+        const handleUpdate = async (data: any) => {
+            console.log('[Bills Soketi] Update received, refreshing:', data);
+            try {
+                const storedUser = localStorage.getItem('authData');
+                if (storedUser) {
+                    const parsedUser = JSON.parse(storedUser);
+                    if (parsedUser.username) {
+                        await fetchCustomerData(parsedUser.username, parsedUser.role === 'customer');
+                        console.log('[Bills Soketi] Data refreshed successfully');
+                    }
+                }
+            } catch (err) {
+                console.error('[Bills Soketi] Failed to refresh data:', err);
+            }
+        };
+
+        const txChannel = pusher.subscribe('transactions');
+        const invChannel = pusher.subscribe('invoices');
+        const soaChannel = pusher.subscribe('soa');
+        const payChannel = pusher.subscribe('payments');
+
+        txChannel.bind('transaction-updated', handleUpdate);
+        invChannel.bind('invoice-updated', handleUpdate);
+        soaChannel.bind('soa-updated', handleUpdate);
+        payChannel.bind('payment-updated', handleUpdate);
+
+        return () => {
+            txChannel.unbind('transaction-updated', handleUpdate);
+            invChannel.unbind('invoice-updated', handleUpdate);
+            soaChannel.unbind('soa-updated', handleUpdate);
+            payChannel.unbind('payment-updated', handleUpdate);
+            pusher.unsubscribe('transactions');
+            pusher.unsubscribe('invoices');
+            pusher.unsubscribe('soa');
+            pusher.unsubscribe('payments');
+        };
+    }, [fetchCustomerData]);
 
     // Restriction logic removed as requested
 
@@ -247,12 +244,30 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
 
     const formatDate = (dateStr?: string) => {
         if (!dateStr) return '-';
-        return new Date(dateStr).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+        try {
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return dateStr;
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const dd = String(date.getDate()).padStart(2, '0');
+            const yyyy = date.getFullYear();
+            return `${mm}/${dd}/${yyyy}`;
+        } catch (e) {
+            return dateStr;
+        }
     };
 
     const formatCurrency = (amount?: number) => {
         return `₱ ${(amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`;
     };
+
+    const currentSoaRecords = soaRecords.slice((soaPage - 1) * ITEMS_PER_PAGE, soaPage * ITEMS_PER_PAGE);
+    const totalSoaPages = Math.ceil(soaRecords.length / ITEMS_PER_PAGE);
+
+    const currentInvoiceRecords = invoiceRecords.slice((invoicePage - 1) * ITEMS_PER_PAGE, invoicePage * ITEMS_PER_PAGE);
+    const totalInvoicePages = Math.ceil(invoiceRecords.length / ITEMS_PER_PAGE);
+
+    const currentPaymentRecords = paymentRecords.slice((paymentPage - 1) * ITEMS_PER_PAGE, paymentPage * ITEMS_PER_PAGE);
+    const totalPaymentPages = Math.ceil(paymentRecords.length / ITEMS_PER_PAGE);
 
     if (loading) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
 
@@ -313,10 +328,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                     <div className="w-full">
                         {/* Mobile List View */}
                         <div className="md:hidden">
-                            {soaRecords.length === 0 ? (
+                            {currentSoaRecords.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">No statements found.</div>
                             ) : (
-                                soaRecords.map((record) => (
+                                currentSoaRecords.map((record) => (
                                     <div key={record.id} className="p-4 border-b border-gray-100 last:border-0">
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
@@ -356,10 +371,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {soaRecords.length === 0 ? (
+                                    {currentSoaRecords.length === 0 ? (
                                         <tr><td colSpan={4} className="p-8 text-center text-gray-500">No statements found.</td></tr>
                                     ) : (
-                                        soaRecords.map((record) => (
+                                        currentSoaRecords.map((record) => (
                                             <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
                                                 <td className="p-6 text-sm text-gray-600">{formatDate(record.statement_date)}</td>
                                                 <td className="p-6 text-sm font-bold text-gray-900">{record.id}</td>
@@ -380,6 +395,29 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* SOA Pagination */}
+                        {totalSoaPages > 1 && (
+                            <div className="flex justify-center items-center p-4 border-t border-gray-100 gap-4">
+                                <button
+                                    onClick={() => setSoaPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={soaPage === 1}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
+                                >
+                                    &lt;
+                                </button>
+                                <span className="text-sm font-medium text-gray-600">
+                                    Page {soaPage} of {totalSoaPages}
+                                </span>
+                                <button
+                                    onClick={() => setSoaPage(prev => Math.min(prev + 1, totalSoaPages))}
+                                    disabled={soaPage === totalSoaPages}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
+                                >
+                                    &gt;
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -387,10 +425,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                     <div className="w-full">
                         {/* Mobile List View */}
                         <div className="md:hidden">
-                            {invoiceRecords.length === 0 ? (
+                            {currentInvoiceRecords.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">No invoices found.</div>
                             ) : (
-                                invoiceRecords.map((record) => (
+                                currentInvoiceRecords.map((record) => (
                                     <div key={record.id} className="p-4 border-b border-gray-100 last:border-0">
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
@@ -430,10 +468,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {invoiceRecords.length === 0 ? (
+                                    {currentInvoiceRecords.length === 0 ? (
                                         <tr><td colSpan={4} className="p-8 text-center text-gray-500">No invoices found.</td></tr>
                                     ) : (
-                                        invoiceRecords.map((record) => (
+                                        currentInvoiceRecords.map((record) => (
                                             <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
                                                 <td className="p-6 text-sm text-gray-600">{formatDate(record.invoice_date)}</td>
                                                 <td className="p-6 text-sm font-bold text-gray-900">{record.id}</td>
@@ -454,6 +492,29 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Invoices Pagination */}
+                        {totalInvoicePages > 1 && (
+                            <div className="flex justify-center items-center p-4 border-t border-gray-100 gap-4">
+                                <button
+                                    onClick={() => setInvoicePage(prev => Math.max(prev - 1, 1))}
+                                    disabled={invoicePage === 1}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
+                                >
+                                    &lt;
+                                </button>
+                                <span className="text-sm font-medium text-gray-600">
+                                    Page {invoicePage} of {totalInvoicePages}
+                                </span>
+                                <button
+                                    onClick={() => setInvoicePage(prev => Math.min(prev + 1, totalInvoicePages))}
+                                    disabled={invoicePage === totalInvoicePages}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
+                                >
+                                    &gt;
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
 
@@ -461,10 +522,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                     <div className="w-full">
                         {/* Mobile List View */}
                         <div className="md:hidden">
-                            {paymentRecords.length === 0 ? (
+                            {currentPaymentRecords.length === 0 ? (
                                 <div className="p-8 text-center text-gray-500">No payment history found.</div>
                             ) : (
-                                paymentRecords.map((record) => (
+                                currentPaymentRecords.map((record) => (
                                     <div key={record.id} className="p-4 border-b border-gray-100 last:border-0">
                                         <div className="flex justify-between items-start mb-2">
                                             <div>
@@ -503,10 +564,10 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {paymentRecords.length === 0 ? (
+                                    {currentPaymentRecords.length === 0 ? (
                                         <tr><td colSpan={5} className="p-8 text-center text-gray-500">No payment history found.</td></tr>
                                     ) : (
-                                        paymentRecords.map((record) => (
+                                        currentPaymentRecords.map((record) => (
                                             <tr key={record.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
                                                 <td className="p-6 text-sm text-gray-600">{formatDate(record.date)}</td>
                                                 <td className="p-6 text-sm font-mono text-gray-500">{record.reference}</td>
@@ -524,6 +585,29 @@ const Bills: React.FC<BillsProps> = ({ initialTab = 'soa' }) => {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Payments Pagination */}
+                        {totalPaymentPages > 1 && (
+                            <div className="flex justify-center items-center p-4 border-t border-gray-100 gap-4">
+                                <button
+                                    onClick={() => setPaymentPage(prev => Math.max(prev - 1, 1))}
+                                    disabled={paymentPage === 1}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
+                                >
+                                    &lt;
+                                </button>
+                                <span className="text-sm font-medium text-gray-600">
+                                    Page {paymentPage} of {totalPaymentPages}
+                                </span>
+                                <button
+                                    onClick={() => setPaymentPage(prev => Math.min(prev + 1, totalPaymentPages))}
+                                    disabled={paymentPage === totalPaymentPages}
+                                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition font-bold"
+                                >
+                                    &gt;
+                                </button>
+                            </div>
+                        )}
                     </div>
                 )}
             </div>

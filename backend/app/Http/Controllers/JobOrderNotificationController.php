@@ -84,3 +84,4 @@ class JobOrderNotificationController extends Controller
         }
     }
 }
+

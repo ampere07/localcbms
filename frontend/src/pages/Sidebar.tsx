@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle, RefreshCw } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SidebarProps {
@@ -97,8 +97,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   }, []);
 
   const menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'customer'] },
-    { id: 'live-monitor', label: 'Live Monitor', icon: Activity, allowedRoles: ['administrator'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['admin-only'] },
+    { id: 'live-monitor', label: 'Monitoring', icon: Activity, allowedRoles: ['superadmin'] },
     {
       id: 'billing',
       label: 'Billing',
@@ -107,107 +107,80 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       children: [
         { id: 'customer', label: 'Customer', icon: User, allowedRoles: ['administrator'] },
         { id: 'transaction-list', label: 'Transaction List', icon: Receipt, allowedRoles: ['administrator'] },
+        { id: 'transactions-revert', label: 'Revert Requests', icon: RefreshCw, allowedRoles: ['superadmin'] },
         { id: 'payment-portal', label: 'Payment Portal', icon: DollarSign, allowedRoles: ['administrator'] },
-        { id: 'soa', label: 'SOA', icon: FileText, allowedRoles: ['administrator'] },
+        { id: 'soa', label: 'Statements', icon: FileText, allowedRoles: ['administrator'] },
         { id: 'invoice', label: 'Invoice', icon: Receipt, allowedRoles: ['administrator'] },
         { id: 'overdue', label: 'Overdue', icon: Clock, allowedRoles: ['administrator'] },
         { id: 'dc-notice', label: 'DC Notice', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'mass-rebate', label: 'Rebates', icon: DollarSign, allowedRoles: ['administrator'] },
         { id: 'staggered-payment', label: 'Staggered', icon: Calendar, allowedRoles: ['administrator'] },
-        { id: 'discounts', label: 'Discounts', icon: Tag, allowedRoles: ['administrator'] },
-        { id: 'billing-config', label: 'Billing Configurations', icon: Receipt, allowedRoles: ['administrator'] }
+        { id: 'discounts', label: 'Discounts', icon: Tag, allowedRoles: ['administrator'] }
       ]
     },
-    {
-      id: 'application',
-      label: 'Application',
-      icon: FileCheck,
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-        { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
-        // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
-        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
-        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
-        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
-        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['administrator'] }
-      ]
-    },
-    {
-      id: 'job-order-group',
-      label: 'Job Order',
-      icon: Wrench,
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-        { id: 'job-order', label: 'Job Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
-        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
-        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
-        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] }
-      ]
-    },
-    {
-      id: 'sms',
-      label: 'SMS',
-      icon: MessageSquare,
-      allowedRoles: ['administrator'],
-      children: [
-        { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] }
-      ]
-    },
-    {
-      id: 'support',
-      label: 'Support',
-      icon: Wrench,
-      allowedRoles: ['administrator', 'technician'],
-      children: [
-        { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] }
-      ]
-    },
+    { id: 'application-management', label: 'Application', icon: FileCheck, allowedRoles: ['administrator'] },
+    // { id: 'application-visit', label: 'Application Visit', icon: MapPin, allowedRoles: ['administrator', 'technician'] },
+    { id: 'job-order', label: 'Job Order', icon: Wrench, allowedRoles: ['administrator', 'technician', 'agent'] },
+    { id: 'service-order', label: 'Service Order', icon: Wrench, allowedRoles: ['administrator', 'technician'] },
+    { id: 'work-order', label: 'Work Order', icon: Wrench, allowedRoles: ['administrator', 'agent', 'Osp'] },
+    { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician', 'Osp'] },
+    { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] },
+    { id: 'reports', label: 'Reports', icon: FileBarChart, allowedRoles: ['administrator', 'superadmin'] },
     {
       id: 'inventory-group',
       label: 'Inventory',
       icon: Package,
-      allowedRoles: ['administrator'],
+      allowedRoles: ['administrator', 'inventorystaff'],
       children: [
-        { id: 'inventory', label: 'Inventory', icon: Package, allowedRoles: ['administrator'] },
-        { id: 'inventory-category-list', label: 'Inventory Category List', icon: List, allowedRoles: ['administrator'] }
+        { id: 'inventory', label: 'Inventory', icon: Package, allowedRoles: ['administrator', 'inventorystaff'] },
+        { id: 'inventory-category-list', label: 'Inventory Category List', icon: List, allowedRoles: ['administrator', 'inventorystaff'] }
       ]
     },
     {
       id: 'technical',
-      label: 'Technical',
+      label: 'Configurations',
       icon: Network,
-      allowedRoles: ['administrator', 'technician'],
+      allowedRoles: ['administrator', 'technician', 'Osp'],
       children: [
-        { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician'] },
+        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
+        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
+        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
+        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['administrator'] },
+        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
+        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
+        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] },
+        { id: 'work-category', label: 'Work Category', icon: Wrench, allowedRoles: ['administrator'] },
         { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
-        { id: 'sms-config', label: 'SMS Config', icon: MessageSquare, allowedRoles: ['administrator'] },
+        { id: 'smart-olt', label: 'SmartOLT Config', icon: Network, allowedRoles: ['superadmin'] },
+        { id: 'sms-config', label: 'SMS Config', icon: MessageSquare, allowedRoles: ['superadmin'] },
         { id: 'sms-template', label: 'SMS Template', icon: MessageSquare, allowedRoles: ['administrator'] },
         { id: 'email-templates', label: 'Email Templates', icon: FileText, allowedRoles: ['administrator'] },
-        { id: 'pppoe-setup', label: 'PPPoE Setup', icon: Router, allowedRoles: ['administrator'] },
-        { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['administrator'] }
+        { id: 'pppoe-setup', label: 'PPPoE Setup', icon: Router, allowedRoles: ['superadmin'] },
+        { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['administrator'] },
+        { id: 'billing-config', label: 'Billing Configurations', icon: Receipt, allowedRoles: ['superadmin'] }
       ]
     },
     {
       id: 'users',
       label: 'Users',
       icon: Users,
-      allowedRoles: ['administrator'],
+      allowedRoles: ['superadmin'],
       children: [
-        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['administrator'] },
-        { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
-        { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
+        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['superadmin'] }
+        // { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
+        // { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
       ]
     },
     {
-      id: 'logs',
-      label: 'logs',
+      id: 'logs-category',
+      label: 'Logs',
       icon: Users,
       allowedRoles: ['administrator'],
       children: [
-        { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
+        // { id: 'expenses-log', label: 'Expenses Log', icon: FileBarChart, allowedRoles: ['administrator'] },
         { id: 'disconnected-logs', label: 'Disconnected Logs', icon: AlertTriangle, allowedRoles: ['administrator'] },
         { id: 'reconnection-logs', label: 'Reconnection Logs', icon: FileBarChart, allowedRoles: ['administrator'] },
-        { id: 'logs', label: 'System Logs', icon: FileText, allowedRoles: ['administrator'] }
+        { id: 'system-logs', label: 'System Logs', icon: FileText, allowedRoles: ['superadmin'] }
       ]
     },
     { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['administrator', 'technician'] },
@@ -232,6 +205,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     // If the user is a customer, always return an empty menu (hide sidebar content)
     const normalizedUserRole = userRole ? userRole.toLowerCase().trim() : '';
     const isTechnician = normalizedUserRole === 'technician' || String(roleId) === '2';
+    const isInventoryStaff = normalizedUserRole === 'inventorystaff' || String(roleId) === '5';
 
     if (normalizedUserRole === 'customer' || String(roleId) === '3') {
       return [];
@@ -245,7 +219,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       const hasAccess = item.allowedRoles.some(role => {
         const normalizedRole = role.toLowerCase().trim();
         if (normalizedRole === 'technician') return isTechnician;
-        if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1';
+        if (normalizedRole === 'administrator') return normalizedUserRole === 'administrator' || String(roleId) === '1' || String(roleId) === '7';
+        if (normalizedRole === 'admin-only') return normalizedUserRole === 'administrator' || String(roleId) === '1';
+        if (normalizedRole === 'superadmin') return normalizedUserRole === 'superadmin' || String(roleId) === '7';
+        if (normalizedRole === 'osp') return normalizedUserRole === 'Osp'.toLowerCase() || String(roleId) === '6';
+        if (normalizedRole === 'inventorystaff') return isInventoryStaff;
         return normalizedRole === normalizedUserRole;
       });
 
@@ -297,10 +275,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
             }`}
           style={isCurrentItemActive ? {
             backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : isDarkMode ? 'rgba(249, 115, 22, 0.2)' : 'rgba(249, 115, 22, 0.1)',
-            color: colorPalette?.primary || (isDarkMode ? '#fb923c' : '#ea580c'),
+            color: colorPalette?.primary || (isDarkMode ? '#7c3aed' : '#7c3aed'),
             borderRightWidth: '2px',
             borderRightStyle: 'solid',
-            borderRightColor: colorPalette?.primary || '#ea580c'
+            borderRightColor: colorPalette?.primary || '#7c3aed'
           } : {}}
         >
           <div className="flex items-center">

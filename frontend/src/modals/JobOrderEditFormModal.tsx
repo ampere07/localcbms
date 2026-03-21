@@ -84,6 +84,7 @@ interface JobOrderEditFormData {
   visit_with_other: string;
   statusRemarks: string;
   ip: string;
+  installationFee: number | string;
 }
 
 interface OrderItem {
@@ -133,7 +134,7 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
 
   const getTodayDate = () => {
     const today = new Date();
@@ -194,7 +195,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     visit_with: '',
     visit_with_other: '',
     statusRemarks: '',
-    ip: ''
+    ip: '',
+    installationFee: 0
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -214,6 +216,9 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   const [vlans, setVlans] = useState<VLAN[]>([]);
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [statusRemarksList, setStatusRemarksList] = useState<StatusRemark[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [referredBySearch, setReferredBySearch] = useState('');
+  const [isReferredByOpen, setIsReferredByOpen] = useState(false);
 
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
@@ -505,6 +510,29 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   }, [isOpen]);
 
   useEffect(() => {
+    const fetchAgents = async () => {
+      if (isOpen) {
+        try {
+          const response = await userService.getUsersByRole('agent');
+          if (response.success && response.data) {
+            setAgents(response.data);
+          } else {
+            const responseById = await userService.getUsersByRoleId(4);
+            if (responseById.success && responseById.data) {
+              setAgents(responseById.data);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch agents:', error);
+          setAgents([]);
+        }
+      }
+    };
+
+    fetchAgents();
+  }, [isOpen]);
+
+  useEffect(() => {
     const fetchRegions = async () => {
       if (isOpen) {
         try {
@@ -736,7 +764,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
                 visit_with: jobOrderData.Visit_With || jobOrderData.visit_with || '',
                 visit_with_other: jobOrderData.Visit_With_Other || jobOrderData.visit_with_other || '',
                 statusRemarks: jobOrderData.Status_Remarks || jobOrderData.status_remarks || '',
-                ip: jobOrderData.IP || jobOrderData.ip || ''
+                ip: jobOrderData.IP || jobOrderData.ip || '',
+                installationFee: jobOrderData.Installation_Fee || jobOrderData.installation_fee || 0
               }));
             }
           } else {
@@ -785,7 +814,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
           visit_with: jobOrderData.Visit_With || jobOrderData.visit_with || '',
           visit_with_other: jobOrderData.Visit_With_Other || jobOrderData.visit_with_other || '',
           statusRemarks: jobOrderData.Status_Remarks || jobOrderData.status_remarks || '',
-          ip: jobOrderData.IP || jobOrderData.ip || ''
+          ip: jobOrderData.IP || jobOrderData.ip || '',
+          installationFee: jobOrderData.Installation_Fee || jobOrderData.installation_fee || 0
         }));
       };
 
@@ -794,6 +824,10 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
   }, [jobOrderData, isOpen]);
 
   const handleInputChange = (field: keyof JobOrderEditFormData, value: string | File | null) => {
+    if (field === 'middleInitial' && typeof value === 'string') {
+      value = value.replace(/[0-9]/g, '');
+    }
+
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
       if (field === 'lcpnap') {
@@ -938,15 +972,37 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     );
   };
 
-  const handleNumberChange = (field: 'contractTemplate', increment: boolean) => {
+  const handleNumberChange = (field: 'installationFee' | 'contractTemplate', increment: boolean) => {
     setFormData(prev => {
-      const currentValue = parseInt(prev[field]) || 1;
-      const newValue = increment ? currentValue + 1 : Math.max(1, currentValue - 1);
-      return {
-        ...prev,
-        [field]: newValue.toString()
-      };
+      if (field === 'installationFee') {
+        const currentVal = Number(prev[field]) || 0;
+        return {
+          ...prev,
+          [field]: increment ? currentVal + 0.01 : Math.max(0, currentVal - 0.01)
+        };
+      } else {
+        const currentValue = parseInt(prev[field]) || 1;
+        const newValue = increment ? currentValue + 1 : Math.max(1, currentValue - 1);
+        return {
+          ...prev,
+          [field]: newValue.toString()
+        };
+      }
     });
+  };
+
+  const handleInstallationFeeChange = (value: string) => {
+    if (value === '' || value === '-') {
+      setFormData(prev => ({ ...prev, installationFee: value }));
+    } else {
+      const numValue = parseFloat(value);
+      if (!isNaN(numValue)) {
+        setFormData(prev => ({ ...prev, installationFee: value }));
+      }
+    }
+    if (errors.installationFee) {
+      setErrors(prev => ({ ...prev, installationFee: '' }));
+    }
   };
 
   const handleItemChange = (index: number, field: 'itemId' | 'quantity', value: string) => {
@@ -1042,6 +1098,12 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
     if (!formData.contractTemplate.trim()) newErrors.contractTemplate = 'Contract Template is required';
     if (!formData.assignedEmail.trim()) newErrors.assignedEmail = 'Assigned Email is required';
 
+    if (formData.installationFee === '' || formData.installationFee === '-') {
+      newErrors.installationFee = 'Installation Fee is required';
+    } else if (Number(formData.installationFee) < 0) {
+      newErrors.installationFee = 'Installation Fee cannot be negative';
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -1124,7 +1186,8 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
         Modified_Date: updatedFormData.modifiedDate,
         Contract_Link: updatedFormData.contractLink,
         Contract_Template: updatedFormData.contractTemplate,
-        Assigned_Email: updatedFormData.assignedEmail
+        Assigned_Email: updatedFormData.assignedEmail,
+        Installation_Fee: Number(updatedFormData.installationFee) || 0
       };
 
       if (updatedFormData.status === 'Confirmed') {
@@ -1340,8 +1403,110 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Referred By</label>
-              <input type="text" value={formData.referredBy} onChange={(e) => handleInputChange('referredBy', e.target.value)} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                }`} />
+              <div className="relative">
+                <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                  } ${isReferredByOpen ? 'border-orange-500' : ''}`}>
+                  <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <input
+                    type="text"
+                    placeholder="Search Agent..."
+                    value={isReferredByOpen ? referredBySearch : (formData.referredBy || '')}
+                    onChange={(e) => {
+                      setReferredBySearch(e.target.value);
+                      setIsReferredByOpen(true);
+                      if (!isReferredByOpen) {
+                        handleInputChange('referredBy', e.target.value);
+                      }
+                    }}
+                    onFocus={() => {
+                      setIsReferredByOpen(true);
+                      setReferredBySearch(formData.referredBy || '');
+                    }}
+                    className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  />
+                  {(formData.referredBy || referredBySearch) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleInputChange('referredBy', '');
+                        setReferredBySearch('');
+                        setIsReferredByOpen(false);
+                      }}
+                      className={`ml-2 p-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors`}
+                    >
+                      <X size={14} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => setIsReferredByOpen(!isReferredByOpen)}
+                    className={`ml-2 transition-transform duration-200 ${isReferredByOpen ? 'rotate-180' : ''}`}
+                  >
+                    <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                  </button>
+                </div>
+
+                {isReferredByOpen && (
+                  <div className={`absolute left-0 right-0 top-full mt-1 z-[100] rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+                    }`}>
+                    <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                      {agents
+                        .filter(agent => {
+                          const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.toLowerCase();
+                          const searchLower = referredBySearch.toLowerCase();
+                          return fullName.includes(searchLower) ||
+                            (agent.username || '').toLowerCase().includes(searchLower) ||
+                            (agent.email_address || '').toLowerCase().includes(searchLower);
+                        })
+                        .map((agent) => {
+                          const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                          return (
+                            <div
+                              key={agent.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.referredBy === fullName ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('referredBy', fullName);
+                                setIsReferredByOpen(false);
+                                setReferredBySearch('');
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{fullName}</span>
+                                  <span className={`text-[10px] ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{agent.username} • {agent.email_address}</span>
+                                </div>
+                                {formData.referredBy === fullName && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {agents.filter(agent => {
+                        const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.toLowerCase();
+                        const searchLower = referredBySearch.toLowerCase();
+                        return fullName.includes(searchLower) ||
+                          (agent.username || '').toLowerCase().includes(searchLower) ||
+                          (agent.email_address || '').toLowerCase().includes(searchLower);
+                      }).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No Agent found for "{referredBySearch}"
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+                {isReferredByOpen && (
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => {
+                      setIsReferredByOpen(false);
+                      setReferredBySearch('');
+                    }}
+                  />
+                )}
+              </div>
             </div>
 
             {formData.status === 'Confirmed' && formData.onsiteStatus === 'Done' && (
@@ -1406,8 +1571,18 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Middle Initial</label>
-              <input type="text" value={formData.middleInitial} onChange={(e) => handleInputChange('middleInitial', e.target.value)} maxLength={1} className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-                }`} />
+              <input
+                type="text"
+                value={formData.middleInitial}
+                onChange={(e) => handleInputChange('middleInitial', e.target.value)}
+                onKeyDown={(e) => {
+                  if (/[0-9]/.test(e.key)) {
+                    e.preventDefault();
+                  }
+                }}
+                maxLength={1}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                  }`} />
             </div>
 
             <div>
@@ -2034,6 +2209,29 @@ const JobOrderEditFormModal: React.FC<JobOrderEditFormModalProps> = ({
             )}
 
             <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
+                Installation Fee<span className="text-red-500">*</span>
+              </label>
+              <div className={`flex items-center border rounded ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                }`}>
+                <span className={`px-3 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>₱</span>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.installationFee}
+                  onChange={(e) => handleInstallationFeeChange(e.target.value)}
+                  className={`flex-1 px-3 py-2 bg-transparent focus:outline-none [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield] ${isDarkMode ? 'text-white' : 'text-gray-900'
+                    } ${errors.installationFee ? 'border-red-500' : ''}`}
+                  placeholder="0.00"
+                />
+              </div>
+              {errors.installationFee && <p className="text-red-500 text-xs mt-1">{errors.installationFee}</p>}
+            </div>
+
+            <div className="pt-4 border-t border-gray-700">
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>Modified By<span className="text-red-500">*</span></label>
               <input type="email" value={formData.modifiedBy} readOnly className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode ? 'bg-gray-700 border-gray-700 text-gray-400' : 'bg-gray-100 border-gray-200 text-gray-500'

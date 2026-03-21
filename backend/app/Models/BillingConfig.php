@@ -38,3 +38,4 @@ class BillingConfig extends Model
         'updated_at' => 'datetime',
     ];
 }
+

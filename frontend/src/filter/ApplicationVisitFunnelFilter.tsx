@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Search, Check } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
+import { planService } from '../services/planService';
 
 interface ApplicationVisitFunnelFilterProps {
   isOpen: boolean;
@@ -11,17 +13,18 @@ interface ApplicationVisitFunnelFilterProps {
 
 export interface FilterValues {
   [key: string]: {
-    type: 'text' | 'number' | 'date';
+    type: 'text' | 'number' | 'date' | 'checklist';
     value?: string;
     from?: string | number;
     to?: string | number;
+    selectedOptions?: string[];
   };
 }
 
 interface Column {
   key: string;
   label: string;
-  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'datetime';
+  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'datetime' | 'checklist';
 }
 
 const STORAGE_KEY = 'applicationVisitFilters';
@@ -41,6 +44,7 @@ const allColumns: Column[] = [
   { key: 'full_address', label: 'Full Address', dataType: 'text' },
   { key: 'created_at', label: 'Created At', dataType: 'datetime' },
   { key: 'updated_at', label: 'Updated At', dataType: 'datetime' },
+  { key: 'choose_plan', label: 'Choose Plan', dataType: 'checklist' },
 ];
 
 const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> = ({
@@ -53,6 +57,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [plans, setPlans] = useState<string[]>([]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -74,6 +80,27 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
     fetchColorPalette();
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      const fetchChecklistData = async () => {
+        try {
+          const planData = await planService.getAllPlans();
+          if (planData) {
+            const formattedPlans = planData.map(p => {
+              const name = p.name || (p as any).plan_name || 'Unknown';
+              const price = Math.floor(Number(p.price || 0));
+              return `${name} ${price}`;
+            });
+            setPlans(formattedPlans);
+          }
+        } catch (err) {
+          console.error('Failed to fetch checklist data:', err);
+        }
+      };
+      fetchChecklistData();
+    }
+  }, [isOpen]);
+
   // Load filters from localStorage when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -92,10 +119,12 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
 
   const handleColumnClick = (column: Column) => {
     setSelectedColumn(column);
+    setSearchTerm('');
   };
 
   const handleBack = () => {
     setSelectedColumn(null);
+    setSearchTerm('');
   };
 
   const handleApply = () => {
@@ -151,6 +180,32 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
     }));
   };
 
+  const toggleOption = (columnKey: string, option: string) => {
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
+      const selectedOptions = current.selectedOptions || [];
+
+      const nextOptions = selectedOptions.includes(option)
+        ? selectedOptions.filter(o => o !== option)
+        : [...selectedOptions, option];
+
+      if (nextOptions.length === 0) {
+        const newFilters = { ...prev };
+        delete newFilters[columnKey];
+        return newFilters;
+      }
+
+      return {
+        ...prev,
+        [columnKey]: {
+          ...current,
+          type: 'checklist',
+          selectedOptions: nextOptions
+        }
+      };
+    });
+  };
+
   const getActiveFilterCount = () => {
     return Object.keys(filterValues).filter(key => {
       const filter = filterValues[key];
@@ -170,9 +225,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
       return (
         <div className="space-y-4">
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               From
             </label>
             <input
@@ -180,17 +234,15 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
               value={currentValue?.from || ''}
               onChange={(e) => handleRangeChange(selectedColumn.key, 'from', e.target.value)}
               placeholder="Minimum value"
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               To
             </label>
             <input
@@ -198,11 +250,10 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
               value={currentValue?.to || ''}
               onChange={(e) => handleRangeChange(selectedColumn.key, 'to', e.target.value)}
               placeholder="Maximum value"
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
         </div>
@@ -213,38 +264,107 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
       return (
         <div className="space-y-4">
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               From
             </label>
             <input
               type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
               value={currentValue?.from || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'from', e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
           </div>
           <div>
-            <label className={`text-sm font-medium mb-2 block ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               To
             </label>
             <input
               type={selectedColumn.dataType === 'datetime' ? 'datetime-local' : 'date'}
               value={currentValue?.to || ''}
               onChange={(e) => handleDateChange(selectedColumn.key, 'to', e.target.value)}
-              className={`w-full px-3 py-2 rounded border ${
-                isDarkMode 
-                  ? 'bg-gray-800 border-gray-700 text-white' 
+              className={`w-full px-3 py-2 rounded border ${isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
             />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedColumn.dataType === 'checklist') {
+      let options: { label: string, value: string }[] = [];
+      if (selectedColumn.key === 'choose_plan') {
+        options = plans.map(p => ({ label: p, value: p }));
+      }
+
+      const filteredOptions = options.filter(opt =>
+        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      return (
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+            <input
+              type="text"
+              placeholder={`Search ${selectedColumn.label}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-gray-600'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-300'
+              } focus:outline-none focus:ring-1 focus:ring-opacity-50`}
+              style={{
+                '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+              } as React.CSSProperties}
+            />
+          </div>
+
+          <div className="max-h-60 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const isSelected = currentValue?.selectedOptions?.includes(option.value) || false;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => toggleOption(selectedColumn.key, option.value)}
+                    className={`w-full flex items-center justify-between p-2 rounded-md text-sm transition-all ${
+                      isSelected
+                        ? isDarkMode
+                          ? 'bg-gray-800 text-white font-medium'
+                          : 'bg-indigo-50 text-indigo-900 font-medium'
+                        : isDarkMode
+                          ? 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? 'border-transparent'
+                        : isDarkMode
+                          ? 'border-gray-600'
+                          : 'border-gray-300'
+                    }`}
+                    style={isSelected ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    >
+                      {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className={`text-center py-4 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                No options found
+              </div>
+            )}
           </div>
         </div>
       );
@@ -252,9 +372,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
 
     return (
       <div>
-        <label className={`text-sm font-medium mb-2 block ${
-          isDarkMode ? 'text-gray-300' : 'text-gray-700'
-        }`}>
+        <label className={`text-sm font-medium mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          }`}>
           Search Value
         </label>
         <input
@@ -262,11 +381,10 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
           value={typeof currentValue?.value === 'string' ? currentValue.value : ''}
           onChange={(e) => handleTextChange(selectedColumn.key, e.target.value)}
           placeholder={`Enter ${selectedColumn.label.toLowerCase()}`}
-          className={`w-full px-3 py-2 rounded border ${
-            isDarkMode 
-              ? 'bg-gray-800 border-gray-700 text-white' 
+          className={`w-full px-3 py-2 rounded border ${isDarkMode
+              ? 'bg-gray-800 border-gray-700 text-white'
               : 'bg-white border-gray-300 text-gray-900'
-          }`}
+            }`}
         />
       </div>
     );
@@ -279,43 +397,38 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 overflow-hidden">
-        <div 
+        <div
           className="absolute inset-0 bg-black bg-opacity-50 transition-opacity"
           onClick={onClose}
         />
-        
+
         <div className="fixed inset-y-0 right-0 max-w-full flex">
-          <div className={`w-screen max-w-md transform transition-transform ${
-            isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}>
+          <div className={`w-screen max-w-md transform transition-transform ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
             <div className="h-full flex flex-col">
-              <div className={`px-6 py-4 border-b ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
+              <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     {selectedColumn && (
                       <button
                         onClick={handleBack}
-                        className={`p-2 rounded-lg transition-colors ${
-                          isDarkMode 
-                            ? 'hover:bg-gray-800 text-gray-400' 
+                        className={`p-2 rounded-lg transition-colors ${isDarkMode
+                            ? 'hover:bg-gray-800 text-gray-400'
                             : 'hover:bg-gray-100 text-gray-600'
-                        }`}
+                          }`}
                       >
                         <ChevronLeft className="h-5 w-5" />
                       </button>
                     )}
                     <div>
-                      <h2 className={`text-lg font-semibold ${
-                        isDarkMode ? 'text-white' : 'text-gray-900'
-                      }`}>
+                      <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                        }`}>
                         {selectedColumn ? selectedColumn.label : 'Filter'}
                       </h2>
                       {!selectedColumn && activeFilterCount > 0 && (
-                        <p className={`text-xs mt-1 ${
-                          isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                        }`}>
+                        <p className={`text-xs mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                          }`}>
                           {activeFilterCount} filter{activeFilterCount !== 1 ? 's' : ''} active
                         </p>
                       )}
@@ -323,11 +436,10 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                   </div>
                   <button
                     onClick={onClose}
-                    className={`p-2 rounded-lg transition-colors ${
-                      isDarkMode 
-                        ? 'hover:bg-gray-800 text-gray-400' 
+                    className={`p-2 rounded-lg transition-colors ${isDarkMode
+                        ? 'hover:bg-gray-800 text-gray-400'
                         : 'hover:bg-gray-100 text-gray-600'
-                    }`}
+                      }`}
                   >
                     <X className="h-5 w-5" />
                   </button>
@@ -340,16 +452,15 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                 ) : (
                   <div className="space-y-6">
                     <div>
-                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${
-                        isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`}>
+                      <h3 className={`text-sm font-semibold mb-3 uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>
                         Application Visits Table
                       </h3>
                       <div className="flex flex-col gap-2 w-full">
                         {allColumns.map(column => {
                           const hasFilter = filterValues[column.key] && (
-                            filterValues[column.key].value || 
-                            filterValues[column.key].from !== undefined || 
+                            filterValues[column.key].value ||
+                            filterValues[column.key].from !== undefined ||
                             filterValues[column.key].to !== undefined
                           );
 
@@ -357,26 +468,23 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                             <div
                               key={column.key}
                               onClick={() => handleColumnClick(column)}
-                              className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${
-                                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-                              }`}
+                              className={`w-full p-3 cursor-pointer transition-all flex items-center justify-between border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                                }`}
                             >
                               <div className="flex items-center space-x-2">
-                                <span className={`text-sm font-medium ${
-                                  isDarkMode ? 'text-white' : 'text-gray-900'
-                                }`}>
+                                <span className={`text-sm font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+                                  }`}>
                                   {column.label}
                                 </span>
                                 {hasFilter && (
-                                  <span 
+                                  <span
                                     className="w-2 h-2 rounded-full"
-                                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                                   />
                                 )}
                               </div>
-                              <ChevronRight className={`h-4 w-4 ${
-                                isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                              }`} />
+                              <ChevronRight className={`h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                                }`} />
                             </div>
                           );
                         })}
@@ -386,31 +494,29 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                 )}
               </div>
 
-              <div className={`px-6 py-4 border-t ${
-                isDarkMode ? 'border-gray-700' : 'border-gray-200'
-              }`}>
+              <div className={`px-6 py-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+                }`}>
                 <div className="flex space-x-3">
                   <button
                     onClick={handleReset}
-                    className={`flex-1 px-4 py-2 rounded transition-colors ${
-                      isDarkMode 
-                        ? 'bg-gray-800 hover:bg-gray-700 text-white' 
+                    className={`flex-1 px-4 py-2 rounded transition-colors ${isDarkMode
+                        ? 'bg-gray-800 hover:bg-gray-700 text-white'
                         : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
+                      }`}
                   >
                     Clear All
                   </button>
                   <button
                     onClick={handleApply}
                     className="flex-1 px-4 py-2 text-white rounded transition-colors"
-                    style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
                         e.currentTarget.style.backgroundColor = colorPalette.accent;
                       }
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                     }}
                   >
                     Apply Filters

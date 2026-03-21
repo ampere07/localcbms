@@ -36,11 +36,12 @@ import {
   Minus
 } from 'lucide-react';
 import { Responsive } from 'react-grid-layout';
-// WidthProvider was moved to legacy in v2.0
 // @ts-ignore - Ignore type issues with legacy import if any
 import { WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+
 import {
   WidgetConfig,
   WidgetData,
@@ -67,6 +68,8 @@ ChartJS.register(
   Legend
 );
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
 const LiveMonitor: React.FC = () => {
   const [widgets, setWidgets] = useState<Record<string, any>>({});
   const [widgetStates, setWidgetStates] = useState<Record<string, WidgetState>>({});
@@ -79,8 +82,10 @@ const LiveMonitor: React.FC = () => {
   const [currentTemplateName, setCurrentTemplateName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isDraggable, setIsDraggable] = useState(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   // React Grid Layout state
+
   const [layouts, setLayouts] = useState<any>({ lg: [] });
 
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -103,6 +108,16 @@ const LiveMonitor: React.FC = () => {
   };
 
   useEffect(() => {
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
+    fetchColorPalette();
+
     const theme = localStorage.getItem('theme');
     setIsDarkMode(theme === 'dark' || theme === null);
 
@@ -110,10 +125,20 @@ const LiveMonitor: React.FC = () => {
     Object.keys(WIDGETS).forEach(id => {
       const savedState = localStorage.getItem(`widget_state_${id}`);
       if (savedState) {
-        initialStates[id] = JSON.parse(savedState);
+        let state = JSON.parse(savedState);
+
+        // Sanitize view types for widgets that don't allow table/grid anymore
+        if (state.viewType === 'table' && !id.includes('detailed_queue')) {
+          state.viewType = 'bar';
+        }
+        if (state.viewType === 'grid' && id !== 'tech_availability') {
+          state.viewType = 'bar';
+        }
+
+        initialStates[id] = state;
       } else {
         initialStates[id] = {
-          viewType: id === 'tech_availability' ? 'grid' : (id === 'team_detailed_queue' ? 'table' : 'bar'),
+          viewType: id === 'tech_availability' ? 'grid' : (id.includes('detailed_queue') ? 'table' : 'bar'),
           scope: 'overall',
           year: new Date().getFullYear().toString(),
           bgy: 'All',
@@ -188,63 +213,74 @@ const LiveMonitor: React.FC = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const fetchWidget = async (id: string, state: WidgetState) => {
+    const config = WIDGETS[id];
+    if (!config || (state && !state.visible)) return;
+
+    try {
+      const widgetState = state || {
+        viewType: id === 'tech_availability' ? 'grid' : 'bar',
+        scope: 'overall',
+        year: new Date().getFullYear().toString(),
+        bgy: 'All',
+        visible: true
+      };
+
+      const url = buildHandleUrl({
+        action: config.api,
+        param: config.param || '',
+        scope: widgetState.scope,
+        year: widgetState.year || '',
+        bgy: widgetState.bgy || 'All',
+        start: widgetState.startDate || '',
+        end: widgetState.endDate || ''
+      });
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json' }
+      });
+
+      const data: WidgetResponse = await response.json();
+
+      if (data.status === 'success' && data.data) {
+        setWidgets(prev => ({ ...prev, [id]: { config, data: data.data } }));
+
+        if (data.barangays && barangays.length === 0) {
+          setBarangays(data.barangays.map((b) => b.Name));
+        }
+      }
+    } catch (error) {
+      console.error(`Error fetching widget ${id}:`, error);
+    }
+  };
+
   const fetchAllWidgets = async (states?: Record<string, WidgetState>) => {
     const timestamp = new Date().toLocaleTimeString();
     setLastUpdate(timestamp);
 
     const currentStates = states || widgetStates;
 
-    for (const [id, config] of Object.entries(WIDGETS)) {
-      const state = currentStates[id];
-      if (state && !state.visible) continue;
+    const fetchPromises = Object.keys(WIDGETS).map(id =>
+      fetchWidget(id, currentStates[id])
+    );
 
-      try {
-        const widgetState = state || {
-          viewType: id === 'tech_availability' ? 'grid' : 'bar',
-          scope: 'overall',
-          year: new Date().getFullYear().toString(),
-          bgy: 'All',
-          visible: true
-        };
-
-        const url = buildHandleUrl({
-          action: config.api,
-          param: config.param || '',
-          scope: widgetState.scope,
-          year: widgetState.year || '',
-          bgy: widgetState.bgy || 'All',
-          start: widgetState.startDate || '',
-          end: widgetState.endDate || ''
-        });
-
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' }
-        });
-
-        const data: WidgetResponse = await response.json();
-
-        if (data.status === 'success' && data.data) {
-          setWidgets(prev => ({ ...prev, [id]: { config, data: data.data } }));
-
-          if (data.barangays && barangays.length === 0) {
-            setBarangays(data.barangays.map((b) => b.Name));
-          }
-        }
-      } catch (error) {
-        console.error(`Error fetching widget ${id}:`, error);
-      }
-    }
+    await Promise.all(fetchPromises);
   };
 
   const updateWidgetState = (id: string, updates: Partial<WidgetState>) => {
     setWidgetStates(prev => {
-      const newState = { ...prev, [id]: { ...prev[id], ...updates } };
-      localStorage.setItem(`widget_state_${id}`, JSON.stringify(newState[id]));
+      const updatedState = { ...prev[id], ...updates };
+      const newState = { ...prev, [id]: updatedState };
+      localStorage.setItem(`widget_state_${id}`, JSON.stringify(updatedState));
+
+      // Fetch the specific widget immediately with the updated state
+      if (updatedState.visible) {
+        fetchWidget(id, updatedState);
+      }
+
       return newState;
     });
-
-    setTimeout(() => fetchAllWidgets(), 100);
   };
 
   const ensureWidgetInLayout = (widgetId: string) => {
@@ -260,15 +296,68 @@ const LiveMonitor: React.FC = () => {
       Object.keys(newLayouts).forEach(breakpoint => {
         const layout = newLayouts[breakpoint];
         if (Array.isArray(layout) && !layout.find((item: any) => item.i === widgetId)) {
-          // Add to layout at bottom
+          const cols = breakpoint === 'lg' ? 12 : breakpoint === 'md' ? 10 : breakpoint === 'sm' ? 6 : breakpoint === 'xs' ? 4 : 2;
+          const w = config.w || 4;
+          const h = 6;
+
+          // Create a 2D grid representation to find the first available spot
+          const grid: { [y: number]: boolean[] } = {};
+          let maxY = 0;
+
+          layout.forEach((item: any) => {
+            const itemY = item.y || 0;
+            const itemX = item.x || 0;
+            const itemW = item.w || 1;
+            const itemH = item.h || 1;
+
+            for (let y = itemY; y < itemY + itemH; y++) {
+              if (!grid[y]) grid[y] = Array(cols).fill(false);
+              for (let x = itemX; x < itemX + itemW; x++) {
+                if (x < cols) grid[y][x] = true;
+              }
+            }
+            if (itemY + itemH > maxY) maxY = itemY + itemH;
+          });
+
+          let newX = 0;
+          let newY = maxY;
+
+          for (let y = 0; y <= maxY; y++) {
+            let foundInRow = false;
+            for (let x = 0; x <= cols - w; x++) {
+              // Check if space (x, y) to (x+w, y+h) is free
+              let isFree = true;
+              for (let checkY = y; checkY < y + h; checkY++) {
+                if (grid[checkY]) {
+                  for (let checkX = x; checkX < x + w; checkX++) {
+                    if (grid[checkY][checkX]) {
+                      isFree = false;
+                      break;
+                    }
+                  }
+                }
+                if (!isFree) break;
+              }
+
+              if (isFree) {
+                newX = x;
+                newY = y;
+                foundInRow = true;
+                break;
+              }
+            }
+            if (foundInRow) break;
+          }
+
+          // Add to layout at calculated position
           newLayouts[breakpoint] = [
             ...layout,
             {
               i: widgetId,
-              x: 0,
-              y: Infinity, // compactType 'vertical' will handle this
-              w: config.w || 4,
-              h: 6,
+              x: newX,
+              y: newY,
+              w: w,
+              h: h,
               minW: 2,
               minH: 3
             }
@@ -290,22 +379,30 @@ const LiveMonitor: React.FC = () => {
     updateWidgetState(id, { visible: !isVisible });
   };
 
-  const generateChartData = (widgetData: WidgetData[], widgetId: string) => {
+  const generateChartData = (widgetData: WidgetData[], widgetId: string, viewType: string) => {
     if (!widgetData || widgetData.length === 0) return null;
 
-    // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
-    // Data format: [{label: "January", series: {"Paid": 150, "Unpaid": 30}}, ...]
-    if (widgetData[0].series) {
-      const labels = widgetData.map(d => d.label); // Months: January, February, etc.
+    const isMonthly = widgetId.includes('_mon') || widgetId.startsWith('invoice_') || widgetId.startsWith('transactions_') || widgetId.startsWith('portal_');
 
-      // Extract all unique status values (Paid, Unpaid, Pending, etc.) from all months
+    const formatLabel = (label: string) => {
+      const monthNum = parseInt(label);
+      if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
+        return MONTH_NAMES[monthNum - 1];
+      }
+      return label;
+    };
+
+    const labels = widgetData.map(d => formatLabel(d.label));
+
+    // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
+    if (widgetData[0].series) {
       const seriesKeys = Array.from(new Set(widgetData.flatMap(d => Object.keys(d.series || {}))));
 
       return {
-        labels, // X-axis: Months
+        labels,
         datasets: seriesKeys.map((key, idx) => ({
-          label: key, // Each status becomes a line/series (Paid, Unpaid, etc.)
-          data: widgetData.map(d => Number(d.series?.[key] || 0)), // Y-axis: counts/amounts per month
+          label: key,
+          data: widgetData.map(d => Number(d.series?.[key] || 0)),
           backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
           borderWidth: 0
         }))
@@ -313,14 +410,46 @@ const LiveMonitor: React.FC = () => {
     }
 
     // Handle simple data (single value per label)
-    // Data format: [{label: "Category A", value: 100}, ...]
+    if (viewType === 'bar') {
+      // For monthly/timeline widgets, we prefer a single dataset with colored bars or primary color
+      // rather than 12 legend items.
+      if (isMonthly) {
+        return {
+          labels,
+          datasets: [{
+            label: WIDGETS[widgetId]?.title || 'Value',
+            data: widgetData.map(d => Number(d.value || 0)),
+            backgroundColor: CHART_COLORS[0],
+            borderWidth: 0
+          }]
+        };
+      }
+
+      // Default bar chart: each item gets its own legend entry
+      return {
+        labels,
+        datasets: widgetData.map((d, idx) => {
+          const dataArr = new Array(widgetData.length).fill(null);
+          dataArr[idx] = Number(d.value || 0);
+          return {
+            label: d.label,
+            data: dataArr,
+            backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+            borderWidth: 0
+          };
+        })
+      };
+    }
+
     return {
-      labels: widgetData.map(d => d.label),
+      labels,
       datasets: [{
-        label: 'Count',
+        label: WIDGETS[widgetId]?.title || 'Count',
         data: widgetData.map(d => Number(d.value || 0)),
-        backgroundColor: widgetData.map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]),
-        borderWidth: 0
+        backgroundColor: viewType === 'line' ? CHART_COLORS[0] : widgetData.map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]),
+        borderColor: CHART_COLORS[0],
+        borderWidth: viewType === 'line' ? 2 : 0,
+        tension: 0.3
       }]
     };
   };
@@ -403,21 +532,24 @@ const LiveMonitor: React.FC = () => {
 
     if (widgetData[0]?.series) {
       return (
-        <div className="space-y-2 overflow-y-auto max-h-64">
+        <div className="space-y-2 overflow-y-auto flex-1 custom-scrollbar">
           {widgetData.map((row, idx) => (
             <div
               key={idx}
               className={`rounded-lg border p-3 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
               style={{ fontSize: `${fontSize}px` }}
             >
-              <div className={`font-semibold text-sm mb-2 border-b pb-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <div
+                className={`font-semibold mb-2 border-b pb-2 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}
+                style={{ fontSize: `${fontSize * 1.1}px` }}
+              >
                 {row.label}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {Object.entries(row.series || {}).map(([key, value]) => (
                   <div key={key} className={`text-center p-2 rounded ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-                    <div className="text-xs opacity-70">{key}</div>
-                    <div className="text-sm font-bold text-blue-600">
+                    <div className="opacity-70" style={{ fontSize: `${fontSize * 0.8}px` }}>{key}</div>
+                    <div className="font-bold" style={{ fontSize: `${fontSize}px`, color: colorPalette?.primary || '#7c3aed' }}>
                       {isCurrency
                         ? `₱${Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                         : Number(value).toLocaleString()}
@@ -432,16 +564,16 @@ const LiveMonitor: React.FC = () => {
     }
 
     return (
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto max-h-64" style={{ fontSize: `${fontSize}px` }}>
+      <div className="grid grid-cols-2 gap-2 overflow-y-auto flex-1 custom-scrollbar" style={{ fontSize: `${fontSize}px` }}>
         {widgetData.map((row, idx) => (
           <div
             key={idx}
             className={`rounded-lg border p-3 text-center ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}
           >
-            <div className="text-xs opacity-70 truncate" title={row.label}>
+            <div className="opacity-70 truncate" title={row.label} style={{ fontSize: `${fontSize * 0.8}px` }}>
               {row.label}
             </div>
-            <div className="font-bold text-blue-600" style={{ fontSize: `${fontSize * 1.5}px` }}>
+            <div className="font-bold" style={{ fontSize: `${fontSize * 1.5}px`, color: colorPalette?.primary || '#7c3aed' }}>
               {isCurrency
                 ? `₱${Number(row.value || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
                 : Number(row.value || 0).toLocaleString()}
@@ -456,7 +588,7 @@ const LiveMonitor: React.FC = () => {
 
   const renderGridView = (widgetData: WidgetData[], widgetId: string, fontSize: number) => {
     return (
-      <div className="flex gap-4 overflow-x-auto overflow-y-hidden p-2 pb-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
+      <div className="flex gap-4 overflow-x-auto overflow-y-hidden p-2 pb-4 flex-1 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
         {widgetData.map((row, idx) => {
           const meta: any = (row as any).meta || {};
           const status = meta.status || 'Unknown';
@@ -487,27 +619,32 @@ const LiveMonitor: React.FC = () => {
               style={{ fontSize: `${fontSize}px` }}
             >
               {/* Status - Top Left */}
-              <div className={`absolute top-4 left-4 text-xs font-bold uppercase tracking-wider ${textColor}`}>
+              <div className={`absolute top-4 left-4 font-bold uppercase tracking-wider ${textColor}`} style={{ fontSize: `${fontSize * 0.8}px` }}>
                 {status}
               </div>
 
               {/* Name - Top Center (slightly pushed down to not overlap with status if name is long) */}
               <div className="w-full text-center mt-6">
-                <div className={`font-bold text-lg truncate px-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`} title={row.label}>
+                <div className={`font-bold truncate px-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`} style={{ fontSize: `${fontSize * 1.25}px` }} title={row.label}>
                   {row.label}
                 </div>
               </div>
 
               {/* Time - Center Large */}
               <div className="flex-1 flex items-center justify-center">
-                <div className={`text-5xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <div className={`font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-800'}`} style={{ fontSize: `${fontSize * 4}px` }}>
                   {timeString}
                 </div>
+                {meta.available_time_str && (
+                  <div className={`mt-1 opacity-80 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`} style={{ fontSize: `${fontSize * 0.9}px` }}>
+                    Availability: <span className="font-bold">{meta.available_time_str}</span>
+                  </div>
+                )}
               </div>
 
               {/* Details - Bottom */}
               {meta.details && (
-                <div className={`w-full text-center text-[10px] opacity-60 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} title={meta.details}>
+                <div className={`w-full text-center opacity-60 truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`} style={{ fontSize: `${fontSize * 0.7}px` }} title={meta.details}>
                   {meta.details}
                 </div>
               )}
@@ -532,7 +669,7 @@ const LiveMonitor: React.FC = () => {
         <table className={`min-w-full text-left ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`} style={{ fontSize: `${fontSize}px` }}>
           <thead className={`font-semibold border-b ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'}`}>
             <tr>
-              <th className="py-2 px-3">Team Name</th>
+              <th className="py-2 px-3">{id === 'agent_detailed_queue' ? 'Agent Name' : 'Team Name'}</th>
               <th className="py-2 px-3">Type</th>
               <th className="py-2 px-3">Customer</th>
               <th className="py-2 px-3">Address</th>
@@ -540,24 +677,31 @@ const LiveMonitor: React.FC = () => {
               <th className="py-2 px-3">Duration</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-800/50">
-            {data.map((row, idx) => (
-              <tr key={idx} className={`${isDarkMode ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'}`}>
-                <td className="py-2 px-3 font-medium">{row.team_name}</td>
-                <td className="py-2 px-3">
-                  <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold ${row.type?.toLowerCase().includes('job')
-                    ? 'bg-blue-500/20 text-blue-500'
-                    : 'bg-purple-500/20 text-purple-500'
-                    }`}>
-                    {row.type}
-                  </span>
-                </td>
-                <td className="py-2 px-3">{row.customer}</td>
-                <td className="py-2 px-3 max-w-xs truncate" title={row.address}>{row.address}</td>
-                <td className="py-2 px-3 whitespace-nowrap">{row.start}</td>
-                <td className="py-2 px-3 font-mono font-bold text-orange-500">{row.duration}</td>
-              </tr>
-            ))}
+          <tbody className="">
+            {data.map((row, idx) => {
+              const isDuplicate = idx > 0 && data[idx - 1].team_name === row.team_name;
+              const borderClass = (!isDuplicate && idx > 0) ? (isDarkMode ? 'border-t border-gray-700/50' : 'border-t border-gray-200') : '';
+
+              return (
+                <tr key={idx} className={`${isDarkMode ? 'hover:bg-gray-800/50' : 'hover:bg-gray-50'} ${borderClass}`}>
+                  <td className="py-2 px-3 font-medium">
+                    {!isDuplicate ? row.team_name : ""}
+                  </td>
+                  <td className="py-2 px-3">
+                    <span className={`px-2 py-0.5 rounded text-[10px] uppercase tracking-wide font-bold ${row.type?.toLowerCase().includes('(joborder)')
+                      ? 'bg-blue-500/20 text-blue-500'
+                      : 'bg-purple-500/20 text-purple-500'
+                      }`}>
+                      {row.type}
+                    </span>
+                  </td>
+                  <td className="py-2 px-3">{row.customer}</td>
+                  <td className="py-2 px-3 max-w-xs truncate" title={row.address}>{row.address}</td>
+                  <td className="py-2 px-3 whitespace-nowrap">{row.start}</td>
+                  <td className="py-2 px-3 font-mono font-bold text-orange-500">{row.duration}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -592,8 +736,8 @@ const LiveMonitor: React.FC = () => {
       );
     }
 
-    // Handler for table view
-    if (state.viewType === 'table') {
+    // Handler for table view - only for detailed queues
+    if (state.viewType === 'table' && (id === 'team_detailed_queue' || id === 'agent_detailed_queue')) {
       return (
         <div className="h-full overflow-y-auto custom-scrollbar">
           {renderTable(widget.data, id, fontSize)}
@@ -601,11 +745,16 @@ const LiveMonitor: React.FC = () => {
       );
     }
 
-    // Special handler for generic lists like technician availability
-    if (state.viewType === 'grid') return renderGridView(widget.data, id, fontSize);
-    if (state.viewType === 'list' || id === 'technician_availability') return renderListView(widget.data, id, fontSize);
+    // Grid view - only for tech availability
+    if (state.viewType === 'grid' && id === 'tech_availability') return renderGridView(widget.data, id, fontSize);
 
-    const chartData = generateChartData(widget.data, id);
+    // Default list view fallback for tech availability if not grid
+    if (id === 'tech_availability') return renderListView(widget.data, id, fontSize);
+
+    // Regular list view
+    if (state.viewType === 'list') return renderListView(widget.data, id, fontSize);
+
+    const chartData = generateChartData(widget.data, id, state.viewType);
     if (!chartData) {
       return (
         <div className={`text-center py-8 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -616,7 +765,7 @@ const LiveMonitor: React.FC = () => {
 
     // IMPORTANT: put id on the chart container so tooltip can detect widgetId for currency
     return (
-      <div className="h-64" id={id}>
+      <div className="flex-1 min-h-0" id={id}>
         {renderChart(id, chartData, state.viewType, fontSize)}
       </div>
     );
@@ -631,15 +780,17 @@ const LiveMonitor: React.FC = () => {
     return (
       <div className="flex gap-2 items-center text-xs flex-wrap" style={{ fontSize: `${fontSize}px` }}>
         {(config.filterType === 'toggle_today' || config.filterType === 'date' || config.filterType === 'date_bgy') && (
-          <label className="flex items-center gap-1 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={state.scope === 'today'}
-              onChange={(e) => updateWidgetState(id, { scope: e.target.checked ? 'today' : 'overall' })}
-              className="rounded"
-            />
-            <span>Today</span>
-          </label>
+          <select
+            value={state.scope}
+            onChange={(e) => updateWidgetState(id, { scope: e.target.value as any })}
+            className={`px-2 py-1 rounded border text-[10px] ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+          >
+            <option value="overall">Overall</option>
+            <option value="today">Today</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+            <option value="yearly">Yearly</option>
+          </select>
         )}
 
         {config.filterType === 'year' && (
@@ -841,11 +992,11 @@ const LiveMonitor: React.FC = () => {
   return (
     <div ref={containerRef} className={`min-h-screen ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'} ${isFullscreen ? 'overflow-y-auto' : ''}`}>
       {/* Header */}
-      <div className={`sticky top-0 z-50 border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between flex-wrap gap-4">
+      <div className={`sticky top-0 z-20 border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
+        <div className={`${isFullscreen ? 'max-w-none px-6' : 'container mx-auto px-4'} py-3 flex items-center justify-between flex-wrap gap-4`}>
           <div>
             <h1 className="text-xl font-bold flex items-center gap-2">
-              <Activity size={24} className="text-blue-600" />
+              <Activity size={24} style={{ color: colorPalette?.primary || '#7c3aed' }} />
               Live Monitor
             </h1>
             <span className="text-xs uppercase tracking-wider text-gray-500">
@@ -878,7 +1029,8 @@ const LiveMonitor: React.FC = () => {
 
             <button
               onClick={() => fetchAllWidgets()}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white text-sm flex items-center gap-2"
+              className="px-4 py-2 rounded text-white text-sm flex items-center gap-2 transition-opacity hover:opacity-90"
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
               title="Refresh All Widgets"
             >
               <RefreshCw size={16} />
@@ -895,7 +1047,7 @@ const LiveMonitor: React.FC = () => {
 
             <button
               onClick={() => setIsDraggable(!isDraggable)}
-              className={`px-4 py-2 rounded text-white text-sm flex items-center gap-2 ${isDraggable ? 'bg-orange-600 hover:bg-orange-700' : 'bg-gray-600 hover:bg-gray-700'}`}
+              className={`px-4 py-2 rounded text-white text-sm flex items-center gap-2 ${isDraggable ? 'bg-red-600 hover:bg-red-700' : 'bg-gray-600 hover:bg-gray-700'}`}
               title={isDraggable ? "Lock Layout" : "Edit Layout"}
             >
               <Move size={16} />
@@ -908,7 +1060,7 @@ const LiveMonitor: React.FC = () => {
       {/* Template Menu */}
       {showTemplateMenu && (
         <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="container mx-auto px-4 py-4">
+          <div className={`${isFullscreen ? 'max-w-none px-6' : 'container mx-auto px-4'} py-4`}>
             <h3 className="text-sm font-semibold mb-3">Dashboard Templates</h3>
 
             <div className="mb-4 flex gap-2">
@@ -922,7 +1074,8 @@ const LiveMonitor: React.FC = () => {
               <button
                 onClick={saveTemplate}
                 disabled={isLoading || !currentTemplateName.trim()}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 rounded text-white text-sm flex items-center gap-2"
+                className="px-4 py-2 disabled:bg-gray-600 rounded text-white text-sm flex items-center gap-2 transition-opacity hover:opacity-90"
+                style={{ backgroundColor: (isLoading || !currentTemplateName.trim()) ? undefined : (colorPalette?.primary || '#7c3aed') }}
               >
                 <Save size={16} />
                 Save Current Layout
@@ -943,7 +1096,8 @@ const LiveMonitor: React.FC = () => {
                     <button
                       onClick={() => loadTemplate(template.id)}
                       disabled={isLoading}
-                      className="p-2 rounded hover:bg-blue-600 hover:text-white transition-colors"
+                      className="p-2 rounded hover:text-white transition-colors"
+                      style={{ hover: { backgroundColor: colorPalette?.primary || '#7c3aed' } } as any}
                       title="Load Template"
                     >
                       <Upload size={14} />
@@ -968,7 +1122,7 @@ const LiveMonitor: React.FC = () => {
       {/* Widget Menu */}
       {showWidgetMenu && (
         <div className={`border-b ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
-          <div className="container mx-auto px-4 py-4">
+          <div className={`${isFullscreen ? 'max-w-none px-6' : 'container mx-auto px-4'} py-4`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold">Toggle Widgets</h3>
               <div className="flex gap-2">
@@ -1014,7 +1168,7 @@ const LiveMonitor: React.FC = () => {
       )}
 
       {/* Widgets Grid - Replaced with ResponsiveGridLayout */}
-      <div className="container mx-auto px-4 py-6">
+      <div className={`${isFullscreen ? 'max-w-none px-2' : 'container mx-auto px-4'} py-6`}>
         <ResponsiveGridLayout
           className="layout"
           layouts={layouts}
@@ -1022,11 +1176,12 @@ const LiveMonitor: React.FC = () => {
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={60}
           isDraggable={isDraggable}
-
           isResizable={isDraggable}
           onLayoutChange={(currentLayout: any, allLayouts: any) => {
-            setLayouts(allLayouts);
-            localStorage.setItem('dashboard_layouts', JSON.stringify(allLayouts));
+            if (isDraggable) { // Only save if in edit mode to avoid saving 'static' states if any
+              setLayouts(allLayouts);
+              localStorage.setItem('dashboard_layouts', JSON.stringify(allLayouts));
+            }
           }}
           draggableHandle=".drag-handle"
         >
@@ -1036,149 +1191,169 @@ const LiveMonitor: React.FC = () => {
             return (
               <div
                 key={id}
-                className={`rounded-lg border-l-4 border-blue-600 shadow-lg flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${isDraggable ? 'ring-2 ring-blue-500/50' : ''}`}
+                className={`shadow-lg transition-shadow ${isDraggable ? 'ring-2 ring-opacity-50' : ''}`}
+                style={isDraggable && colorPalette?.primary ? { '--tw-ring-color': colorPalette.primary } as React.CSSProperties : {}}
               >
-                <div className="p-4 flex-1 flex flex-col overflow-hidden">
-                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2 slide-header">
-                    <div className="flex items-center gap-2">
-                      {isDraggable && (
-                        <div className="drag-handle cursor-move p-1 rounded hover:bg-white/10" title="Drag to move">
-                          <Move size={14} className="text-gray-400" />
-                        </div>
+                <div className={`h-full w-full rounded-lg border-l-4 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
+                  style={{
+                    borderLeftColor: colorPalette?.primary || '#7c3aed',
+                  }}
+                >
+                  <div className="p-4 flex-1 flex flex-col overflow-hidden">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2 slide-header">
+                      <div className="flex items-center gap-2">
+                        {isDraggable && (
+                          <div className="drag-handle cursor-move p-1 rounded hover:bg-white/10" title="Drag to move">
+                            <Move size={14} className="text-gray-400" />
+                          </div>
+                        )}
+                        <h3
+                          className="font-bold uppercase tracking-wide truncate"
+                          style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px`, color: colorPalette?.primary || '#7c3aed' }}
+                        >
+                          {config.title}
+                        </h3>
+                      </div>
+
+                      <div className="flex items-center gap-2 ml-auto">
+                        {renderFilters(id, config)}
+                      </div>
+                    </div>
+
+                    <div className="flex gap-1 mb-3 flex-wrap">
+                      <div className={`flex items-center rounded p-0.5 mr-2 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
+                        <button
+                          onClick={() => updateWidgetState(id, { fontSize: Math.max(8, (widgetStates[id]?.fontSize || 12) - 1) })}
+                          className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
+                          title="Decrease Font Size"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className={`text-[10px] px-1 min-w-[20px] text-center font-mono opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                          {widgetStates[id]?.fontSize || 12}
+                        </span>
+                        <button
+                          onClick={() => updateWidgetState(id, { fontSize: (widgetStates[id]?.fontSize || 12) + 1 })}
+                          className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
+                          title="Increase Font Size"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'bar' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'bar' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="Bar Chart"
+                      >
+                        <BarChart3 size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'line' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'line' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="Line Chart"
+                      >
+                        <LineChart size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'pie' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'pie' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="Pie Chart"
+                      >
+                        <PieChart size={14} />
+                      </button>
+
+                      <button
+                        onClick={() => updateWidgetState(id, { viewType: 'list' })}
+                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
+                          ? 'text-white'
+                          : isDarkMode
+                            ? 'bg-gray-800 hover:bg-gray-700'
+                            : 'bg-gray-100 hover:bg-gray-200'
+                          }`}
+                        style={widgetStates[id]?.viewType === 'list' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                        title="List View"
+                      >
+                        <List size={14} />
+                      </button>
+
+                      {(id === 'team_detailed_queue' || id === 'agent_detailed_queue') && (
+                        <button
+                          onClick={() => updateWidgetState(id, { viewType: 'table' })}
+                          className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'table'
+                            ? 'text-white'
+                            : isDarkMode
+                              ? 'bg-gray-800 hover:bg-gray-700'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          style={widgetStates[id]?.viewType === 'table' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                          title="Table View"
+                        >
+                          <Table size={14} />
+                        </button>
                       )}
-                      <h3
-                        className="font-bold text-blue-600 uppercase tracking-wide truncate"
-                        style={{ fontSize: `${(widgetStates[id]?.fontSize || 12) + 2}px` }}
-                      >
-                        {config.title}
-                      </h3>
+
+                      {id === 'tech_availability' && (
+                        <button
+                          onClick={() => updateWidgetState(id, { viewType: 'grid' })}
+                          className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'grid'
+                            ? 'text-white'
+                            : isDarkMode
+                              ? 'bg-gray-800 hover:bg-gray-700'
+                              : 'bg-gray-100 hover:bg-gray-200'
+                            }`}
+                          style={widgetStates[id]?.viewType === 'grid' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                          title="Grid View"
+                        >
+                          <LayoutGrid size={14} />
+                        </button>
+                      )}
                     </div>
 
-                    <div className="flex items-center gap-2 ml-auto">
-                      {renderFilters(id, config)}
-                    </div>
+                    {renderWidget(id)}
                   </div>
-
-                  <div className="flex gap-1 mb-3 flex-wrap">
-                    <div className={`flex items-center rounded p-0.5 mr-2 border ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'}`}>
-                      <button
-                        onClick={() => updateWidgetState(id, { fontSize: Math.max(8, (widgetStates[id]?.fontSize || 12) - 1) })}
-                        className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
-                        title="Decrease Font Size"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <span className={`text-[10px] px-1 min-w-[20px] text-center font-mono opacity-70 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        {widgetStates[id]?.fontSize || 12}
-                      </span>
-                      <button
-                        onClick={() => updateWidgetState(id, { fontSize: Math.min(24, (widgetStates[id]?.fontSize || 12) + 1) })}
-                        className={`p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-200 text-gray-600 hover:text-black'}`}
-                        title="Increase Font Size"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'bar' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
-                        ? 'bg-blue-600 text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      title="Bar Chart"
-                    >
-                      <BarChart3 size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'line' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
-                        ? 'bg-blue-600 text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      title="Line Chart"
-                    >
-                      <LineChart size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'pie' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
-                        ? 'bg-blue-600 text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      title="Pie Chart"
-                    >
-                      <PieChart size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'list' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
-                        ? 'bg-blue-600 text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      title="List View"
-                    >
-                      <List size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'table' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'table'
-                        ? 'bg-blue-600 text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      title="Table View"
-                    >
-                      <Table size={14} />
-                    </button>
-
-                    <button
-                      onClick={() => updateWidgetState(id, { viewType: 'grid' })}
-                      className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'grid'
-                        ? 'bg-blue-600 text-white'
-                        : isDarkMode
-                          ? 'bg-gray-800 hover:bg-gray-700'
-                          : 'bg-gray-100 hover:bg-gray-200'
-                        }`}
-                      title="Grid View"
-                    >
-                      <LayoutGrid size={14} />
-                    </button>
-                  </div>
-
-                  {renderWidget(id)}
                 </div>
               </div>
             );
           })}
         </ResponsiveGridLayout>
 
-        {Object.values(widgetStates).length > 0 && Object.values(widgetStates).every(state => !state.visible) && (
-          <div className="text-center py-20">
-            <Activity size={48} className="mx-auto mb-4 text-gray-400" />
-            <h3 className="text-lg font-semibold mb-2">No Widgets Visible</h3>
-            <p className="text-gray-500 mb-4">Enable some widgets to start monitoring your system</p>
-            <button
-              onClick={() => setShowWidgetMenu(true)}
-              className="px-6 py-3 bg-blue-600 hover:bg-blue-700 rounded text-white font-semibold"
-            >
-              Open Widget Settings
-            </button>
-          </div>
-        )}
+        {
+          Object.values(widgetStates).length > 0 && Object.values(widgetStates).every(state => !state.visible) && (
+            <div className="text-center py-20">
+              <Activity size={48} className="mx-auto mb-4 text-gray-400" />
+              <h3 className="text-lg font-semibold mb-2">No Widgets Visible</h3>
+              <p className="text-gray-500 mb-4">Enable some widgets to start monitoring your system</p>
+              <button
+                onClick={() => setShowWidgetMenu(true)}
+                className="px-6 py-3 rounded text-white font-semibold transition-opacity hover:opacity-90"
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+              >
+                Open Widget Settings
+              </button>
+            </div>
+          )
+        }
       </div>
     </div>
   );

@@ -9,6 +9,20 @@ import { relatedDataService } from '../services/relatedDataService';
 import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
 
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
+
 interface PaymentPortalDetailsProps {
   record: {
     id: string | number;
@@ -53,7 +67,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
   const startWidthRef = useRef<number>(0);
 
   // Related invoices state
-  const [expandedInvoices, setExpandedInvoices] = useState(false);
+
   const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
   const [fullRelatedInvoices, setFullRelatedInvoices] = useState<any[]>([]);
   const [invoicesCount, setInvoicesCount] = useState(0);
@@ -201,11 +215,11 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         style={{
-          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+          backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
         }}
         onMouseEnter={(e) => {
           if (!isResizing) {
-            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#7c3aed';
           }
         }}
         onMouseLeave={(e) => {
@@ -290,7 +304,15 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
             <div className={`flex py-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
               }`}>
               <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>Account Balance</div>
+                }`}>Balance Before</div>
+              <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{formatCurrency(record.account_balance_before || 0)}</div>
+            </div>
+
+            <div className={`flex py-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
+              }`}>
+              <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                }`}>Current Balance</div>
               <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>{formatCurrency(record.accountBalance || 0)}</div>
             </div>
@@ -308,7 +330,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
               <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                 }`}>Date Time</div>
               <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>{record.date_time || 'N/A'}</div>
+                }`}>{formatDate(record.date_time)}</div>
             </div>
 
             <div className={`flex py-3 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
@@ -408,8 +430,7 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
           }`}>
           <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-            <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              }`}>
+            <div className={`w-full px-6 py-4 flex items-center justify-between`}>
               <div className="flex items-center space-x-2">
                 <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>Related Invoices</span>
@@ -427,30 +448,18 @@ const PaymentPortalDetails: React.FC<PaymentPortalDetailsProps> = ({ record, onC
                   className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                     }`}
                 >
-                  {expandedInvoices ? 'Collapse' : 'Expand'}
-                </button>
-                <button
-                  onClick={() => setExpandedInvoices(!expandedInvoices)}
-                  className="flex items-center"
-                >
-                  {expandedInvoices ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
+                  Expand
                 </button>
               </div>
             </div>
 
-            {expandedInvoices && (
-              <div className="px-6 pb-4">
-                <RelatedDataTable
-                  data={relatedInvoices}
-                  columns={relatedDataColumns.invoices}
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-            )}
+            <div className="px-6 pb-4">
+              <RelatedDataTable
+                data={relatedInvoices}
+                columns={relatedDataColumns.invoices}
+                isDarkMode={isDarkMode}
+              />
+            </div>
           </div>
         </div>
       </div>

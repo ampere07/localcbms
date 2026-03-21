@@ -7,6 +7,8 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
+use App\Models\ActivityLog;
+use App\Events\DiscountUpdated;
 
 class DiscountController extends Controller
 {
@@ -70,7 +72,21 @@ class DiscountController extends Controller
 
             $discount = Discount::create($validated);
 
+            // Log Activity
+            ActivityLog::log(
+                'Discount Created',
+                "New discount created for Account: {$validated['account_no']} (Amount: {$validated['discount_amount']})",
+                'info',
+                [
+                    'resource_type' => 'Discount',
+                    'resource_id' => $discount->id,
+                    'additional_data' => $discount->toArray()
+                ]
+            );
+
             DB::commit();
+
+            event(new DiscountUpdated(['action' => 'created', 'discount_id' => $discount->id, 'account_no' => $validated['account_no']]));
 
             return response()->json([
                 'success' => true,
@@ -161,7 +177,21 @@ class DiscountController extends Controller
 
             $discount->update($validated);
 
+            // Log Activity
+            ActivityLog::log(
+                'Discount Updated',
+                "Discount updated for Account: {$discount->account_no} (ID: {$id})",
+                'info',
+                [
+                    'resource_type' => 'Discount',
+                    'resource_id' => $id,
+                    'additional_data' => $discount->toArray()
+                ]
+            );
+
             DB::commit();
+
+            event(new DiscountUpdated(['action' => 'updated', 'discount_id' => $id, 'account_no' => $discount->account_no]));
 
             return response()->json([
                 'success' => true,
@@ -202,7 +232,21 @@ class DiscountController extends Controller
 
             $discount->delete();
 
+            // Log Activity
+            ActivityLog::log(
+                'Discount Deleted',
+                "Discount deleted for Account: {$discount->account_no} (ID: {$id})",
+                'warning',
+                [
+                    'resource_type' => 'Discount',
+                    'resource_id' => $id,
+                    'additional_data' => $discount->toArray()
+                ]
+            );
+
             DB::commit();
+
+            event(new DiscountUpdated(['action' => 'deleted', 'discount_id' => $id, 'account_no' => $discount->account_no]));
 
             return response()->json([
                 'success' => true,

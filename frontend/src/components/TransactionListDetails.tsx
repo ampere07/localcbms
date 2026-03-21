@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, ArrowRight, Maximize2, X, Phone, MessageSquare, Info,
-  ExternalLink, Mail, Edit, Trash2, Receipt, RefreshCw, CheckCircle,
-  ChevronDown, ChevronRight
+  ExternalLink, Mail, Edit, Trash2, Receipt, CheckCircle,
+  ChevronDown, ChevronRight, AlertCircle, CircleArrowRight
 } from 'lucide-react';
 import { transactionService } from '../services/transactionService';
 import { relatedDataService } from '../services/relatedDataService';
@@ -10,6 +10,10 @@ import LoadingModal from './LoadingModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import RelatedDataTable from './RelatedDataTable';
 import { relatedDataColumns } from '../config/relatedDataColumns';
+import { useBillingStore } from '../store/billingStore';
+import TransactionRevertModal from '../modals/TransactionRevertModal';
+import BillingDetails from './CustomerDetails';
+import { BillingDetailRecord } from '../types/billing';
 
 interface Transaction {
   id: string;
@@ -27,6 +31,8 @@ interface Transaction {
   image_url: string | null;
   created_at: string;
   updated_at: string;
+  approved_by?: string;
+  account_balance_before?: number;
   payment_method_info?: {
     id: number;
     payment_method: string;
@@ -44,6 +50,15 @@ interface Transaction {
       region: string;
     };
     account_balance: number;
+    billing_status_id?: number | null;
+  };
+  processor?: {
+    email_address: string;
+    full_name: string;
+  };
+  revert_request?: {
+    id: number;
+    status: string;
   };
 }
 
@@ -52,15 +67,21 @@ interface TransactionListDetailsProps {
   onClose: () => void;
   onNavigate?: (section: string, extra?: string) => void;
   onViewCustomer?: (accountNo: string) => void;
+  onApprovalSuccess?: () => void;
 }
 
-const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transaction, onClose, onNavigate, onViewCustomer }) => {
+const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transaction, onClose, onNavigate, onViewCustomer, onApprovalSuccess }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showRevertModal, setShowRevertModal] = useState(false);
+  const [showRevertRequestModal, setShowRevertRequestModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showFailedConfirmModal, setShowFailedConfirmModal] = useState(false);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -69,11 +90,27 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   const startWidthRef = useRef<number>(0);
 
   // Related invoices state
-  const [expandedInvoices, setExpandedInvoices] = useState(false);
+
   const [relatedInvoices, setRelatedInvoices] = useState<any[]>([]);
   const [fullRelatedInvoices, setFullRelatedInvoices] = useState<any[]>([]);
   const [invoicesCount, setInvoicesCount] = useState(0);
   const [expandedModalSection, setExpandedModalSection] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<{ role: string, role_id: string | number } | null>(null);
+
+  useEffect(() => {
+    try {
+      const authData = localStorage.getItem('authData');
+      if (authData) {
+        const parsed = JSON.parse(authData);
+        setUserRole({
+          role: parsed.role || '',
+          role_id: parsed.role_id || ''
+        });
+      }
+    } catch (err) {
+      console.error('Error getting user role:', err);
+    }
+  }, []);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -100,23 +137,23 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
   useEffect(() => {
     const fetchRelatedInvoices = async () => {
       if (!transaction.account_no) {
-        console.log('❌ No account_no found in transaction');
+        console.log('No account_no found in transaction');
         return;
       }
 
       const accountNo = transaction.account_no;
-      console.log('🔍 Fetching related invoices for account:', accountNo);
+      console.log('Fetching related invoices for account:', accountNo);
 
       try {
         const result = await relatedDataService.getRelatedInvoices(accountNo);
-        console.log('✅ Invoices fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
+        console.log('Invoices fetched:', { count: result.count || 0, hasData: (result.data || []).length > 0 });
         // Store full data for modal view
         setFullRelatedInvoices(result.data || []);
         // Limit to 5 latest items for dropdown display
         setRelatedInvoices((result.data || []).slice(0, 5));
         setInvoicesCount(result.count || 0);
       } catch (error) {
-        console.error('❌ Error fetching invoices:', error);
+        console.error('Error fetching invoices:', error);
         setRelatedInvoices([]);
         setFullRelatedInvoices([]);
         setInvoicesCount(0);
@@ -158,24 +195,45 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     startWidthRef.current = detailsWidth;
   };
 
+  const { refreshLatestData } = useBillingStore();
+
+  if (showCustomerDetails && transaction.account) {
+    return (
+      <BillingDetails
+        billingRecord={{
+          id: transaction.account.id.toString(),
+          applicationId: transaction.account.account_no,
+          accountNo: transaction.account.account_no,
+          customerName: transaction.account.customer?.full_name || '',
+          address: transaction.account.customer?.address || '',
+          status: transaction.account.billing_status_id === 2 ? 'Active' : 'Inactive',
+          balance: transaction.account.account_balance || 0,
+          onlineStatus: transaction.account.billing_status_id === 2 ? 'Online' : 'Offline',
+          contactNumber: transaction.account.customer?.contact_number_primary,
+          barangay: transaction.account.customer?.barangay,
+          city: transaction.account.customer?.city,
+          region: transaction.account.customer?.region,
+          plan: transaction.account.customer?.desired_plan,
+        } as BillingDetailRecord}
+        onClose={() => setShowCustomerDetails(false)}
+      />
+    );
+  }
+
   const formatCurrency = (amount: number | string) => {
     const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
     return `₱${numAmount.toFixed(2)}`;
   };
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -185,8 +243,21 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     setShowConfirmModal(true);
   };
 
+  const handleRevertTransaction = () => {
+    setShowRevertModal(true);
+  };
+
+  const handleRevertRequest = () => {
+    setShowRevertRequestModal(true);
+  };
+
+  const handleDeleteTransaction = () => {
+    setShowDeleteModal(true);
+  };
+
   const confirmApprove = async () => {
     setShowConfirmModal(false);
+
 
     try {
       setLoading(true);
@@ -195,7 +266,18 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
 
       setLoadingPercentage(20);
 
-      const result = await transactionService.approveTransaction(transaction.id);
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email || parsed.user?.email || '';
+        }
+      } catch (err) {
+        console.error('Error getting current user email:', err);
+      }
+
+      const result = await transactionService.approveTransaction(transaction.id, currentUserEmail);
 
       setLoadingPercentage(60);
 
@@ -205,16 +287,138 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         const status = result.data?.status || 'Done';
         transaction.status = status;
 
+        // Auto-refresh customer data
+        try {
+          await refreshLatestData();
+          console.log('Customer data refreshed after transaction approval');
+        } catch (refreshErr) {
+          console.error('Failed to auto-refresh customer data:', refreshErr);
+        }
+
         await new Promise(resolve => setTimeout(resolve, 500));
 
         setSuccessMessage(`Transaction approved successfully. Status: ${status}`);
         setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess();
+        }
       } else {
         setError(result.message || 'Failed to approve transaction');
       }
     } catch (err: any) {
       setError(`Failed to approve transaction: ${err.message}`);
       console.error('Approve transaction error:', err);
+    } finally {
+      setLoading(false);
+      setLoadingPercentage(0);
+    }
+  };
+
+  const confirmRevert = async () => {
+    setShowRevertModal(false);
+
+    try {
+      setLoading(true);
+      setLoadingPercentage(0);
+      setError(null);
+
+      setLoadingPercentage(20);
+
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email || parsed.user?.email || '';
+        }
+      } catch (err) {
+        console.error('Error getting current user email:', err);
+      }
+
+      const result = await transactionService.revertTransaction(transaction.id, currentUserEmail);
+
+      setLoadingPercentage(60);
+
+      if (result.success) {
+        setLoadingPercentage(100);
+
+        const status = result.data?.status || 'Pending';
+        transaction.status = status;
+
+        // Auto-refresh customer data
+        try {
+          await refreshLatestData();
+          console.log('Customer data refreshed after transaction revert');
+        } catch (refreshErr) {
+          console.error('Failed to auto-refresh customer data:', refreshErr);
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        setSuccessMessage(`Transaction reverted successfully. Status: ${status}`);
+        setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess(); // Re-use the same callback to refresh lists
+        }
+      } else {
+        setError(result.message || 'Failed to revert transaction');
+      }
+    } catch (err: any) {
+      setError(`Failed to revert transaction: ${err.message}`);
+      console.error('Revert transaction error:', err);
+    } finally {
+      setLoading(false);
+      setLoadingPercentage(0);
+    }
+  };  const confirmMarkAsFailed = async () => {
+    setShowFailedConfirmModal(false);
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      const result = await transactionService.updateStatus(transaction.id, 'Failed');
+
+      if (result.success) {
+        transaction.status = 'Failed';
+        setSuccessMessage('Transaction marked as failed successfully');
+        setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess();
+        }
+      } else {
+        setError(result.message || 'Failed to update transaction status');
+      }
+    } catch (err: any) {
+      setError(`Failed to mark as failed: ${err.message || err}`);
+      console.error('Mark as failed error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    setShowDeleteModal(false);
+
+    try {
+      setLoading(true);
+      setLoadingPercentage(0);
+      setError(null);
+
+      const result = await transactionService.deleteTransaction(transaction.id);
+
+      if (result.success) {
+        setSuccessMessage('Transaction deleted successfully');
+        setShowSuccessModal(true);
+        if (onApprovalSuccess) {
+          onApprovalSuccess(); // Refresh the parent list
+        }
+      } else {
+        setError(result.message || 'Failed to delete transaction');
+      }
+    } catch (err: any) {
+      setError(`Failed to delete transaction: ${err.message || err}`);
+      console.error('Delete transaction error:', err);
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
@@ -273,11 +477,11 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
           style={{
-            backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+            backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizing) {
-              e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+              e.currentTarget.style.backgroundColor = colorPalette?.accent || '#7c3aed';
             }
           }}
           onMouseLeave={(e) => {
@@ -321,6 +525,51 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <span>{loading ? 'Approving...' : 'Approve'}</span>
               </button>
             )}
+            {(transaction.status || '').toLowerCase() === 'pending' && (
+              <button
+                onClick={() => setShowFailedConfirmModal(true)}
+                disabled={loading}
+                className="flex items-center space-x-2 bg-red-500 hover:bg-red-600 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+              >
+                <AlertCircle size={16} />
+                <span>Mark as Failed</span>
+              </button>
+            )}
+            {(transaction.status || '').toLowerCase() === 'done' && !transaction.revert_request && (
+              <button
+                onClick={handleRevertRequest}
+                disabled={loading}
+                className="flex items-center space-x-2 text-white px-3 py-1.5 rounded text-sm transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"
+                style={{
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#f59e0b')
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  } else if (!loading) {
+                    e.currentTarget.style.backgroundColor = '#d97706';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#f59e0b';
+                  }
+                }}
+              >
+                <span>Revert Request</span>
+              </button>
+            )}
+            {(transaction.status || '').toLowerCase() === 'pending' &&
+              (String(userRole?.role_id) === '7' || userRole?.role === 'SuperAdmin') && (
+                <button
+                  onClick={handleDeleteTransaction}
+                  disabled={loading}
+                  className="p-1.5 rounded text-red-500 hover:text-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="Delete Transaction"
+                >
+                  <Trash2 size={16} />
+                </button>
+              )}
             <button
               onClick={onClose}
               className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
@@ -353,16 +602,11 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 <div className="text-red-400 flex-1 font-medium flex items-center">
                   {transaction.account?.account_no || '-'}
                   <button
-                    onClick={() => {
-                      if (onViewCustomer && transaction.account?.account_no) {
-                        onViewCustomer(transaction.account.account_no);
-                      } else {
-                        onNavigate?.('customer', transaction.account?.account_no);
-                      }
-                    }}
-                    className={isDarkMode ? 'ml-2 text-gray-400 hover:text-white' : 'ml-2 text-gray-600 hover:text-gray-900'}
+                    onClick={() => setShowCustomerDetails(true)}
+                    className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${showCustomerDetails ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                    title="View Customer Details"
                   >
-                    <Info size={16} />
+                    <CircleArrowRight size={16} />
                   </button>
                 </div>
               </div>
@@ -373,7 +617,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('Received Payment', formatCurrency(transaction.received_payment), false, true)}
               {renderField('Payment Date', formatDate(transaction.payment_date))}
               {renderField('Date Processed', formatDate(transaction.date_processed))}
-              {renderField('Processed By', transaction.processed_by_user, true)}
+              {renderField('Processed By', transaction.processor?.email_address || transaction.processed_by_user, true)}
+              {renderField('Approved By', transaction.approved_by, true)}
               {renderField('Payment Method', transaction.payment_method_info?.payment_method || transaction.payment_method, true)}
               {renderField('Reference No.', transaction.reference_no)}
               {renderField('OR No.', transaction.or_no)}
@@ -387,7 +632,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                   <div className={`capitalize ${(transaction.status || '').toLowerCase() === 'done' ? 'text-green-500' :
                     (transaction.status || '').toLowerCase() === 'pending' ? 'text-yellow-500' :
                       (transaction.status || '').toLowerCase() === 'processing' ? 'text-blue-500' :
-                        'text-gray-400'
+                        (transaction.status || '').toLowerCase() === 'failed' ? 'text-red-500' :
+                          'text-gray-400'
                     }`}>
                     {transaction.status || 'Unknown'}
                   </div>
@@ -398,7 +644,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('City', transaction.account?.customer?.city)}
               {renderField('Region', transaction.account?.customer?.region)}
               {renderField('Plan', transaction.account?.customer?.desired_plan, true)}
-              {renderField('Account Balance', formatCurrency(transaction.account?.account_balance || 0))}
+              {renderField('Balance Before', formatCurrency(transaction.account_balance_before || 0))}
+              {renderField('Current Balance', formatCurrency(transaction.account?.account_balance || 0))}
 
               {transaction.image_url && (
                 <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
@@ -427,8 +674,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
             }`}>
             <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
               }`}>
-              <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                }`}>
+              <div className={`w-full px-6 py-4 flex items-center justify-between`}>
                 <div className="flex items-center space-x-2">
                   <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}>Related Invoices</span>
@@ -446,30 +692,19 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                     className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                       }`}
                   >
-                    {expandedInvoices ? 'Collapse' : 'Expand'}
-                  </button>
-                  <button
-                    onClick={() => setExpandedInvoices(!expandedInvoices)}
-                    className="flex items-center"
-                  >
-                    {expandedInvoices ? (
-                      <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                    ) : (
-                      <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                    )}
+                    Expand
                   </button>
                 </div>
               </div>
 
-              {expandedInvoices && (
-                <div className="px-6 pb-4">
-                  <RelatedDataTable
-                    data={relatedInvoices}
-                    columns={relatedDataColumns.invoices}
-                    isDarkMode={isDarkMode}
-                  />
-                </div>
-              )}
+
+              <div className="px-6 pb-4">
+                <RelatedDataTable
+                  data={relatedInvoices}
+                  columns={relatedDataColumns.invoices}
+                  isDarkMode={isDarkMode}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -535,7 +770,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 }}
                 className="text-white px-8 py-2.5 rounded font-medium transition-all active:scale-95"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -579,7 +814,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 onClick={confirmApprove}
                 className="text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -593,6 +828,109 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 }}
               >
                 Confirm Approve
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRevertModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Reversion</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to revert this transaction? This will add the payment amount back to the account balance and mark paid invoices as unpaid.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowRevertModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmRevert}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+              >
+                Confirm Revert
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Deletion</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to delete this transaction? This action cannot be undone. Only pending or reverted transactions can be deleted.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowDeleteModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="bg-red-600 hover:bg-red-700 text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+              >
+                Confirm Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <TransactionRevertModal
+        isOpen={showRevertRequestModal}
+        onClose={() => setShowRevertRequestModal(false)}
+        transactionId={transaction.id}
+        onSuccess={() => {
+          setShowRevertRequestModal(false);
+          if (onApprovalSuccess) onApprovalSuccess();
+        }}
+      />
+
+      {showFailedConfirmModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border transform transition-all duration-300 ${isDarkMode
+            ? 'bg-gray-800 border-gray-700 shadow-2xl'
+            : 'bg-white border-gray-300 shadow-xl'
+            }`}>
+            <h3 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Confirm Mark as Failed</h3>
+            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Are you sure you want to mark this transaction as failed? This will update the status and you will not be able to approve it later unless reverted or reset.</p>
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={() => setShowFailedConfirmModal(false)}
+                className={`px-6 py-2.5 rounded font-medium transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmMarkAsFailed}
+                className="bg-red-500 hover:bg-red-600 text-white px-6 py-2.5 rounded font-medium transition-all active:scale-95"
+              >
+                Confirm Failed
               </button>
             </div>
           </div>

@@ -235,7 +235,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         plan_name: data.plan_name,
         timestamp: data.timestamp || Date.now(),
         formatted_date: data.formatted_date || 'Just now',
-        title: data.title || '🔔 New Application',
+        title: data.title || 'New Application',
         message: data.message || `${data.customer_name} - ${data.plan_name}`
       });
     });
@@ -249,7 +249,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
         plan_name: data.plan_name,
         timestamp: data.timestamp || Date.now(),
         formatted_date: data.formatted_date || 'Just now',
-        title: data.title || '✅ Job Order Done',
+        title: data.title || 'Job Order Done',
         message: data.message || `${data.customer_name} - ${data.plan_name}`
       });
     });
@@ -439,8 +439,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
               <img src={logoUrl} alt="ATSS Fiber" className="h-10 object-contain" />
             ) : (
               <div className="flex items-center">
-                <span className="text-slate-900 font-bold text-lg tracking-tight hidden sm:inline uppercase">SYNC <span className="font-black">PORTAL</span></span>
-                <span className="text-slate-900 font-bold text-lg tracking-tight sm:hidden uppercase">SYNC</span>
+                <span className="text-slate-900 font-bold text-lg tracking-tight hidden sm:inline uppercase">ATSS <span className="font-black">FIBER</span></span>
+                <span className="text-slate-900 font-bold text-lg tracking-tight sm:hidden uppercase">ATSS FIBER</span>
               </div>
             )}
           </div>
@@ -451,21 +451,21 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
               <button
                 onClick={() => onNavigate?.('customer-dashboard')}
                 className="transition hover:opacity-80"
-                style={{ color: activeSection === 'customer-dashboard' || !activeSection ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+                style={{ color: activeSection === 'customer-dashboard' || !activeSection ? (colorPalette?.primary || '#7c3aed') : '#6b7280' }}
               >
                 Dashboard
               </button>
               <button
                 onClick={() => onNavigate?.('customer-bills')}
                 className="transition hover:opacity-80"
-                style={{ color: activeSection === 'customer-bills' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+                style={{ color: activeSection === 'customer-bills' ? (colorPalette?.primary || '#7c3aed') : '#6b7280' }}
               >
                 Bills
               </button>
               <button
                 onClick={() => onNavigate?.('customer-support')}
                 className="transition hover:opacity-80"
-                style={{ color: activeSection === 'customer-support' ? (colorPalette?.primary || '#0f172a') : '#6b7280' }}
+                style={{ color: activeSection === 'customer-support' ? (colorPalette?.primary || '#7c3aed') : '#6b7280' }}
               >
                 Support
               </button>
@@ -483,11 +483,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
               }}
               className="px-6 py-2 border rounded-full text-sm font-bold transition"
               style={{
-                color: colorPalette?.primary || '#ef4444',
-                borderColor: colorPalette?.primary || '#ef4444'
+                color: colorPalette?.primary || '#7c3aed',
+                borderColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = `${colorPalette?.primary || '#ef4444'}10`;
+                e.currentTarget.style.backgroundColor = `${colorPalette?.primary || '#7c3aed'}10`;
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.backgroundColor = 'transparent';
@@ -549,7 +549,17 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
                       window.location.href = '/';
                     }
                   }}
-                  className="px-14 py-2 border border-red-500 rounded-full text-red-500 text-sm font-medium hover:bg-red-50 transition active:scale-95"
+                  className="px-14 py-2 border rounded-full text-sm font-medium transition active:scale-95"
+                  style={{
+                    color: colorPalette?.primary || '#7c3aed',
+                    borderColor: colorPalette?.primary || '#7c3aed'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = `${colorPalette?.primary || '#7c3aed'}10`;
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
                 >
                   Logout
                 </button>
@@ -593,7 +603,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
           )}
           <h1 className={`${isDarkMode ? 'text-white' : 'text-gray-900'
             } text-xs font-semibold`}>
-            Powered by Sync
+            Powered by SYNC
           </h1>
         </div>
       </div>
@@ -627,7 +637,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
                 {notifications.length > 0 && (
                   <button
                     onClick={handleClearAll}
-                    className="text-xs text-blue-500 hover:text-blue-600 font-medium transition-colors"
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    className="text-xs font-medium transition-colors"
                   >
                     Clear All
                   </button>
@@ -654,8 +665,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
                       <div className="flex justify-between items-start mb-1">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${notification.type === 'job_order_done'
                           ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400'
-                          }`}>
+                          : 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400'
+                          }`}
+                          style={notification.type === 'job_order_done' ? {} : {
+                            backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                            color: colorPalette?.primary || '#7c3aed'
+                          }}>
                           {notification.type === 'job_order_done' ? 'Job Done' : 'Application'}
                         </span>
                         <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>

@@ -4,19 +4,19 @@ namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class NewApplicationCreated implements ShouldBroadcast
+class NewApplicationCreated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $application;
+    public $applicationData;
 
-    public function __construct($application)
+    public function __construct(array $applicationData)
     {
-        $this->application = $application;
+        $this->applicationData = $applicationData;
     }
 
     public function broadcastOn()
@@ -31,13 +31,6 @@ class NewApplicationCreated implements ShouldBroadcast
 
     public function broadcastWith()
     {
-        return [
-            'id' => $this->application->id,
-            'customer_name' => $this->application->customer ? $this->application->customer->full_name : 'Unknown',
-            'plan_name' => $this->application->plan ? $this->application->plan->plan_name : 'Unknown',
-            'status' => $this->application->status,
-            'created_at' => $this->application->created_at,
-            'formatted_date' => $this->application->created_at->diffForHumans(),
-        ];
+        return $this->applicationData;
     }
 }

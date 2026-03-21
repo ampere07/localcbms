@@ -4,7 +4,9 @@ import { getCustomerDetail, CustomerDetailData } from '../services/customerDetai
 import { transactionService } from '../services/transactionService';
 import { paymentPortalLogsService } from '../services/paymentPortalLogsService';
 import { paymentService, PendingPayment } from '../services/paymentService'; // Import paymentService
+import { useCustomerDashboardStore } from '../store/customerDashboardStore';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import pusher from '../services/pusherService';
 
 // Interfaces for data types
 interface Payment {
@@ -29,11 +31,10 @@ interface DashboardCustomerProps {
 
 const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => {
     const [user, setUser] = useState<any>(null);
-    const [customerDetail, setCustomerDetail] = useState<CustomerDetailData | null>(null);
-    const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
-    const [payments, setPayments] = useState<Payment[]>([]);
+    const { customerDetail, paymentRecords, isLoading, fetchCustomerData } = useCustomerDashboardStore();
+    const payments = paymentRecords.slice(0, 4);
     const [referrals, setReferrals] = useState<Referral[]>([]);
 
     // Payment State
@@ -55,75 +56,25 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
                     const parsedUser = JSON.parse(storedUser);
                     setUser(parsedUser);
 
-                    // Fetch detailed customer profile using username as Account No
                     if (parsedUser.username) {
-                        const detail = await getCustomerDetail(parsedUser.username);
-                        if (detail) {
-                            setCustomerDetail(detail);
+                        await fetchCustomerData(parsedUser.username, true);
 
-                            // FETCH PAYMENTS
-                            const accNo = detail.billingAccount?.accountNo;
-                            if (accNo) {
-                                try {
-                                    // 1. Get Portal Logs
-                                    const logsPromise = paymentPortalLogsService.getLogsByAccountNo(accNo);
-
-                                    // 2. Get Transactions (Manual) - fetching all and filtering client side
-                                    const txPromise = transactionService.getAllTransactions();
-
-                                    const [logs, txResponse] = await Promise.all([logsPromise, txPromise]);
-
-                                    const formattedLogs: Payment[] = logs.map((l: any) => ({
-                                        id: `log-${l.id}`,
-                                        date: l.date_time,
-                                        reference: l.reference_no,
-                                        amount: parseFloat(l.total_amount),
-                                        source: 'Online'
-                                    }));
-
-                                    let formattedTxs: Payment[] = [];
-                                    if (txResponse.success && Array.isArray(txResponse.data)) {
-                                        formattedTxs = txResponse.data
-                                            .filter((t: any) => t.account_no === accNo)
-                                            .map((t: any) => ({
-                                                id: `tx-${t.id}`,
-                                                date: t.payment_date || t.created_at,
-                                                reference: t.or_no || t.reference_no || `TR-${t.id}`,
-                                                amount: parseFloat(t.received_payment || t.amount || 0),
-                                                source: 'Manual'
-                                            }));
-                                    }
-
-                                    // Merge and Sort
-                                    const allPayments = [...formattedLogs, ...formattedTxs].sort((a, b) =>
-                                        new Date(b.date).getTime() - new Date(a.date).getTime()
-                                    ).slice(0, 5); // Take top 5
-
-                                    setPayments(allPayments);
-
-                                    // Check for pending payments on load to update button state
-                                    try {
-                                        const pending = await paymentService.checkPendingPayment(accNo);
-                                        setPendingPayment(pending);
-                                    } catch (pendingErr) {
-                                        console.error("Error checking pending payment on load", pendingErr);
-                                    }
-
-                                } catch (payErr) {
-                                    console.error("Error fetching payment history", payErr);
-                                }
+                        // Need the current updated customer details for account number to get pending payment
+                        const updatedDetail = useCustomerDashboardStore.getState().customerDetail;
+                        if (updatedDetail && updatedDetail.billingAccount) {
+                            try {
+                                const accNo = updatedDetail.billingAccount.accountNo;
+                                const pending = await paymentService.checkPendingPayment(accNo);
+                                setPendingPayment(pending);
+                            } catch (pendingErr) {
+                                console.error("Error checking pending payment on load", pendingErr);
                             }
-
-                        } else {
-                            setError('Could not fetch customer details');
                         }
                     }
                 }
             } catch (err) {
                 console.error("Error fetching dashboard data:", err);
                 setError('Failed to load dashboard data');
-            } finally {
-                setLoading(false);
             }
         };
 
@@ -138,9 +89,49 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
 
         fetchData();
         fetchColorPalette();
-    }, []);
+    }, [fetchCustomerData]);
 
-    if (loading) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
+    // Real-time updates via Pusher/Soketi
+    useEffect(() => {
+        const handleUpdate = async (data: any) => {
+            console.log('[DashboardCustomer Soketi] Update received, refreshing:', data);
+            try {
+                const storedUser = localStorage.getItem('authData');
+                if (storedUser) {
+                    const parsedUser = JSON.parse(storedUser);
+                    if (parsedUser.username) {
+                        await fetchCustomerData(parsedUser.username, true);
+                        console.log('[DashboardCustomer Soketi] Data refreshed successfully');
+                    }
+                }
+            } catch (err) {
+                console.error('[DashboardCustomer Soketi] Failed to refresh data:', err);
+            }
+        };
+
+        const txChannel = pusher.subscribe('transactions');
+        const invChannel = pusher.subscribe('invoices');
+        const soaChannel = pusher.subscribe('soa');
+        const payChannel = pusher.subscribe('payments');
+
+        txChannel.bind('transaction-updated', handleUpdate);
+        invChannel.bind('invoice-updated', handleUpdate);
+        soaChannel.bind('soa-updated', handleUpdate);
+        payChannel.bind('payment-updated', handleUpdate);
+
+        return () => {
+            txChannel.unbind('transaction-updated', handleUpdate);
+            invChannel.unbind('invoice-updated', handleUpdate);
+            soaChannel.unbind('soa-updated', handleUpdate);
+            payChannel.unbind('payment-updated', handleUpdate);
+            pusher.unsubscribe('transactions');
+            pusher.unsubscribe('invoices');
+            pusher.unsubscribe('soa');
+            pusher.unsubscribe('payments');
+        };
+    }, [fetchCustomerData]);
+
+    if (isLoading && !customerDetail) return <div className="p-8 flex justify-center bg-gray-50 min-h-screen"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div></div>;
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -410,7 +401,7 @@ const DashboardCustomer: React.FC<DashboardCustomerProps> = ({ onNavigate }) => 
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {referrals.map((referral) => (
+                                    {referrals.slice(0, 4).map((referral) => (
                                         <tr key={referral.id}>
                                             <td className="py-4 px-6 text-sm text-gray-500">{referral.date}</td>
                                             <td className="py-4 px-6 text-sm font-bold text-gray-900">{referral.name}</td>

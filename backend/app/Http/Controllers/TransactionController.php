@@ -9,22 +9,31 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use App\Services\ManualRadiusOperationsService;
+use App\Events\TransactionUpdated;
 
 class TransactionController extends Controller
 {
-    public function index(): JsonResponse
+    public function index(Request $request): JsonResponse
     {
         try {
-            $limit = request()->input('limit');
-            $offset = request()->input('offset');
+            $limit = $request->input('limit');
+            $offset = $request->input('offset');
 
-            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
-                ->orderBy('created_at', 'desc')
+            $query = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo', 'revert_request']);
+
+            if ($request->has('updated_since')) {
+                $query->where('updated_at', '>', $request->input('updated_since'));
+                // Increase limit for updates to ensure we get all recent changes
+                $limit = $request->input('limit', 1000);
+            }
+
+            $query->orderBy('created_at', 'desc')
                 ->orderBy('id', 'desc');
 
             if ($limit && $limit > 0) {
                 $transactions = $query->skip($offset ?? 0)->take($limit)->get();
-            } else {
+            }
+            else {
                 $transactions = $query->get();
             }
 
@@ -45,7 +54,8 @@ class TransactionController extends Controller
                 'count' => $transactions->count(),
                 'total' => Transaction::count()
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             \Log::error('Error fetching transactions: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -69,6 +79,7 @@ class TransactionController extends Controller
                 'payment_date' => 'required|date',
                 'date_processed' => 'nullable|date',
                 'processed_by_user_id' => 'nullable|exists:users,id',
+                'processed_by_user' => 'nullable|string|max:255',
                 'payment_method' => 'required|string|max:255',
                 'reference_no' => 'required|string|max:255',
                 'or_no' => 'required|string|max:255',
@@ -85,16 +96,16 @@ class TransactionController extends Controller
             DB::beginTransaction();
 
             $validated['payment_date'] = \Carbon\Carbon::parse($validated['payment_date'])->format('Y-m-d H:i:s');
-            $validated['date_processed'] = isset($validated['date_processed']) 
-                ? \Carbon\Carbon::parse($validated['date_processed'])->format('Y-m-d H:i:s')
+            $validated['date_processed'] = isset($validated['date_processed'])
+                ?\Carbon\Carbon::parse($validated['date_processed'])->format('Y-m-d H:i:s')
                 : now()->format('Y-m-d H:i:s');
             $validated['status'] = $validated['status'] ?? 'Pending';
-            $validated['created_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
-            $validated['updated_by_user'] = Auth::check() ? Auth::user()->email : 'unknown';
-            
-            if (isset($validated['processed_by_user_id'])) {
-                $validated['processed_by_user'] = $validated['processed_by_user_id'];
-                unset($validated['processed_by_user_id']);
+            $validated['created_by_user'] = Auth::check() ?Auth::user()->email_address : 'unknown';
+            $validated['updated_by_user'] = Auth::check() ?Auth::user()->email_address : 'unknown';
+
+            // If processed_by_user is not provided in request, default to authenticated user
+            if (!isset($validated['processed_by_user'])) {
+                $validated['processed_by_user'] = Auth::check() ?Auth::user()->email_address : 'unknown';
             }
 
             $autoApplyPayment = $validated['auto_apply_payment'] ?? false;
@@ -111,7 +122,7 @@ class TransactionController extends Controller
                 'account_no' => $transaction->account_no
             ]);
 
-            if ($autoApplyPayment && $transaction->account_no) {
+            if ($autoApplyPayment && $transaction->account_no && $transaction->transaction_type !== 'Security Deposit') {
                 \Log::info('Auto-applying payment', [
                     'transaction_id' => $transaction->id,
                     'account_no' => $transaction->account_no
@@ -119,7 +130,7 @@ class TransactionController extends Controller
 
                 $billingAccount = BillingAccount::where('account_no', $transaction->account_no)->first();
                 if ($billingAccount) {
-                    $this->applyPaymentToAccount(
+                    $appliedData = $this->applyPaymentToAccount(
                         $billingAccount->id,
                         $transaction->account_no,
                         $transaction->received_payment,
@@ -129,12 +140,25 @@ class TransactionController extends Controller
                     );
 
                     $transaction->status = 'Done';
+                    $transaction->account_balance_before = $appliedData['old_balance'];
+                    $transaction->approved_by = Auth::check() ?Auth::user()->email : 'unknown';
                     $transaction->save();
 
                     \Log::info('Payment auto-applied successfully', [
                         'transaction_id' => $transaction->id
                     ]);
-                } else {
+
+                    // Send Approval Notifications
+                    if ($billingAccount) {
+                        $this->sendApprovalSms($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment, $transaction->payment_date);
+                        $this->sendApprovalEmail($billingAccount, $appliedData['invoices_updated']['invoices_paid'] ?? [], $transaction->received_payment, $transaction->payment_date);
+
+                        // Attempt reconnection for auto-applied payments
+                        $this->attemptReconnectionAfterApproval($billingAccount, $transaction->updated_by_user);
+                    }
+
+                }
+                else {
                     \Log::warning('Billing account not found for auto-apply', [
                         'account_no' => $transaction->account_no
                     ]);
@@ -147,12 +171,15 @@ class TransactionController extends Controller
                 'transaction_id' => $transaction->id
             ]);
 
+            event(new TransactionUpdated(['action' => 'created', 'transaction_id' => $transaction->id, 'account_no' => $transaction->account_no]));
+
             return response()->json([
                 'success' => true,
                 'message' => 'Transaction created successfully',
                 'data' => $transaction->load(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
             ], 201);
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        }
+        catch (\Illuminate\Validation\ValidationException $e) {
             DB::rollBack();
             \Log::error('Transaction validation failed', [
                 'errors' => $e->errors(),
@@ -163,7 +190,8 @@ class TransactionController extends Controller
                 'message' => 'Validation failed',
                 'errors' => $e->errors()
             ], 422);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error creating transaction', [
                 'error_message' => $e->getMessage(),
@@ -183,14 +211,15 @@ class TransactionController extends Controller
     public function show(string $id): JsonResponse
     {
         try {
-            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo'])
+            $transaction = Transaction::with(['account.customer', 'account.technicalDetails', 'processor', 'paymentMethodInfo', 'revert_request'])
                 ->findOrFail($id);
 
             return response()->json([
                 'success' => true,
                 'data' => $transaction
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             \Log::error('Error fetching transaction: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -200,9 +229,13 @@ class TransactionController extends Controller
         }
     }
 
-    public function approve(string $id): JsonResponse
+    public function approve(Request $request, string $id): JsonResponse
     {
         try {
+            $request->validate([
+                'approved_by' => 'nullable|string|email'
+            ]);
+
             DB::beginTransaction();
 
             $transaction = Transaction::findOrFail($id);
@@ -246,29 +279,60 @@ class TransactionController extends Controller
             ]);
 
             $currentBalance = floatval($billingAccount->account_balance ?? 0);
-            $newBalance = $currentBalance - $paymentReceived;
+            $newBalance = $currentBalance;
+            $invoiceUpdateResult = ['invoices_paid' => [], 'invoices_partial' => [], 'distribution' => []];
 
-            $billingAccount->account_balance = round($newBalance, 2);
-            $billingAccount->balance_update_date = $currentTime;
-            $billingAccount->updated_by = $userId;
-            $billingAccount->save();
+            if ($transaction->transaction_type !== 'Security Deposit') {
+                $newBalance = $currentBalance - $paymentReceived;
 
-            \Log::info('Account balance updated', [
-                'account_no' => $accountNo,
-                'account_id' => $billingAccount->id,
-                'old_balance' => $currentBalance,
-                'new_balance' => $newBalance,
-                'payment_applied' => $paymentReceived
-            ]);
+                $billingAccount->account_balance = round($newBalance, 2);
+                $billingAccount->balance_update_date = $currentTime;
+                $billingAccount->updated_by = $userId;
+                $billingAccount->save();
 
-            $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transactionId, $userId, $currentTime);
+                \Log::info('Account balance updated', [
+                    'account_no' => $accountNo,
+                    'account_id' => $billingAccount->id,
+                    'old_balance' => $currentBalance,
+                    'new_balance' => $newBalance,
+                    'payment_applied' => $paymentReceived
+                ]);
+
+                $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transactionId, $userId, $currentTime);
+            }
+            else {
+                \Log::info('Transaction is Security Deposit, skipping balance and invoice updates', [
+                    'transaction_id' => $transactionId,
+                    'account_no' => $accountNo
+                ]);
+            }
 
             $transaction->status = 'Done';
             $transaction->date_processed = $currentTime;
-            $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
+            $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
+            $transaction->approved_by = $request->input('approved_by') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
+            $transaction->account_balance_before = $currentBalance;
             $transaction->save();
 
             DB::commit();
+
+            // Create Activity Log
+            \App\Models\ActivityLog::log(
+                'Transaction Approved',
+                "Transaction #{$transactionId} ($accountNo) approved by " . (Auth::user()->email_address ?? 'User'),
+                'info',
+            [
+                'resource_type' => 'Transaction',
+                'resource_id' => $transactionId,
+                'additional_data' => [
+                    'account_no' => $accountNo,
+                    'payment_received' => $paymentReceived,
+                    'new_balance' => $newBalance,
+                    'invoices_paid' => $invoiceUpdateResult['invoices_paid'],
+                    'distribution' => $invoiceUpdateResult['distribution']
+                ]
+            ]
+            );
 
             \Log::info('Transaction approved successfully', [
                 'transaction_id' => $transactionId,
@@ -278,108 +342,15 @@ class TransactionController extends Controller
                 'invoices_partial' => $invoiceUpdateResult['invoices_partial']
             ]);
 
-            // Send Paid SMS if invoices were paid
-            try {
-                if (!empty($invoiceUpdateResult['invoices_paid'])) {
-                    $billingAccount->load('customer');
-                    $customer = $billingAccount->customer;
-                    
-                    if ($customer && !empty($customer->contact_number_primary)) {
-                        $paidTemplate = DB::table('sms_templates')
-                            ->where('template_type', 'Paid')
-                            ->where('is_active', 1)
-                            ->first();
-                            
-                        if ($paidTemplate) {
-                            $smsService = new \App\Services\ItexmoSmsService();
-                            
-                            foreach ($invoiceUpdateResult['invoices_paid'] as $paidInvoice) {
-                                $message = $paidTemplate->message_content;
-                                
-                                // Replace variables
-                                $message = str_replace('{{customer_name}}', $customer->full_name, $message);
-                                $message = str_replace('{{account_no}}', $accountNo, $message);
-                                $message = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $message);
-                                $message = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $message);
-                                $message = str_replace('{{date}}', date('Y-m-d'), $message);
-                                
-                                $result = $smsService->send([
-                                    'contact_no' => $customer->contact_number_primary,
-                                    'message' => $message
-                                ]);
-                                
-                                if ($result['success']) {
-                                    \Log::info('Paid Invoice SMS sent', [
-                                        'invoice_id' => $paidInvoice['invoice_id'], 
-                                        'customer_id' => $customer->id
-                                    ]);
-                                } else {
-                                    \Log::error('Paid Invoice SMS Failed: ' . ($result['error'] ?? 'Unknown error'));
-                                }
-                            }
-                        } else {
-                            \Log::warning('Paid SMS template not found');
-                        }
-                    }
-                }
-            } catch (\Exception $e) {
-                \Log::error('Failed to send Paid SMS: ' . $e->getMessage());
-            }
+            // Send Approval Notifications (previously only on Paid status)
+            $this->sendApprovalSms($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived, $transaction->payment_date);
+            $this->sendApprovalEmail($billingAccount, $invoiceUpdateResult['invoices_paid'] ?? [], $paymentReceived, $transaction->payment_date);
 
-            // Send Paid Email if invoices were paid
-            try {
-                if (!empty($invoiceUpdateResult['invoices_paid'])) {
-                    if (!$customer) {
-                         $billingAccount->load('customer');
-                         $customer = $billingAccount->customer;
-                    }
-
-                    if ($customer && !empty($customer->email_address)) {
-                         $paidEmailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'PAID')
-                             ->where('Is_Active', true)
-                             ->first();
-                         
-                         if ($paidEmailTemplate) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             
-                             foreach ($invoiceUpdateResult['invoices_paid'] as $paidInvoice) {
-                                  $emailBody = $paidEmailTemplate->email_body;
-                                  
-                                  // Replace variables
-                                  $emailBody = str_replace('{{customer_name}}', $customer->full_name, $emailBody);
-                                  $emailBody = str_replace('{{account_no}}', $accountNo, $emailBody);
-                                  $emailBody = str_replace('{{invoice_id}}', $paidInvoice['invoice_id'], $emailBody);
-                                  $emailBody = str_replace('{{amount_paid}}', $paidInvoice['amount_paid'], $emailBody);
-                                  $emailBody = str_replace('{{date}}', date('Y-m-d'), $emailBody);
-
-                                  if (!empty($emailBody)) {
-                                       $emailService->queueEmail([
-                                           'account_no' => $accountNo,
-                                           'recipient_email' => $customer->email_address,
-                                           'subject' => $paidEmailTemplate->Subject_Line ?? 'Payment Received', 
-                                           'body_html' => nl2br($emailBody), 
-                                           'attachment_path' => null
-                                       ]);
-                                       
-                                       \Log::info('Paid Invoice Email queued', [
-                                           'invoice_id' => $paidInvoice['invoice_id'], 
-                                           'email' => $customer->email_address
-                                       ]);
-                                  } else {
-                                      \Log::warning('Paid Invoice Email Body is empty');
-                                  }
-                             }
-                         } else {
-                             \Log::warning('Paid Email (WELCOME) template not found or inactive');
-                         }
-                    }
-                }
-            } catch (\Exception $e) {
-                \Log::error('Failed to send Paid Email: ' . $e->getMessage());
-            }
 
             // Attempt reconnection after successful approval
-            $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
+            $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount, $transaction->updated_by_user);
+
+            event(new TransactionUpdated(['action' => 'approved', 'transaction_id' => $transactionId, 'account_no' => $accountNo]));
 
             return response()->json([
                 'success' => true,
@@ -394,13 +365,169 @@ class TransactionController extends Controller
                     'reconnect_status' => $reconnectStatus
                 ]
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error approving transaction: ' . $e->getMessage());
             \Log::error('Stack trace: ' . $e->getTraceAsString());
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to approve transaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function revert(Request $request, string $id): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $transaction = Transaction::findOrFail($id);
+
+            if ($transaction->status !== 'Done') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Only approved transactions can be reverted'
+                ], 400);
+            }
+
+            $accountNo = $transaction->account_no;
+            $paymentToRevert = floatval($transaction->received_payment);
+            $transactionId = $transaction->id;
+            $userId = Auth::id();
+            $currentTime = now();
+
+            if (!$accountNo) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Transaction has no associated account number'
+                ], 400);
+            }
+
+            $billingAccount = BillingAccount::where('account_no', $accountNo)->first();
+            if (!$billingAccount) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Billing account not found'
+                ], 404);
+            }
+
+            $currentBalance = floatval($billingAccount->account_balance ?? 0);
+
+            \Log::info('Transaction revert started', [
+                'transaction_id' => $transactionId,
+                'account_no' => $accountNo,
+                'payment_to_revert' => $paymentToRevert,
+                'current_balance' => $currentBalance
+            ]);
+
+            $revertedInvoices = [];
+            $newBalance = $currentBalance;
+
+            if ($transaction->transaction_type !== 'Security Deposit') {
+                // 1. Revert Account Balance
+                $newBalance = $currentBalance + $paymentToRevert;
+
+                $billingAccount->account_balance = round($newBalance, 2);
+                $billingAccount->balance_update_date = $currentTime;
+                $billingAccount->updated_by = $userId;
+                $billingAccount->save();
+
+                // 2. Revert Invoice Payments
+                // Find invoices updated by this transaction
+                $invoices = \App\Models\Invoice::where('transaction_id', $transactionId)
+                    ->orderBy('invoice_date', 'desc') // Revert in reverse order of application
+                    ->get();
+
+                $remainingToRevert = $paymentToRevert;
+
+                foreach ($invoices as $invoice) {
+                    if ($remainingToRevert <= 0)
+                        break;
+
+                    $currentReceived = floatval($invoice->received_payment ?? 0);
+
+                    // Subtract as much as possible from this invoice
+                    $toSubtract = min($currentReceived, $remainingToRevert);
+
+                    $newReceived = $currentReceived - $toSubtract;
+                    $invoice->received_payment = round($newReceived, 2);
+
+                    // Update status
+                    if ($newReceived <= 0) {
+                        $invoice->status = 'Unpaid';
+                    }
+                    else {
+                        $invoice->status = 'Partial';
+                    }
+
+                    // Clear transaction_id since we're reverting
+                    $invoice->transaction_id = null;
+                    $invoice->updated_by = Auth::check() ?Auth::user()->email_address : 'unknown';
+                    $invoice->updated_at = $currentTime;
+                    $invoice->save();
+
+                    $remainingToRevert -= $toSubtract;
+                    $revertedInvoices[] = [
+                        'invoice_id' => $invoice->id,
+                        'amount_reverted' => $toSubtract,
+                        'new_status' => $invoice->status
+                    ];
+                }
+            }
+            else {
+                \Log::info('Transaction is Security Deposit, skipping balance and invoice reverts', [
+                    'transaction_id' => $transactionId,
+                    'account_no' => $accountNo
+                ]);
+            }
+
+            // 3. Update Transaction Status
+            $transaction->status = 'Pending';
+            $transaction->date_processed = null;
+            $transaction->approved_by = null;
+            $transaction->account_balance_before = null;
+            $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
+            $transaction->save();
+
+            DB::commit();
+
+            // Create Activity Log
+            \App\Models\ActivityLog::log(
+                'Transaction Reverted',
+                "Transaction #{$transactionId} ($accountNo) reverted by " . (Auth::user()->email_address ?? 'User'),
+                'warning',
+            [
+                'resource_type' => 'Transaction',
+                'resource_id' => $transactionId,
+                'additional_data' => [
+                    'account_no' => $accountNo,
+                    'payment_amount' => $paymentToRevert,
+                    'new_balance' => $newBalance,
+                    'reverted_invoices' => $revertedInvoices
+                ]
+            ]
+            );
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction reverted successfully',
+                'data' => [
+                    'transaction' => $transaction,
+                    'new_balance' => $newBalance,
+                    'reverted_invoices' => $revertedInvoices
+                ]
+            ]);
+        }
+        catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error reverting transaction: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to revert transaction',
                 'error' => $e->getMessage()
             ], 500);
         }
@@ -485,7 +612,8 @@ class TransactionController extends Controller
                     'amount_paid' => $amountDue,
                     'remaining_payment' => $remainingPayment
                 ]);
-            } else {
+            }
+            else {
                 $invoice->received_payment = round($currentReceived + $remainingPayment, 2);
                 $invoice->status = 'Partial';
                 $paymentApplied = $remainingPayment;
@@ -517,7 +645,7 @@ class TransactionController extends Controller
             ];
 
             $invoice->transaction_id = $transactionId;
-            $invoice->updated_by = Auth::check() ? Auth::user()->email : 'unknown';
+            $invoice->updated_by = Auth::check() ?Auth::user()->email_address : 'unknown';
             $invoice->updated_at = $currentTime;
             $invoice->save();
         }
@@ -541,24 +669,27 @@ class TransactionController extends Controller
     {
         try {
             $request->validate([
-                'status' => 'required|string|in:Pending,Done,Processing,Cancelled'
+                'status' => 'required|string|in:Pending,Done,Processing,Cancelled,Failed'
             ]);
 
             DB::beginTransaction();
 
             $transaction = Transaction::findOrFail($id);
             $transaction->status = $request->status;
-            $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
+            $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
             $transaction->save();
 
             DB::commit();
+
+            event(new TransactionUpdated(['action' => 'status_updated', 'transaction_id' => $transaction->id]));
 
             return response()->json([
                 'success' => true,
                 'message' => 'Transaction status updated successfully',
                 'data' => $transaction
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             DB::rollBack();
             \Log::error('Error updating transaction status: ' . $e->getMessage());
             return response()->json([
@@ -580,7 +711,8 @@ class TransactionController extends Controller
 
             $validated = $request->validate([
                 'transaction_ids' => 'required|array',
-                'transaction_ids.*' => 'required|exists:transactions,id'
+                'transaction_ids.*' => 'required|exists:transactions,id',
+                'approved_by' => 'nullable|string|email'
             ]);
 
             $transactionIds = $validated['transaction_ids'];
@@ -589,6 +721,8 @@ class TransactionController extends Controller
                 'failed' => [],
                 'total' => count($transactionIds)
             ];
+
+            $accountPayments = []; // Track consolidated payments per account for notifications
 
             foreach ($transactionIds as $transactionId) {
                 try {
@@ -632,24 +766,45 @@ class TransactionController extends Controller
                     }
 
                     $currentBalance = floatval($billingAccount->account_balance ?? 0);
-                    $newBalance = $currentBalance - $paymentReceived;
+                    $newBalance = $currentBalance;
+                    $invoiceUpdateResult = ['invoices_paid' => [], 'invoices_partial' => [], 'distribution' => []];
 
-                    $billingAccount->account_balance = round($newBalance, 2);
-                    $billingAccount->balance_update_date = $currentTime;
-                    $billingAccount->updated_by = $userId;
-                    $billingAccount->save();
+                    if ($transaction->transaction_type !== 'Security Deposit') {
+                        $newBalance = $currentBalance - $paymentReceived;
 
-                    $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transaction->id, $userId, $currentTime);
+                        $billingAccount->account_balance = round($newBalance, 2);
+                        $billingAccount->balance_update_date = $currentTime;
+                        $billingAccount->updated_by = $userId;
+                        $billingAccount->save();
+
+                        $invoiceUpdateResult = $this->updateInvoiceDetails($accountNo, $paymentReceived, $transaction->id, $userId, $currentTime);
+                    }
 
                     $transaction->status = 'Done';
                     $transaction->date_processed = $currentTime;
-                    $transaction->updated_by_user = Auth::check() ? Auth::user()->email : 'unknown';
+                    $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
+                    $transaction->approved_by = $request->input('approved_by') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
+                    $transaction->account_balance_before = $currentBalance;
                     $transaction->save();
 
                     DB::commit();
 
+                    // Track for consolidated notification (Always track success now)
+                    if (!isset($accountPayments[$accountNo])) {
+                        $accountPayments[$accountNo] = [
+                            'account' => $billingAccount,
+                            'invoices' => [],
+                            'total' => 0,
+                            'payment_date' => $transaction->payment_date
+                        ];
+                    }
+                    if (!empty($invoiceUpdateResult['invoices_paid'])) {
+                        $accountPayments[$accountNo]['invoices'] = array_merge($accountPayments[$accountNo]['invoices'], $invoiceUpdateResult['invoices_paid']);
+                    }
+                    $accountPayments[$accountNo]['total'] += $paymentReceived;
+
                     // Attempt reconnection after successful approval
-                    $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount);
+                    $reconnectStatus = $this->attemptReconnectionAfterApproval($billingAccount, $transaction->updated_by_user);
 
                     $results['success'][] = [
                         'transaction_id' => $transactionId,
@@ -666,7 +821,8 @@ class TransactionController extends Controller
                         'account_no' => $accountNo,
                         'reconnect_status' => $reconnectStatus
                     ]);
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     DB::rollBack();
                     $results['failed'][] = [
                         'transaction_id' => $transactionId,
@@ -679,6 +835,13 @@ class TransactionController extends Controller
                 }
             }
 
+            // Send consolidated notifications for each account (Successfully approved)
+            foreach ($accountPayments as $accountNo => $data) {
+                $this->sendApprovalSms($data['account'], $data['invoices'], $data['total'], $data['payment_date'] ?? null);
+                $this->sendApprovalEmail($data['account'], $data['invoices'], $data['total'], $data['payment_date'] ?? null);
+            }
+
+
             $successCount = count($results['success']);
             $failedCount = count($results['failed']);
 
@@ -688,12 +851,15 @@ class TransactionController extends Controller
                 'failed' => $failedCount
             ]);
 
+            event(new TransactionUpdated(['action' => 'batch_approved', 'success_count' => $successCount]));
+
             return response()->json([
                 'success' => true,
                 'message' => "Batch approval completed: {$successCount} successful, {$failedCount} failed",
                 'data' => $results
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             \Log::error('Batch approval error: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -707,35 +873,36 @@ class TransactionController extends Controller
     {
         try {
             $folderName = $request->input('folder_name', 'transactions');
-            
+
             $googleDriveService = new \App\Services\GoogleDriveService();
             $folderId = $googleDriveService->createFolder($folderName);
-            
+
             $imageUrls = [];
-            
+
             if ($request->hasFile('payment_proof_image')) {
                 $file = $request->file('payment_proof_image');
                 $fileName = 'payment_proof_' . time() . '.' . $file->getClientOriginalExtension();
-                
+
                 $fileUrl = $googleDriveService->uploadFile(
                     $file,
                     $folderId,
                     $fileName,
                     $file->getMimeType()
                 );
-                
+
                 if ($fileUrl) {
                     $imageUrls['payment_proof_image_url'] = $fileUrl;
                 }
             }
-            
+
             return response()->json([
                 'success' => true,
                 'message' => 'Images uploaded successfully',
                 'data' => $imageUrls,
                 'folder_id' => $folderId
             ]);
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             \Log::error('Error uploading transaction images: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
@@ -749,13 +916,13 @@ class TransactionController extends Controller
      * Attempt to reconnect user account after transaction approval
      * Only reconnects if billing_status_id is not 1 (Active) and balance is 0 or negative
      */
-    private function attemptReconnectionAfterApproval($billingAccount): string
+    private function attemptReconnectionAfterApproval($billingAccount, $updatedByUser = 'System'): string
     {
         try {
             // Reload billing account to get latest balance and status
             $billingAccount = BillingAccount::find($billingAccount->id);
             $accountNo = $billingAccount->account_no;
-            
+
             \Log::info('[TRANSACTION RECONNECT] Starting check for account: ' . $accountNo);
 
             // Step 1: Check if balance qualifies (0 or negative)
@@ -801,7 +968,7 @@ class TransactionController extends Controller
             $billingAccount->updated_at = now();
             $billingAccount->updated_by = Auth::id();
             $billingAccount->save();
-            
+
             \Log::info('[TRANSACTION RECONNECT DB] Updated billing_status_id to 1 for Account: ' . $accountNo);
 
             // Step 5: Prepare parameters for ManualRadiusOperationsService
@@ -809,7 +976,8 @@ class TransactionController extends Controller
                 'accountNumber' => $accountNo,
                 'username' => $username,
                 'plan' => $plan,
-                'updatedBy' => 'Transaction Approval Auto-Reconnect'
+                'updatedBy' => $updatedByUser,
+                'remarks' => 'Transaction Approval Auto-Reconnect'
             ];
 
             // Step 6: Call ManualRadiusOperationsService reconnectUser
@@ -818,7 +986,7 @@ class TransactionController extends Controller
             // 2. Kill User Session (isDisconnectAction = true)
             // 3. Update DB Status (again)
             \Log::info('[TRANSACTION RECONNECT EXECUTE] Calling ManualRadiusOperationsService for ' . $username);
-            
+
             $manualRadiusService = new ManualRadiusOperationsService();
             $result = $manualRadiusService->reconnectUser($params);
 
@@ -839,16 +1007,22 @@ class TransactionController extends Controller
                             ->join('customers', 'billing_accounts.customer_id', '=', 'customers.id')
                             ->where('billing_accounts.account_no', $accountNo)
                             ->select(
-                                'customers.contact_number_primary',
-                                'customers.email_address',
-                                DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
-                            )
+                            'customers.contact_number_primary',
+                            'customers.email_address',
+                            DB::raw("CONCAT(customers.first_name, ' ', IFNULL(customers.middle_initial, ''), ' ', customers.last_name) as full_name")
+                        )
                             ->first();
 
                         if ($customerInfo && !empty($customerInfo->contact_number_primary)) {
                             // Replace variables
                             $message = $smsTemplate->message_content;
-                            $message = str_replace('{{customer_name}}', $customerInfo->full_name, $message);
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->full_name));
+                            $planNameFormatted = str_replace('₱', 'P', $plan ?? '');
+
+                            $message = str_replace('{{customer_name}}', $customerName, $message);
+                            $message = str_replace('{{account_no}}', $accountNo, $message);
+                            $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                            $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
 
                             // Send SMS
                             $smsService = new \App\Services\ItexmoSmsService();
@@ -859,60 +1033,226 @@ class TransactionController extends Controller
 
                             if ($smsResult['success']) {
                                 \Log::info('[TRANSACTION RECONNECT SMS] SMS sent to ' . $customerInfo->contact_number_primary);
-                            } else {
+                            }
+                            else {
                                 \Log::error('[TRANSACTION RECONNECT SMS FAILED] ' . ($smsResult['error'] ?? 'Unknown error'));
                             }
-                        } else {
+                        }
+                        else {
                             \Log::warning('[TRANSACTION RECONNECT SMS SKIP] No contact number found for account ' . $accountNo);
                         }
-                    } else {
+                    }
+                    else {
                         \Log::warning('[TRANSACTION RECONNECT SMS SKIP] No active Reconnect SMS template found');
                     }
-                } catch (\Exception $e) {
+                }
+                catch (\Exception $e) {
                     \Log::error('[TRANSACTION RECONNECT SMS EXCEPTION] ' . $e->getMessage());
                 }
 
-                // Send Email Notification
-                try {
-                    $emailTemplate = \App\Models\EmailTemplate::where('Template_Code', 'RECONNECT')->first();
-                    
-                    if ($emailTemplate && !empty($customerInfo->email_address)) {
-                         // Use email_body as the content (body) as requested
-                         $body = $emailTemplate->email_body;
-                         
-                         if (!empty($body)) {
-                             $emailService = app(\App\Services\EmailQueueService::class);
-                             
-                             $emailService->queueEmail([
-                                 'account_no' => $accountNo,
-                                 'recipient_email' => $customerInfo->email_address,
-                                 'subject' => $emailTemplate->Subject_Line ?? 'Reconnection Notice', 
-                                 'body_html' => nl2br($body), 
-                                 'attachment_path' => null
-                             ]);
-                             
-                             \Log::info('[TRANSACTION RECONNECT EMAIL] Email queued for ' . $customerInfo->email_address);
-                         } else {
-                             \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] email_body is empty');
-                         }
-                    } else {
-                        if (!$emailTemplate) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] RECONNECT template not found');
-                        if (empty($customerInfo->email_address)) \Log::warning('[TRANSACTION RECONNECT EMAIL SKIP] No email address for customer');
-                    }
-                } catch (\Exception $e) {
-                    \Log::error('[TRANSACTION RECONNECT EMAIL EXCEPTION] ' . $e->getMessage());
-                }
+                // Email Notification is now handled by ManualRadiusOperationsService
 
                 return 'success';
-            } else {
+            }
+            else {
                 \Log::info('[TRANSACTION RECONNECT FAILED] ' . $result['message']);
                 return 'failed';
             }
 
-        } catch (\Exception $e) {
+        }
+        catch (\Exception $e) {
             \Log::error('[TRANSACTION RECONNECT EXCEPTION] ' . $e->getMessage());
             \Log::error('[TRANSACTION RECONNECT EXCEPTION] Trace: ' . $e->getTraceAsString());
             return 'exception';
         }
     }
+
+    private function replaceGlobalVariables(string $message): string
+    {
+        $portalUrl = 'sync.atssfiber.ph';
+        $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+
+        $message = str_replace('{{portal_url}}', $portalUrl, $message);
+        $message = str_replace('{{company_name}}', $brandName, $message);
+
+        return $message;
+    }
+
+    /**
+     * Send Transaction Approval SMS notification
+     */
+    private function sendApprovalSms($billingAccount, $invoicesPaid, $totalPaidAmount, $paymentDate = null)
+    {
+        try {
+            $billingAccount->load('customer');
+            $customer = $billingAccount->customer;
+
+            if ($customer && !empty($customer->contact_number_primary)) {
+                $paidTemplate = DB::table('sms_templates')
+                    ->where('template_type', 'Paid')
+                    ->where('is_active', 1)
+                    ->first();
+
+                if ($paidTemplate) {
+                    $smsService = new \App\Services\ItexmoSmsService();
+
+                    // Consolidate invoice IDs or use N/A if none
+                    $invoiceIds = !empty($invoicesPaid)
+                        ? collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ')
+                        : 'N/A';
+
+                    $message = $paidTemplate->message_content;
+
+                    // Replace variables
+                    $customerName = preg_replace('/\s+/', ' ', trim($customer->full_name));
+                    $planNameRaw = $billingAccount->plan ? $billingAccount->plan->plan_name : ($customer->desired_plan ?? 'N/A');
+                    $planNameFormatted = str_replace('₱', 'P', $planNameRaw);
+
+                    $message = str_replace('{{customer_name}}', $customerName, $message);
+                    $message = str_replace('{{account_no}}', $billingAccount->account_no, $message);
+                    $message = str_replace('{{plan_name}}', $planNameFormatted, $message);
+                    $message = str_replace('{{plan_nam}}', $planNameFormatted, $message);
+                    $message = str_replace('{{invoice_id}}', $invoiceIds, $message);
+
+                    // Support multiple variations of placeholders
+                    $formattedAmount = number_format($totalPaidAmount, 2);
+                    $txDate = $paymentDate ? date('Y-m-d', strtotime($paymentDate)) : date('Y-m-d');
+
+                    $message = str_replace('{{amount_paid}}', $formattedAmount, $message);
+                    $message = str_replace('{{amount}}', $formattedAmount, $message);
+                    $message = str_replace('{{date}}', $txDate, $message);
+                    $message = str_replace('{{payment_date}}', $txDate, $message);
+
+                    $message = $this->replaceGlobalVariables($message);
+
+                    $result = $smsService->send([
+                        'contact_no' => $customer->contact_number_primary,
+                        'message' => $message
+                    ]);
+
+                    if ($result['success']) {
+                        \Log::info('Approval SMS sent', [
+                            'account_no' => $billingAccount->account_no,
+                            'transaction_id' => !empty($invoicesPaid) ? null : 'approved'
+                        ]);
+                    }
+                    else {
+                        \Log::error('Approval SMS Failed: ' . ($result['error'] ?? 'Unknown error'));
+                    }
+                }
+            }
+        }
+        catch (\Exception $e) {
+            \Log::error('Failed to send Approval SMS: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Send Transaction Approval Email notification
+     */
+    private function sendApprovalEmail($billingAccount, $invoicesPaid, $totalPaidAmount, $paymentDate = null)
+    {
+        try {
+            $billingAccount->load('customer');
+            $customer = $billingAccount->customer;
+
+            if ($customer && !empty($customer->email_address)) {
+                $emailService = app(\App\Services\EmailQueueService::class);
+
+                // Consolidate invoice IDs or use N/A
+                $invoiceIds = !empty($invoicesPaid)
+                    ? collect($invoicesPaid)->pluck('invoice_id')->unique()->implode(', ')
+                    : 'N/A';
+
+                $brandName = DB::table('form_ui')->value('brand_name') ?? 'Your ISP';
+                $txDate = $paymentDate ? date('Y-m-d', strtotime($paymentDate)) : date('Y-m-d');
+                $formattedAmount = number_format($totalPaidAmount, 2);
+
+                $emailData = [
+                    'Amount' => $formattedAmount,
+                    'amount' => $formattedAmount,
+                    'amount_paid' => $formattedAmount,
+                    'Company_Name' => $brandName,
+                    'Account_No' => $billingAccount->account_no,
+                    'account_no' => $billingAccount->account_no,
+                    'Date' => $txDate,
+                    'payment_date' => $txDate,
+                    'date' => $txDate,
+                    'Full_Name' => $customer->full_name,
+                    'invoice_ids' => $invoiceIds,
+                    'recipient_email' => $customer->email_address,
+                ];
+
+                $emailService->queueFromTemplate('PAID', $emailData);
+
+                \Log::info('Approval Email queued via template', [
+                    'account_no' => $billingAccount->account_no
+                ]);
+            }
+        }
+        catch (\Exception $e) {
+            \Log::error('Failed to send Approval Email: ' . $e->getMessage());
+        }
+    }
+
+    public function destroy(string $id): JsonResponse
+    {
+        try {
+            DB::beginTransaction();
+
+            $transaction = Transaction::findOrFail($id);
+
+            // Safety check: Don't allow deleting approved transactions
+            if ($transaction->status === 'Done') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Approved transactions cannot be deleted. Revert them first if necessary.'
+                ], 400);
+            }
+
+            // Remove associated invoices' transaction_id if any (just in case)
+            DB::table('invoices')
+                ->where('transaction_id', $transaction->id)
+                ->update([
+                'transaction_id' => null,
+                'updated_at' => now()
+            ]);
+
+            $transactionData = $transaction->toArray();
+            $transaction->delete();
+
+            DB::commit();
+
+            // Create Activity Log
+            \App\Models\ActivityLog::log(
+                'Transaction Deleted',
+                "Transaction #{$id} (" . ($transactionData['account_no'] ?? 'N/A') . ") deleted by " . (Auth::user()->email_address ?? 'User'),
+                'warning',
+            [
+                'resource_type' => 'Transaction',
+                'resource_id' => $id,
+                'additional_data' => [
+                    'transaction_data' => $transactionData
+                ]
+            ]
+            );
+
+            event(new TransactionUpdated(['action' => 'deleted', 'transaction_id' => $id]));
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Transaction deleted successfully'
+            ]);
+        }
+        catch (\Exception $e) {
+            DB::rollBack();
+            \Log::error('Error deleting transaction: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to delete transaction',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

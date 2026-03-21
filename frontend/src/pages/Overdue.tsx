@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, X, Menu, Globe, Calendar } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useOverdueStore } from '../store/overdueStore';
+import pusher from '../services/pusherService';
 import { Overdue } from '../services/overdueService';
 
 const OverduePage: React.FC = () => {
@@ -10,19 +11,104 @@ const OverduePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const { overdueRecords, totalCount, isLoading, error, fetchOverdueRecords, refreshOverdueRecords } = useOverdueStore();
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const [overdueDateFrom, setOverdueDateFrom] = useState<string>('');
+  const [overdueDateTo, setOverdueDateTo] = useState<string>('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   // Reset page when search or date filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedDate]);
+  }, [searchQuery, selectedDate, itemsPerPage, overdueDateFrom, overdueDateTo]);
 
-  const dateItems = [
-    { date: 'All', id: '' },
-  ];
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
+
+  // 1. Initial search filtering (Global filtered set for sidebar counts)
+  const globalFilteredRecords = React.useMemo(() => {
+    let filtered = overdueRecords;
+
+    if (searchQuery) {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      filtered = filtered.filter(record => checkValue(record));
+    }
+
+    // Apply sidebar date range filters for overdue date
+    if (overdueDateFrom || overdueDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.overdue_date) return false;
+
+        const dateValue = new Date(record.overdue_date).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (overdueDateFrom) {
+          const fromDate = new Date(overdueDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (overdueDateTo) {
+          const toDate = new Date(overdueDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [overdueRecords, searchQuery, overdueDateFrom, overdueDateTo]);
+
+  // Derive date items from context data instead of fetching separately or static
+  const dateItems = React.useMemo(() => {
+    const dateCounts: Record<string, number> = {};
+    const dates = new Map<string, string>(); // Formatted -> Raw
+
+    globalFilteredRecords.forEach(record => {
+      if (record.overdue_date) {
+        const date = new Date(record.overdue_date);
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const yyyy = date.getFullYear();
+        const formatted = `${mm}/${dd}/${yyyy}`;
+        dateCounts[formatted] = (dateCounts[formatted] || 0) + 1;
+        dates.set(formatted, record.overdue_date);
+      }
+    });
+
+    const sortedDates = Array.from(dates.entries())
+      .sort((a, b) => {
+        const timeA = new Date(a[1]).getTime();
+        const timeB = new Date(b[1]).getTime();
+        return timeB - timeA;
+      })
+      .map(([formatted]) => ({
+        date: formatted,
+        count: dateCounts[formatted]
+      }));
+
+    return {
+      all: globalFilteredRecords.length,
+      dates: sortedDates
+    };
+  }, [globalFilteredRecords]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -62,6 +148,28 @@ const OverduePage: React.FC = () => {
     fetchOverdueRecords();
   }, [fetchOverdueRecords]);
 
+  // Pusher/Soketi connection for real-time overdue updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Overdue Soketi] Update received, refreshing:', data);
+      try {
+        await fetchOverdueRecords(true);
+        console.log('[Overdue Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Overdue Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const overdueChannel = pusher.subscribe('overdue');
+
+    overdueChannel.bind('overdue-updated', handleUpdate);
+
+    return () => {
+      overdueChannel.unbind('overdue-updated', handleUpdate);
+      pusher.unsubscribe('overdue');
+    };
+  }, [fetchOverdueRecords]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -87,7 +195,7 @@ const OverduePage: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -113,18 +221,23 @@ const OverduePage: React.FC = () => {
   };
 
 
-
-  const filteredRecords = overdueRecords.filter(record => {
-    const matchesSearch = searchQuery === '' ||
-      record.account_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      record.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesSearch;
-  });
+  const filteredRecords = React.useMemo(() => {
+    return globalFilteredRecords.filter(record => {
+      if (selectedDate === 'All') return true;
+      if (!record.overdue_date) return false;
+      const recordDateFormatted = new Date(record.overdue_date).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      return recordDateFormatted === selectedDate;
+    });
+  }, [globalFilteredRecords, selectedDate]);
 
   const paginatedRecords = React.useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   const totalDisplayCount = React.useMemo(() => {
     if (selectedDate === 'All' && searchQuery === '') {
@@ -146,10 +259,38 @@ const OverduePage: React.FC = () => {
 
     return (
       <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+          <div className="flex items-center gap-2">
+            <span>Show</span>
+            <select
+              value={itemsPerPage}
+              onChange={(e) => setItemsPerPage(Number(e.target.value))}
+              className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+            >
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+            </select>
+            <span>entries</span>
+          </div>
+          <span>
+            Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+          </span>
         </div>
         <div className="flex items-center space-x-2">
+          <button
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1}
+            className={`p-1 rounded transition-colors ${currentPage === 1
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="First Page"
+          >
+            <ChevronsLeft className="h-5 w-5" />
+          </button>
+
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -160,11 +301,13 @@ const OverduePage: React.FC = () => {
           >
             Previous
           </button>
+
           <div className="flex items-center space-x-1">
             <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
               Page {currentPage} of {totalPages}
             </span>
           </div>
+
           <button
             onClick={() => handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
@@ -175,6 +318,18 @@ const OverduePage: React.FC = () => {
           >
             Next
           </button>
+
+          <button
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages}
+            className={`p-1 rounded transition-colors ${currentPage === totalPages
+              ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+              : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+              }`}
+            title="Last Page"
+          >
+            <ChevronsRight className="h-5 w-5" />
+          </button>
         </div>
       </div>
     );
@@ -184,7 +339,10 @@ const OverduePage: React.FC = () => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '-';
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
   };
 
   return (
@@ -200,26 +358,116 @@ const OverduePage: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {dateItems.map((item, index) => (
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Overdue Date Range
+              </span>
+              {(overdueDateFrom || overdueDateTo) && (
+                <button
+                  onClick={() => {
+                    setOverdueDateFrom('');
+                    setOverdueDateTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={overdueDateFrom}
+                  onChange={(e) => setOverdueDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={overdueDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={overdueDateTo}
+                  onChange={(e) => setOverdueDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={overdueDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedDate('All')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedDate === 'All'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedDate === 'All' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#7c3aed'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              {dateItems.all}
+            </span>
+          </button>
+
+          {/* Date Levels */}
+          {dateItems.dates.map((item, index) => (
             <button
               key={index}
               onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${selectedDate === item.date
                   ? ''
                   : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
               style={selectedDate === item.date ? {
                 backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
-              <span className="text-sm font-medium flex items-center">
+              <div className="flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
                   <polyline points="14 2 14 8 20 8"></polyline>
                 </svg>
-                {item.date}
+                <span>{item.date}</span>
+              </div>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                  }`}
+                style={selectedDate === item.date ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
+                {item.count}
               </span>
             </button>
           ))}
@@ -233,18 +481,25 @@ const OverduePage: React.FC = () => {
             }`}>
             <div className="flex flex-col space-y-3">
               <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
                 <div className="relative flex-1">
                   <input
                     type="text"
                     placeholder="Search Overdue records..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                    className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
                       ? 'bg-gray-800 text-white border border-gray-700'
                       : 'bg-white text-gray-900 border border-gray-300'
                       }`}
                     style={{
-                      '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                      '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                     } as React.CSSProperties}
                     onFocus={(e) => {
                       if (colorPalette?.primary) {
@@ -257,13 +512,22 @@ const OverduePage: React.FC = () => {
                   />
                   <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                     }`} />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                        }`}
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -283,7 +547,7 @@ const OverduePage: React.FC = () => {
           </div>
 
           <div className="flex-1 overflow-hidden flex flex-col">
-            <div className="flex-1 overflow-y-auto">
+            <div className="flex-1 overflow-y-auto" ref={scrollRef}>
               {isLoading ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
@@ -377,6 +641,128 @@ const OverduePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Categories</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedDate('All');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed',
+                  fontWeight: 500
+                } : {
+                  color: isDarkMode ? '#d1d5db' : '#374151'
+                }}
+              >
+                <div className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>All Records</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {dateItems.all}
+                </span>
+              </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Overdue Date Range
+                  </span>
+                  {(overdueDateFrom || overdueDateTo) && (
+                    <button
+                      onClick={() => {
+                        setOverdueDateFrom('');
+                        setOverdueDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={overdueDateFrom}
+                      onChange={(e) => setOverdueDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={overdueDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={overdueDateTo}
+                      onChange={(e) => setOverdueDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={overdueDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Date Categories */}
+              {dateItems.dates.map((item, index) => (
+                <button
+                  key={index}
+                  onClick={() => {
+                    setSelectedDate(item.date);
+                    setMobileMenuOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                  style={selectedDate === item.date ? {
+                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                    color: colorPalette?.primary || '#7c3aed',
+                    fontWeight: 500
+                  } : {
+                    color: isDarkMode ? '#d1d5db' : '#374151'
+                  }}
+                >
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span>{item.date}</span>
+                  </div>
+                  <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                    {item.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

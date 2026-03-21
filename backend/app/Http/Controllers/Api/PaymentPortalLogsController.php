@@ -32,6 +32,10 @@ class PaymentPortalLogsController extends Controller
                     'customers.desired_plan as plan'
                 )
                 ->orderBy('payment_portal_logs.date_time', 'desc');
+            
+            if ($request->has('updated_since')) {
+                $query->where('payment_portal_logs.updated_at', '>', $request->input('updated_since'));
+            }
 
             // Optional filters
             if ($request->has('status')) {
@@ -81,6 +85,7 @@ class PaymentPortalLogsController extends Controller
                     'payment_url' => $record->payment_url,
                     'json_payload' => $record->json_payload,
                     'callback_payload' => $record->callback_payload,
+                    'account_balance_before' => floatval($record->account_balance_before ?? 0),
                     'updated_at' => $record->updated_at,
                     // Account details
                     'accountNo' => $record->accountNo,
@@ -162,6 +167,7 @@ class PaymentPortalLogsController extends Controller
                 'payment_url' => $record->payment_url,
                 'json_payload' => $record->json_payload,
                 'callback_payload' => $record->callback_payload,
+                'account_balance_before' => floatval($record->account_balance_before ?? 0),
                 'updated_at' => $record->updated_at,
                 // Account details
                 'accountNo' => $record->accountNo,
@@ -232,3 +238,4 @@ class PaymentPortalLogsController extends Controller
         }
     }
 }
+

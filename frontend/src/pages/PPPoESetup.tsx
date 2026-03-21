@@ -5,10 +5,13 @@ import { pppoeService, UsernamePattern, SequenceItem } from '../services/pppoeSe
 
 const usernameComponents = [
   { type: 'first_name', label: 'First Name' },
+  { type: 'first_name_capitalized', label: 'First Name (Capitalized)' },
   { type: 'first_name_initial', label: 'First Name Initial' },
   { type: 'middle_name', label: 'Middle Name' },
+  { type: 'middle_name_capitalized', label: 'Middle Name (Capitalized)' },
   { type: 'middle_name_initial', label: 'Middle Name Initial' },
   { type: 'last_name', label: 'Last Name' },
+  { type: 'last_name_capitalized', label: 'Last Name (Capitalized)' },
   { type: 'last_name_initial', label: 'Last Name Initial' },
   { type: 'mobile_number', label: 'Mobile Number' },
   { type: 'mobile_number_last_4', label: 'Mobile (Last 4)' },
@@ -21,10 +24,13 @@ const usernameComponents = [
 
 const passwordComponents = [
   { type: 'first_name', label: 'First Name' },
+  { type: 'first_name_capitalized', label: 'First Name (Capitalized)' },
   { type: 'first_name_initial', label: 'First Name Initial' },
   { type: 'middle_name', label: 'Middle Name' },
+  { type: 'middle_name_capitalized', label: 'Middle Name (Capitalized)' },
   { type: 'middle_name_initial', label: 'Middle Name Initial' },
   { type: 'last_name', label: 'Last Name' },
+  { type: 'last_name_capitalized', label: 'Last Name (Capitalized)' },
   { type: 'last_name_initial', label: 'Last Name Initial' },
   { type: 'mobile_number', label: 'Mobile Number' },
   { type: 'mobile_number_last_4', label: 'Mobile (Last 4)' },
@@ -353,7 +359,7 @@ const PPPoESetup: React.FC = () => {
     <div className={`p-6 ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'} min-h-screen`}>
       <div className="mb-6">
         <div className="flex items-center gap-3 mb-2">
-          <Router className="h-6 w-6" style={{ color: colorPalette?.primary || '#ea580c' }} />
+          <Router className="h-6 w-6" style={{ color: colorPalette?.primary || '#7c3aed' }} />
           <h1 className={`text-2xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
             PPPoE Setup - Pattern Builder
           </h1>
@@ -369,7 +375,7 @@ const PPPoESetup: React.FC = () => {
             <button
               onClick={handleNewPattern}
               className="flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors"
-              style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
             >
               <Plus className="h-5 w-5" />
               Create/Edit Pattern
@@ -623,7 +629,7 @@ const PPPoESetup: React.FC = () => {
                 onClick={handleSave}
                 disabled={showLoading}
                 className="flex items-center gap-2 px-4 py-2 text-white rounded-lg transition-colors disabled:opacity-50"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
               >
                 {showLoading ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
@@ -672,7 +678,7 @@ const PPPoESetup: React.FC = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className={`${isDarkMode ? 'bg-gray-800' : 'bg-white'
             } rounded-lg p-8 flex flex-col items-center gap-4`}>
-            <Loader2 className="h-16 w-16 animate-spin" style={{ color: colorPalette?.primary || '#ea580c' }} />
+            <Loader2 className="h-16 w-16 animate-spin" style={{ color: colorPalette?.primary || '#7c3aed' }} />
             <p className={`font-medium text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
               }`}>Saving pattern...</p>
           </div>

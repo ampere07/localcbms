@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, ArrowRight, Maximize2, X, Info,
-  ExternalLink, CheckCircle
+  ExternalLink, CheckCircle, Loader2
 } from 'lucide-react';
-import LoadingModal from './LoadingModal';
 import { staggeredInstallationService } from '../services/staggeredInstallationService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
@@ -50,6 +49,15 @@ interface StaggeredInstallation {
   };
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 interface StaggeredListDetailsProps {
   staggered: StaggeredInstallation;
   onClose: () => void;
@@ -60,9 +68,12 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [loading, setLoading] = useState(false);
   const [loadingPercentage, setLoadingPercentage] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
   const [currentUserEmail, setCurrentUserEmail] = useState<string>('');
   const [detailsWidth, setDetailsWidth] = useState<number>(600);
   const [isResizing, setIsResizing] = useState<boolean>(false);
@@ -140,59 +151,80 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
     return `₱${numAmount.toFixed(2)}`;
   };
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDate = (dateStr?: string | null): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
   };
 
   const handleApproveStaggered = async () => {
-    if (!window.confirm('Are you sure you want to approve this staggered installation? This will deduct the staggered balance from the account and apply it to unpaid invoices.')) {
-      return;
-    }
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Approve Staggered Installation',
+      message: 'Are you sure you want to approve this staggered installation? This will deduct the staggered balance from the account and apply it to unpaid invoices.',
+      onConfirm: async () => {
+        setModal({
+          isOpen: true,
+          type: 'loading',
+          title: 'Approving...',
+          message: 'Approving staggered installation...'
+        });
+        
+        setLoadingPercentage(0);
+        const progressInterval = setInterval(() => {
+          setLoadingPercentage(prev => {
+            if (prev >= 95) return 95;
+            return prev + 5;
+          });
+        }, 200);
 
-    try {
-      setLoading(true);
-      setLoadingPercentage(0);
-      setError(null);
-
-      setLoadingPercentage(20);
-
-      const result = await staggeredInstallationService.approve(staggered.id);
-
-      setLoadingPercentage(60);
-
-      if (result.success) {
-        setLoadingPercentage(100);
-
-        staggered.status = 'Active';
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        setSuccessMessage(result.message || 'Staggered installation approved successfully');
-        setShowSuccessModal(true);
-      } else {
-        throw new Error(result.message || 'Failed to approve staggered installation');
-      }
-    } catch (err: any) {
-      setError(`Failed to approve staggered installation: ${err.message || 'Unknown error'}`);
-      console.error('Approve staggered error:', err);
-    } finally {
-      setLoading(false);
-      setLoadingPercentage(0);
-    }
+        try {
+          const result = await staggeredInstallationService.approve(staggered.id);
+          clearInterval(progressInterval);
+          
+          if (result.success) {
+            setLoadingPercentage(100);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            staggered.status = 'Active';
+            setModal({
+              isOpen: true,
+              type: 'success',
+              title: 'Success',
+              message: result.message || 'Staggered installation approved successfully',
+              onConfirm: () => {
+                setModal(prev => ({ ...prev, isOpen: false }));
+                onClose();
+              }
+            });
+          } else {
+            setModal({
+              isOpen: true,
+              type: 'error',
+              title: 'Error',
+              message: result.message || 'Failed to approve staggered installation'
+            });
+          }
+        } catch (err: any) {
+          clearInterval(progressInterval);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Error',
+            message: `Failed to approve staggered installation: ${err.message || 'Unknown error'}`
+          });
+        }
+      },
+      onCancel: () => setModal(prev => ({ ...prev, isOpen: false }))
+    });
   };
 
   const getAccountDisplayText = () => {
@@ -221,21 +253,29 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
 
   return (
     <>
-      <LoadingModal
-        isOpen={loading}
-        message="Approving staggered installation..."
-        percentage={loadingPercentage}
-      />
+      {modal.type === 'loading' && modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'}`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{loadingPercentage}%</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className={`flex flex-col overflow-hidden border-l relative ${isDarkMode
-          ? 'bg-gray-950 border-white border-opacity-30'
-          : 'bg-white border-gray-300'
+        ? 'bg-gray-950 border-white border-opacity-30'
+        : 'bg-white border-gray-300'
         }`} style={{ width: `${detailsWidth}px`, height: '100%' }}>
         <div
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
           onMouseDown={handleMouseDownResize}
           style={{
-            backgroundColor: isResizing ? (colorPalette?.primary || '#f97316') : 'transparent'
+            backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizing && colorPalette?.accent) {
@@ -249,8 +289,8 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
           }}
         />
         <div className={`p-3 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-200'
+          ? 'bg-gray-800 border-gray-700'
+          : 'bg-gray-100 border-gray-200'
           }`}>
           <div className="flex items-center min-w-0 flex-1">
             <h2 className={`font-medium truncate pr-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -267,7 +307,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                   disabled={loading}
                   className="flex items-center space-x-2 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
                   style={{
-                    backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!loading && colorPalette?.accent) {
@@ -294,14 +334,6 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
           </div>
         </div>
 
-        {error && (
-          <div className={`border p-3 m-3 rounded ${isDarkMode
-              ? 'bg-red-900 bg-opacity-20 border-red-700 text-red-400'
-              : 'bg-red-100 border-red-300 text-red-900'
-            }`}>
-            {error}
-          </div>
-        )}
 
         <div className="flex-1 overflow-y-auto">
           <div className={`mx-auto py-1 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-white'
@@ -426,9 +458,9 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                   }`}>Status</div>
                 <div className="flex-1">
                   <div className={`capitalize ${staggered.status.toLowerCase() === 'active' ? 'text-green-500' :
-                      staggered.status.toLowerCase() === 'pending' ? 'text-yellow-500' :
-                        staggered.status.toLowerCase() === 'completed' ? 'text-blue-500' :
-                          'text-gray-400'
+                    staggered.status.toLowerCase() === 'pending' ? 'text-yellow-500' :
+                      staggered.status.toLowerCase() === 'completed' ? 'text-blue-500' :
+                        'text-gray-400'
                     }`}>
                     {staggered.status}
                   </div>
@@ -532,42 +564,59 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
         </div>
       </div>
 
-      {/* Success Modal */}
-      {showSuccessModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className={`rounded-lg p-6 max-w-md w-full mx-4 border ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-white border-gray-300'
-            }`}>
-            <h3 className={`text-xl font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Success</h3>
-            <p className={`mb-6 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>{successMessage}</p>
-            <div className="flex justify-end space-x-3">
-              <button
-                onClick={() => {
-                  setShowSuccessModal(false);
-                  if (onClose) {
-                    onClose();
-                  }
-                }}
-                className="text-white px-6 py-2 rounded transition-colors"
-                style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
-                }}
-              >
-                OK
-              </button>
+      {modal.isOpen && modal.type !== 'loading' && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{modal.title}</h3>
+            <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{modal.message}</p>
+            <div className="flex items-center justify-end gap-3">
+              {modal.type === 'confirm' ? (
+                <>
+                  <button
+                    onClick={modal.onCancel}
+                    className={`px-4 py-2 rounded transition-colors ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={modal.onConfirm}
+                    className="px-4 py-2 text-white rounded transition-colors"
+                    style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                    onMouseEnter={(e) => {
+                      if (colorPalette?.accent) {
+                        e.currentTarget.style.backgroundColor = colorPalette.accent;
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                    }}
+                  >
+                    Confirm
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => {
+                    if (modal.onConfirm) {
+                      modal.onConfirm();
+                    } else {
+                      setModal(prev => ({ ...prev, isOpen: false }));
+                    }
+                  }}
+                  className="px-4 py-2 text-white rounded transition-colors"
+                  style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                  }}
+                >
+                  OK
+                </button>
+              )}
             </div>
           </div>
         </div>

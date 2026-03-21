@@ -14,12 +14,12 @@ interface RelatedDataTableProps {
 }
 
 const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
-  data,
+  data = [],
   columns,
   isDarkMode,
   onRowClick
 }) => {
-  if (data.length === 0) {
+  if (!data || data.length === 0) {
     return (
       <div className={`text-center py-8 ${isDarkMode ? 'text-gray-500' : 'text-gray-600'
         }`}>
@@ -37,7 +37,7 @@ const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className={`px-4 py-2 text-left text-xs font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                className={`px-4 py-2 text-left text-xs font-medium whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}
               >
                 {column.label}
@@ -51,12 +51,17 @@ const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
             <tr
               key={index}
               className={`${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'} ${onRowClick ? 'cursor-pointer' : ''}`}
-              onClick={() => onRowClick && onRowClick(row)}
+              onClick={(e) => {
+                if (onRowClick) {
+                  e.stopPropagation();
+                  onRowClick(row);
+                }
+              }}
             >
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className={`px-4 py-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  className={`px-4 py-2 text-sm whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}
                 >
                   {column.render

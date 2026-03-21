@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { FileText, Upload, Clock, Info, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { FileText, Upload, Clock, Info, CheckCircle, XCircle, AlertCircle, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import { getServiceOrders, createServiceOrder } from '../services/serviceOrderService';
+import { createServiceOrder, getServiceOrders } from '../services/serviceOrderService';
+import { useServiceOrderStore } from '../store/serviceOrderStore';
+import pusher from '../services/pusherService';
 
 interface SupportRequest {
   id: string;
@@ -37,6 +39,12 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
   const [showConfirmModal, setShowConfirmModal] = useState<boolean>(false);
   const [showLoadingModal, setShowLoadingModal] = useState<boolean>(false);
   const [showSuccessModal, setShowSuccessModal] = useState<boolean>(false);
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 5;
+
+  const { serviceOrders, isLoading: storeIsLoading, fetchServiceOrders: fetchStoreServiceOrders, fetchUpdates } = useServiceOrderStore();
 
   const concernOptions = [
     'No Internet',
@@ -110,65 +118,66 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
 
   useEffect(() => {
     if (userAccountNo) {
-      fetchServiceOrders();
+      fetchData();
     }
   }, [userAccountNo]);
 
-  const fetchServiceOrders = async () => {
-    if (!userAccountNo) {
-      console.log('[Support] No account number available, skipping fetch');
-      setIsLoading(false);
-      setRequests([]);
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Support Soketi] Update received, refreshing:', data);
+      try {
+        await fetchUpdates();
+        console.log('[Support Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Support Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const serviceOrderChannel = pusher.subscribe('service-orders');
+    serviceOrderChannel.bind('service-order-updated', handleUpdate);
+
+    return () => {
+      serviceOrderChannel.unbind('service-order-updated', handleUpdate);
+      pusher.unsubscribe('service-orders');
+    };
+  }, [fetchStoreServiceOrders]);
+
+  const fetchData = async () => {
+    setIsLoading(true);
+    await fetchStoreServiceOrders();
+    setIsLoading(false);
+  };
+
+  useEffect(() => {
+    if (!userAccountNo || serviceOrders.length === 0) {
+      if (!userAccountNo) setRequests([]);
       return;
     }
 
-    try {
-      setIsLoading(true);
-      console.log('[Support] Fetching service orders for account:', userAccountNo);
+    const filteredOrders = serviceOrders
+      .filter(order => {
+        return order.accountNumber === userAccountNo || order.username === userAccountNo;
+      })
+      .sort((a, b) => new Date(b.timestamp || 0).getTime() - new Date(a.timestamp || 0).getTime())
+      .slice(0, 1)
+      .map(order => ({
+        id: order.id,
+        date: order.timestamp ? new Date(order.timestamp).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' }) : '',
+        requestId: order.ticketId,
+        issue: order.concern || '',
+        issueDetails: order.concernRemarks || '',
+        status: order.supportStatus || 'Pending',
+        statusNote: order.supportRemarks || '',
+        assignedEmail: order.assignedEmail || '',
+        visitNote: order.visitRemarks || '',
+        visitInfo: {
+          status: order.visitStatus || 'Pending'
+        }
+      }));
 
-      const response = await getServiceOrders();
-      console.log('[Support] Service orders response:', response);
-
-      if (response.success && response.data) {
-        console.log('[Support] Total service orders:', response.data.length);
-
-        const filteredOrders = response.data
-          .filter(order => {
-            const matches = order.account_no === userAccountNo ||
-              order.username === userAccountNo;
-            if (matches) {
-              console.log('[Support] Matched order:', order);
-            }
-            return matches;
-          })
-          .map(order => ({
-            id: order.id,
-            date: order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '',
-            requestId: order.ticket_id,
-            issue: order.concern || '',
-            issueDetails: order.concern_remarks || '',
-            status: order.support_status || 'Pending',
-            statusNote: order.support_remarks || '',
-            assignedEmail: order.assigned_email || '',
-            visitNote: order.visit_remarks || '',
-            visitInfo: {
-              status: order.visit_status || 'Pending'
-            }
-          }));
-
-        console.log('[Support] Filtered orders count:', filteredOrders.length);
-        setRequests(filteredOrders);
-      } else {
-        console.error('[Support] Invalid response:', response);
-        setRequests([]);
-      }
-    } catch (error) {
-      console.error('[Support] Failed to fetch service orders:', error);
-      setRequests([]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    setRequests(filteredOrders);
+  }, [serviceOrders, userAccountNo]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -217,7 +226,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
       if (response.success) {
         setShowLoadingModal(false);
         setShowSuccessModal(true);
-        await fetchServiceOrders();
+        await fetchStoreServiceOrders(true); // force refresh on new ticket
         setDetails('');
         setRemainingRequests(remainingRequests - 1);
       } else {
@@ -234,8 +243,11 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
   };
 
   const handleRequestPlanUpdate = () => {
-    window.open('https://forms.gle/your-plan-update-form', '_blank');
+    window.open('https://www.facebook.com/atssfiber2022', '_blank');
   };
+
+  const currentRequests = requests.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE);
+  const totalPages = Math.ceil(requests.length / ITEMS_PER_PAGE);
 
   return (
     <div className={`h-full overflow-auto ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
@@ -262,7 +274,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                     : 'bg-white text-gray-900 border-gray-300'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                 >
                   {concernOptions.map((option) => (
@@ -287,7 +299,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                     : 'bg-white text-gray-900 border-gray-300 placeholder-gray-400'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                 />
               </div>
@@ -371,7 +383,7 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {requests.map((request) => (
+                        {currentRequests.map((request) => (
                           <tr key={request.id} className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
                             <td className={`py-4 px-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                               {request.date}
@@ -434,6 +446,47 @@ const Support: React.FC<SupportProps> = ({ forceLightMode }) => {
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className={`flex justify-center items-center py-4 gap-2 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                      <button
+                        onClick={() => setCurrentPage(1)}
+                        disabled={currentPage === 1}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="First Page"
+                      >
+                        <ChevronsLeft size={16} />
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="Previous Page"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+                      <span className={`text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        Page {currentPage} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="Next Page"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+                      <button
+                        onClick={() => setCurrentPage(totalPages)}
+                        disabled={currentPage === totalPages}
+                        className={`w-8 h-8 flex items-center justify-center rounded-full font-bold transition disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'bg-gray-800 text-white hover:bg-gray-700' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                        title="Last Page"
+                      >
+                        <ChevronsRight size={16} />
+                      </button>
+                    </div>
+                  )}
 
                   {requests.length === 0 && (
                     <div className={`py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>

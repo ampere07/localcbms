@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Throwable;
 use Exception;
+use App\Models\DisconnectedLog;
+use App\Models\ReconnectionLog;
 
 class ManualRadiusOperationsService
 {
@@ -37,6 +39,21 @@ class ManualRadiusOperationsService
             // Get RADIUS configurations
             $radiusEndpoints = $this->getRadiusEndpoints();
 
+            // Try to get active session ID before it's gone
+            $sessionId = null;
+            if (!empty($username)) {
+                $sessPath = "/rest/user-manage/session?user=" . urlencode($username);
+                foreach ($radiusEndpoints as $endpoint) {
+                    $fullUrl = $endpoint['url'] . $sessPath;
+                    $sessResult = $this->callApiWithRetry($fullUrl, 'GET', null, $endpoint['username'], $endpoint['password']);
+                    if ($sessResult && is_array($sessResult) && isset($sessResult[0]['.id'])) {
+                        $sessionId = $sessResult[0]['.id'];
+                        $this->writeLog("[SESSION] Found session ID for logging: $sessionId");
+                        break;
+                    }
+                }
+            }
+
             // Perform RADIUS operations
             $this->radiusOps(
                 $radiusEndpoints,
@@ -47,6 +64,45 @@ class ManualRadiusOperationsService
                 $accountNo,
                 $updatedBy
             );
+
+            // LOG DISCONNECTION TO DATABASE
+            try {
+                $billingAccount = null;
+                if (!empty($accountNo)) {
+                    $billingAccount = DB::table('billing_accounts')->where('account_no', $accountNo)->first();
+                }
+
+                if (!$billingAccount && !empty($username)) {
+                    $techDetail = DB::table('technical_details')->where('username', $username)->first();
+                    if ($techDetail) {
+                        $billingAccount = DB::table('billing_accounts')->where('id', $techDetail->account_id)->first();
+                    }
+                }
+
+                if ($billingAccount) {
+                    // Find user ID for created_by/updated_by columns
+                    $userId = null;
+                    if (!empty($updatedBy) && $updatedBy !== 'System') {
+                        $userId = DB::table('users')
+                            ->where('username', $updatedBy)
+                            ->orWhere('email_address', $updatedBy)
+                            ->orWhere('contact_number', $updatedBy)
+                            ->value('id');
+                    }
+
+                    DisconnectedLog::create([
+                        'account_id' => $billingAccount->id,
+                        'session_id' => $sessionId ?? null,
+                        'username' => $username,
+                        'remarks' => $remarks ?: "Manual Disconnect",
+                        'created_by_user' => $updatedBy,
+                        'updated_by_user' => $updatedBy,
+                    ]);
+                    $this->writeLog("[DB] Disconnection log entry created for Account: " . ($billingAccount->account_no ?? 'Unknown'));
+                }
+            } catch (Throwable $dbEx) {
+                $this->writeLog("[DB ERROR] Failed to create disconnection log: " . $dbEx->getMessage());
+            }
 
             $this->writeLog("[SUCCESS] User disconnected successfully");
             $this->writeLog("=== DISCONNECT USER END ===");
@@ -101,15 +157,140 @@ class ManualRadiusOperationsService
             $radiusEndpoints = $this->getRadiusEndpoints();
 
             // Perform RADIUS operations
-            $this->radiusOps(
-                $radiusEndpoints,
-                $username,
-                $cleanPlan,
-                'Active',
-                true, // isDisconnectAction
-                $accountNo,
-                $updatedBy
-            );
+            try {
+                // MOVE LOGGING HERE to ensure it captures the attempt
+                // Global Reconnection Logging
+                try {
+                    $billingAccount = null;
+                    if (!empty($accountNo)) {
+                        $billingAccount = DB::table('billing_accounts')->where('account_no', $accountNo)->first();
+                    }
+
+                    if (!$billingAccount && !empty($username)) {
+                        $techDetail = DB::table('technical_details')->where('username', $username)->first();
+                        if ($techDetail) {
+                            $billingAccount = DB::table('billing_accounts')->where('id', $techDetail->account_id)->first();
+                        }
+                    }
+
+                    if ($billingAccount) {
+                        // User requested: plan value will be from account_no -> billing_accounts (customer_id) -> customers (desired_plan)
+                        $customer = DB::table('customers')->where('id', $billingAccount->customer_id)->first();
+                        $desiredPlan = $customer ? $customer->desired_plan : ($rawPlan ?: 'N/A');
+                        
+                        $planId = null;
+                        if ($desiredPlan && $desiredPlan != 'N/A') {
+                            $cleanPlanForId = $desiredPlan;
+                            if (strpos($desiredPlan, ' - ') !== false) {
+                                $cleanPlanForId = explode(' - ', $desiredPlan)[0];
+                            }
+                            // FIXED: Changed table name from 'plans' to 'plan_list'
+                            $planId = DB::table('plan_list')->where('plan_name', $cleanPlanForId)->value('id');
+                            if (!$planId) {
+                                // Try searching in description if not found in name
+                                $planId = DB::table('plan_list')->where('description', 'like', "%{$cleanPlanForId}%")->value('id');
+                            }
+                        }
+
+                        $reconnectionFee = $params['reconnectionFee'] ?? 0;
+                        $remarks = $params['remarks'] ?? 'Auto-Reconnect via RADIUS Service';
+                        
+                        // Extra check: if it's a Service Order, try to get fee
+                        if ($reconnectionFee == 0 && isset($params['serviceOrderId'])) {
+                            $reconnectionFee = DB::table('service_orders')->where('id', $params['serviceOrderId'])->value('service_charge') ?? 0;
+                        }
+
+                        // Insert into reconnection_logs
+                        // Find user ID for created_by/updated_by columns
+                        $userId = null;
+                        if (!empty($updatedBy) && $updatedBy !== 'System') {
+                            $userId = DB::table('users')
+                                ->where('username', $updatedBy)
+                                ->orWhere('email_address', $updatedBy)
+                                ->orWhere('contact_number', $updatedBy)
+                                ->value('id');
+                        }
+
+                        ReconnectionLog::create([
+                            'account_id' => $billingAccount->id,
+                            'username' => $username,
+                            'plan_id' => $planId,
+                            'reconnection_fee' => $reconnectionFee,
+                            'remarks' => $remarks,
+                            'created_by_user' => $userId ? (string)$userId : $updatedBy,
+                            'updated_by_user' => $userId ? (string)$userId : $updatedBy,
+                        ]);
+                        
+                        $this->writeLog("[DB] Reconnection log entry created for Account: " . ($billingAccount->account_no ?? 'Unknown'));
+                    } else {
+                        $this->writeLog("[WARNING] Could not find billing account for reconnection log (Account: $accountNo, User: $username)");
+                    }
+                } catch (Throwable $dbEx) {
+                    $this->writeLog("[DB ERROR] Failed to create reconnection log: " . $dbEx->getMessage());
+                    // Log the full error to help debugging
+                    \Log::error("Reconnection Log Insertion Failed: " . $dbEx->getMessage(), [
+                        'accountNo' => $accountNo,
+                        'username' => $username,
+                        'updatedBy' => $updatedBy
+                    ]);
+                }
+
+                $this->radiusOps(
+                    $radiusEndpoints,
+                    $username,
+                    $cleanPlan,
+                    'Active',
+                    true, // isDisconnectAction
+                    $accountNo,
+                    $updatedBy
+                );
+            } catch (Throwable $radiusEx) {
+                $this->writeLog("[RADIUS ERROR] Operation failed: " . $radiusEx->getMessage());
+                throw $radiusEx; // Re-throw to be caught by outer catch
+            }
+
+            // Global Email Notification for Reconnection
+            try {
+                if (!isset($billingAccount) || !$billingAccount) {
+                    if (!empty($accountNo)) {
+                        $billingAccount = DB::table('billing_accounts')->where('account_no', $accountNo)->first();
+                    }
+                }
+                
+                if (isset($billingAccount) && $billingAccount && $billingAccount->customer_id) {
+                    $customerInfo = DB::table('customers')->where('id', $billingAccount->customer_id)->first();
+                    
+                    if ($customerInfo && !empty($customerInfo->email_address)) {
+                        $emailTemplate = DB::table('email_templates')->where('Template_Code', 'RECONNECT')->first();
+                        
+                        if ($emailTemplate) {
+                            $emailService = app(\App\Services\EmailQueueService::class);
+                            
+                            $customerName = preg_replace('/\s+/', ' ', trim($customerInfo->first_name . ' ' . ($customerInfo->middle_initial ?? '') . ' ' . $customerInfo->last_name));
+                            $planNameFormatted = str_replace('₱', 'P', $rawPlan ?? ($customerInfo->desired_plan ?? ''));
+                            
+                            $emailData = [
+                                'Full_Name' => $customerName,
+                                'customer_name' => $customerName,
+                                'Plan' => $planNameFormatted,
+                                'plan_name' => $planNameFormatted,
+                                'Account_No' => $billingAccount->account_no,
+                                'account_no' => $billingAccount->account_no,
+                                'recipient_email' => $customerInfo->email_address,
+                            ];
+                            
+                            $emailService->queueFromTemplate('RECONNECT', $emailData);
+                            $this->writeLog("[EMAIL] Reconnect email queued via template for {$customerInfo->email_address}");
+                        } else {
+                            $this->writeLog("[EMAIL SKIP] RECONNECT email template not found");
+                        }
+                    } else {
+                        $this->writeLog("[EMAIL SKIP] No email address found for customer");
+                    }
+                }
+            } catch (Throwable $emailEx) {
+                $this->writeLog("[EMAIL ERROR] Failed to queue reconnect email: " . $emailEx->getMessage());
+            }
 
             $this->writeLog("[SUCCESS] User reconnected successfully");
             $this->writeLog("=== RECONNECT USER END ===");
@@ -278,11 +459,13 @@ class ManualRadiusOperationsService
     private function updateDatabaseCredentials(string $accountNo, string $oldUsername, string $newUsername, string $updatedBy): void
     {
         $rowsUpdated = 0;
+        $accountId = null;
 
         // PPPoE Username is in technical_details table, not billing_accounts
         if (!empty($accountNo)) {
             $billingAccount = DB::table('billing_accounts')->where('account_no', $accountNo)->first();
             if ($billingAccount) {
+                $accountId = $billingAccount->id;
                 $rowsUpdated = DB::table('technical_details')
                     ->where('account_id', $billingAccount->id)
                     ->update([
@@ -290,26 +473,50 @@ class ManualRadiusOperationsService
                         'updated_at' => now(),
                         'updated_by' => $updatedBy
                     ]);
-            }
 
-            if ($rowsUpdated > 0) {
-                $this->writeLog("[DB] Updated username via Account No: $accountNo");
-                return;
+                if ($rowsUpdated > 0) {
+                    $this->writeLog("[DB] Updated username via Account No: $accountNo");
+                }
             }
         }
 
-        // Fallback to old username in technical_details
-        $this->writeLog("[DB] Account No update failed/skipped. Trying old username...");
-        $rowsUpdated = DB::table('technical_details')
-            ->where('username', $oldUsername)
-            ->update([
-                'username' => $newUsername,
-                'updated_at' => now(),
-                'updated_by' => $updatedBy
-            ]);
+        // Fallback to old username in technical_details if account no update didn't happen
+        if ($rowsUpdated === 0) {
+            $this->writeLog("[DB] Account No update failed/skipped. Trying old username...");
+            
+            $techDetail = DB::table('technical_details')->where('username', $oldUsername)->first();
+            if ($techDetail) {
+                $accountId = $techDetail->account_id;
+            }
 
+            $rowsUpdated = DB::table('technical_details')
+                ->where('username', $oldUsername)
+                ->update([
+                    'username' => $newUsername,
+                    'updated_at' => now(),
+                    'updated_by' => $updatedBy
+                ]);
+
+            if ($rowsUpdated > 0) {
+                $this->writeLog("[DB] Database credentials updated successfully via username");
+            }
+        }
+
+        // If technical_details was updated successfully, also sync job_orders
         if ($rowsUpdated > 0) {
-            $this->writeLog("[DB] Database credentials updated successfully via username");
+            if ($accountId) {
+                $joUpdated = DB::table('job_orders')
+                    ->where('account_id', $accountId)
+                    ->update([
+                        'pppoe_username' => $newUsername,
+                        'username' => $newUsername,
+                        'updated_at' => now()
+                    ]);
+                
+                $this->writeLog("[DB] Synced job_orders username & pppoe_username for Account ID: $accountId ($joUpdated rows affected)");
+            } else {
+                $this->writeLog("[WARNING] Could not determine account_id to sync job_orders table");
+            }
         } else {
             $this->writeLog("[WARNING] RADIUS updated, but database update affected 0 rows");
         }
@@ -558,14 +765,14 @@ class ManualRadiusOperationsService
         ?array $payload,
         string $username,
         string $password,
-        int $retries = 3
+        int $retries = 2
     ) {
         for ($attempt = 1; $attempt <= $retries; $attempt++) {
             try {
                 $this->writeLog("[API] Attempt $attempt/$retries: $method $url");
 
                 $response = Http::withBasicAuth($username, $password)
-                    ->timeout(10)
+                    ->timeout(5)
                     ->withOptions(['verify' => false]);
 
                 switch (strtoupper($method)) {
@@ -620,4 +827,65 @@ class ManualRadiusOperationsService
         // Also log to Laravel default log
         Log::channel('single')->info("[{$this->logName}] {$message}");
     }
+
+    /**
+     * Delete user account from RADIUS
+     */
+    public function deleteAccount(string $username): array
+    {
+        try {
+            $this->writeLog("=== DELETE ACCOUNT START ===");
+            $this->writeLog("Username: $username");
+
+            if (empty($username)) {
+                throw new Exception("Username is required for delete operation");
+            }
+
+            // Get RADIUS configurations
+            $radiusEndpoints = $this->getRadiusEndpoints();
+            
+            $deleteCount = 0;
+            foreach ($radiusEndpoints as $endpoint) {
+                // Construct path using username directly as requested
+                $targetPath = "/rest/user-manage/user/" . urlencode($username);
+                $targetUrl = $endpoint['url'] . $targetPath;
+                
+                $this->writeLog("[DELETE] Calling endpoint: $targetUrl");
+
+                $delResult = $this->callApiWithRetry(
+                    $targetUrl,
+                    'DELETE',
+                    null, // No payload for delete request
+                    $endpoint['username'],
+                    $endpoint['password']
+                );
+                
+                if ($delResult !== false) {
+                    $this->writeLog("[DELETE] Successfully deleted user '$username' from {$endpoint['url']}");
+                    $deleteCount++;
+                } else {
+                    $this->writeLog("[DELETE] Failed to delete user '$username' from {$endpoint['url']} (or user already deleted)");
+                }
+            }
+
+            $this->writeLog("=== DELETE ACCOUNT END ===");
+
+            return [
+                'status' => 'success',
+                'message' => "Delete operation completed ($deleteCount servers affected)",
+                'delete_count' => $deleteCount
+            ];
+
+        } catch (Throwable $e) {
+            $this->writeLog("[EXCEPTION] " . $e->getMessage());
+            $this->writeLog("=== DELETE ACCOUNT END ===");
+            
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage()
+            ];
+        }
+    }
 }
+
+

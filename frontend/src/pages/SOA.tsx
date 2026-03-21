@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, ArrowUp, ArrowDown, ListFilter, X } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Columns3, X, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
 import '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -8,12 +8,14 @@ import { useSOAStore, SOARecordUI } from '../store/soaStore';
 import BillingDetails from '../components/CustomerDetails';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { BillingDetailRecord } from '../types/billing';
-import SOAFunnelFilter, { FilterValues } from '../filter/SOAFunnelFilter';
-import { Filter } from 'lucide-react';
+import SOAFunnelFilter, { FilterValues, allColumns as filterColumns } from '../filter/SOAFunnelFilter';
+import pusher from '../services/pusherService';
 
-// Removed local SOARecordUI interface
+const hexToRgba = (hex: string, opacity: number) => {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result ? `rgba(${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}, ${opacity})` : hex;
+};
 
-// Removed local SOARecordUI interface
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
   return {
@@ -64,15 +66,148 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
   };
 };
 
-const SOA: React.FC = () => {
-  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords } = useSOAStore();
+interface PaginationControlsProps {
+  totalPages: number;
+  itemsPerPage: number;
+  setItemsPerPage: (val: number) => void;
+  isDarkMode: boolean;
+  currentPage: number;
+  totalDisplayCount: number;
+  handlePageChange: (page: number) => void;
+}
 
-  // Fetch data on mount if empty
+const PaginationControls: React.FC<PaginationControlsProps> = ({
+  totalPages,
+  itemsPerPage,
+  setItemsPerPage,
+  isDarkMode,
+  currentPage,
+  totalDisplayCount,
+  handlePageChange
+}) => {
+  if (totalPages <= 1) return null;
+
+  return (
+    <div className={`flex items-center justify-between px-4 py-3 border-t relative z-20 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+      <div className={`flex items-center gap-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+          <span>Show</span>
+          <select
+            value={itemsPerPage}
+            onChange={(e) => setItemsPerPage(Number(e.target.value))}
+            className={`px-2 py-1 rounded border text-sm focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}
+          >
+            <option value={10}>10</option>
+            <option value={25}>25</option>
+            <option value={50}>50</option>
+            <option value={100}>100</option>
+          </select>
+          <span>entries</span>
+        </div>
+        <span>
+          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
+        </span>
+      </div>
+      <div className="flex items-center space-x-2">
+        <button
+          onClick={() => handlePageChange(1)}
+          disabled={currentPage === 1}
+          className={`p-1 rounded transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="First Page"
+        >
+          <ChevronsLeft className="h-5 w-5" />
+        </button>
+
+        <button
+          onClick={() => handlePageChange(currentPage - 1)}
+          disabled={currentPage === 1}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Previous
+        </button>
+
+        <div className="flex items-center space-x-1">
+          <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Page {currentPage} of {totalPages}
+          </span>
+        </div>
+
+        <button
+          onClick={() => handlePageChange(currentPage + 1)}
+          disabled={currentPage === totalPages}
+          className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+            : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+            }`}
+        >
+          Next
+        </button>
+
+        <button
+          onClick={() => handlePageChange(totalPages)}
+          disabled={currentPage === totalPages}
+          className={`p-1 rounded transition-colors ${currentPage === totalPages
+            ? (isDarkMode ? 'text-gray-600 cursor-not-allowed' : 'text-gray-400 cursor-not-allowed')
+            : (isDarkMode ? 'text-white hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100')
+            }`}
+          title="Last Page"
+        >
+          <ChevronsRight className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+const allColumns = [
+  { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
+  { key: 'accountNo', label: 'Account No', width: 'min-w-36' },
+  { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
+  { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
+  { key: 'contactNumber', label: 'Contact No', width: 'min-w-36' },
+  { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
+  { key: 'plan', label: 'Plan', width: 'min-w-32' },
+  { key: 'balanceFromPreviousBill', label: 'Balance From Previous Bill', width: 'min-w-48' },
+  { key: 'statementNo', label: 'Statement No', width: 'min-w-36' },
+  { key: 'paymentReceivedPrevious', label: 'Payment Received From Previous Bill', width: 'min-w-64' },
+  { key: 'remainingBalancePrevious', label: 'Remaining Balance From Previous Bill', width: 'min-w-64' },
+  { key: 'monthlyServiceFee', label: 'Monthly Service Fee', width: 'min-w-40' },
+  { key: 'staggered', label: 'Staggered Installation', width: 'min-w-40' },
+  { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
+  { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
+  { key: 'rebate', label: 'Rebates', width: 'min-w-28' },
+  { key: 'vat', label: 'VAT', width: 'min-w-28' },
+  { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
+  { key: 'disconnectionDate', label: 'Disconnection Date', width: 'min-w-40' },
+  { key: 'amountDue', label: 'Amount Due', width: 'min-w-32' },
+  { key: 'totalAmountDue', label: 'Total Amount Due', width: 'min-w-36' },
+  { key: 'updatedBy', label: 'Modified By', width: 'min-w-32' },
+  { key: 'updatedAt', label: 'Modified Date', width: 'min-w-40' },
+  { key: 'printLink', label: 'Print Link', width: 'min-w-28' },
+  { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
+  { key: 'city', label: 'City', width: 'min-w-32' },
+  { key: 'region', label: 'Region', width: 'min-w-32' },
+];
+
+const customerColumns = [
+  { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
+  { key: 'id', label: 'ID', width: 'min-w-20' },
+  { key: 'action', label: 'Action', width: 'min-w-32' },
+];
+
+const SOA: React.FC = () => {
+  const { soaRecords, totalCount, isLoading, error, fetchSOARecords, refreshSOARecords, silentRefresh, pollLatestUpdates } = useSOAStore();
+
+  // Initial data fetch
   useEffect(() => {
-    if (soaRecords.length === 0) {
-      fetchSOARecords();
-    }
-  }, [fetchSOARecords, soaRecords.length]);
+    fetchSOARecords();
+  }, [fetchSOARecords]);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [selectedDate, setSelectedDate] = useState<string>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -80,6 +215,7 @@ const SOA: React.FC = () => {
   const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
   const [selectedRecord, setSelectedRecord] = useState<SOARecordUI | null>(null);
   // Removed local soaRecords, isLoading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
@@ -99,7 +235,7 @@ const SOA: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string>('');
 
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 50;
+  const [itemsPerPage, setItemsPerPage] = useState(25);
 
   const [sortColumn, setSortColumn] = useState<string | null>('id');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
@@ -126,52 +262,135 @@ const SOA: React.FC = () => {
     return {};
   });
 
-  const allColumns = [
-    { key: 'id', label: 'ID', width: 'min-w-20' },
-    { key: 'accountNo', label: 'Account Number', width: 'min-w-36' },
-    { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
-    { key: 'balanceFromPreviousBill', label: 'Balance from Previous Bill', width: 'min-w-48' },
-    { key: 'paymentReceivedPrevious', label: 'Payment Received Previous', width: 'min-w-48' },
-    { key: 'remainingBalancePrevious', label: 'Remaining Balance Previous', width: 'min-w-48' },
-    { key: 'monthlyServiceFee', label: 'Monthly Service Fee', width: 'min-w-40' },
-    { key: 'serviceCharge', label: 'Service Charge', width: 'min-w-36' },
-    { key: 'rebate', label: 'Rebate', width: 'min-w-28' },
-    { key: 'discounts', label: 'Discounts', width: 'min-w-28' },
-    { key: 'staggered', label: 'Staggered', width: 'min-w-28' },
-    { key: 'vat', label: 'VAT', width: 'min-w-28' },
-    { key: 'dueDate', label: 'Due Date', width: 'min-w-32' },
-    { key: 'amountDue', label: 'Amount Due', width: 'min-w-32' },
-    { key: 'totalAmountDue', label: 'Total Amount Due', width: 'min-w-36' },
-    { key: 'printLink', label: 'Print Link', width: 'min-w-28' },
-    { key: 'createdAt', label: 'Created At', width: 'min-w-40' },
-    { key: 'createdBy', label: 'Created By', width: 'min-w-32' },
-    { key: 'updatedAt', label: 'Updated At', width: 'min-w-40' },
-    { key: 'updatedBy', label: 'Updated By', width: 'min-w-32' },
-    { key: 'fullName', label: 'Full Name', width: 'min-w-40' },
-    { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
-    { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
-    { key: 'address', label: 'Address', width: 'min-w-56' },
-    { key: 'plan', label: 'Plan', width: 'min-w-32' },
-    { key: 'dateInstalled', label: 'Date Installed', width: 'min-w-32' },
-    { key: 'barangay', label: 'Barangay', width: 'min-w-32' },
-    { key: 'city', label: 'City', width: 'min-w-32' },
-    { key: 'region', label: 'Region', width: 'min-w-32' },
-  ];
+  const [statementDateFrom, setStatementDateFrom] = useState<string>('');
+  const [statementDateTo, setStatementDateTo] = useState<string>('');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
-  const customerColumns = [
-    { key: 'statementDate', label: 'Statement Date', width: 'min-w-36' },
-    { key: 'id', label: 'ID', width: 'min-w-20' },
-    { key: 'action', label: 'Action', width: 'min-w-32' },
-  ];
+  const removeFilter = (key: string) => {
+    const newFilters = { ...activeFilters };
+    delete newFilters[key];
+    setActiveFilters(newFilters);
+    localStorage.setItem('soaFunnelFilters', JSON.stringify(newFilters));
+  };
+
+
 
   const displayColumns = userRole === 'customer' ? customerColumns : allColumns;
 
-  // Derive date items from context data instead of fetching separately or static
-  const dateItems: Array<{ date: string; id: string }> = useMemo(() => {
+  // 1. Initial search/funnel filtering (Global filtered set for sidebar dates)
+  const globalFilteredRecords = useMemo(() => {
+    let filtered = soaRecords.filter((record: SOARecordUI) => {
+      const normalizedQuery = searchQuery.toLowerCase().replace(/\s+/g, '');
+      const checkValue = (val: any): boolean => {
+        if (val === null || val === undefined) return false;
+        if (typeof val === 'object') {
+          return Object.values(val).some(v => checkValue(v));
+        }
+        return String(val).toLowerCase().replace(/\s+/g, '').includes(normalizedQuery);
+      };
+
+      return searchQuery === '' || checkValue(record);
+    });
+
+    // Apply funnel filters
+    if (activeFilters && Object.keys(activeFilters).length > 0) {
+      filtered = filtered.filter(record => {
+        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
+          const getVal = (item: any, k: string) => {
+            switch (k) {
+              case 'fullName': return item.fullName ?? item.full_name;
+              case 'accountNo': return item.accountNo ?? item.account_no;
+              case 'invoiceStatus': return item.invoiceStatus ?? item.status;
+              default: return item[k];
+            }
+          };
+
+          const val = getVal(record, key);
+
+          if (filter.type === 'checklist') {
+            if (!filter.value || !Array.isArray(filter.value) || filter.value.length === 0) return true;
+            const valStr = String(val || '').toLowerCase().trim();
+            if (key === 'barangay' || key === 'city' || key === 'region') {
+              const directVal = String(record[key] || '').toLowerCase().trim();
+              const address = String(record.address || '').toLowerCase();
+              return (filter.value as string[]).some(option => {
+                const opt = option.toLowerCase().trim();
+                return directVal === opt || address.includes(opt);
+              });
+            }
+            return (filter.value as string[]).some(option => valStr === option.toLowerCase().trim());
+          }
+
+          if (filter.type === 'text') {
+            if (!filter.value) return true;
+            const value = String(val || '').toLowerCase();
+            return value.includes(String(filter.value).toLowerCase());
+          }
+
+          if (filter.type === 'number') {
+            const numValue = Number(val);
+            if (isNaN(numValue)) return false;
+            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
+            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
+            return true;
+          }
+
+          if (filter.type === 'date') {
+            if (!val || val === 'N/A') return false;
+            const dateValue = new Date(val).getTime();
+            if (isNaN(dateValue)) return false;
+            if (filter.from) {
+              const fromDate = new Date(filter.from).getTime();
+              if (dateValue < fromDate) return false;
+            }
+            if (filter.to) {
+              const toDate = new Date(filter.to).getTime();
+              if (dateValue > toDate) return false;
+            }
+            return true;
+          }
+          return true;
+        });
+      });
+    }
+
+    // Apply sidebar date range filters for statement date
+    if (statementDateFrom || statementDateTo) {
+      filtered = filtered.filter(record => {
+        if (!record.statementDateRaw && !record.statementDate) return false;
+
+        const dateStr = record.statementDateRaw || record.statementDate;
+        const dateValue = new Date(dateStr).getTime();
+        if (isNaN(dateValue)) return false;
+
+        if (statementDateFrom) {
+          const fromDate = new Date(statementDateFrom);
+          fromDate.setHours(0, 0, 0, 0);
+          if (dateValue < fromDate.getTime()) return false;
+        }
+
+        if (statementDateTo) {
+          const toDate = new Date(statementDateTo);
+          toDate.setHours(23, 59, 59, 999);
+          if (dateValue > toDate.getTime()) return false;
+        }
+
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [soaRecords, searchQuery, activeFilters, statementDateFrom, statementDateTo]);
+
+  // Derive date items from context data instead of fetching separately or static - Now using globalFilteredRecords
+  const dateItems = useMemo(() => {
+    const dateCounts: Record<string, number> = {};
     const dates = new Map<string, string>();
-    soaRecords.forEach((record: SOARecordUI) => {
+
+    globalFilteredRecords.forEach((record: SOARecordUI) => {
       if (record.statementDate && record.statementDate !== 'N/A') {
-        // Map formatted date to raw date for sorting
+        dateCounts[record.statementDate] = (dateCounts[record.statementDate] || 0) + 1;
         dates.set(record.statementDate, record.statementDateRaw || record.statementDate);
       }
     });
@@ -182,10 +401,16 @@ const SOA: React.FC = () => {
         const timeB = new Date(b[1]).getTime();
         return timeB - timeA;
       })
-      .map(([formatted]) => formatted);
+      .map(([formatted]) => ({
+        date: formatted,
+        count: dateCounts[formatted]
+      }));
 
-    return [{ date: 'All', id: '' }, ...sortedDates.map(d => ({ date: d, id: d }))];
-  }, [soaRecords]);
+    return {
+      all: globalFilteredRecords.length,
+      dates: sortedDates
+    };
+  }, [globalFilteredRecords]);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -237,6 +462,62 @@ const SOA: React.FC = () => {
     fetchColorPalette();
   }, []);
 
+  // Pusher/Soketi connection for real-time SOA updates
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[SOA Soketi] Update received, fetching latest changes:', data);
+      try {
+        await pollLatestUpdates();
+        console.log('[SOA Soketi] Latest changes fetched successfully');
+      } catch (err) {
+        console.error('[SOA Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const soaChannel = pusher.subscribe('soa');
+
+    soaChannel.bind('pusher:subscription_succeeded', () => {
+      console.log('[SOA Soketi] Successfully subscribed to soa channel');
+    });
+    soaChannel.bind('pusher:subscription_error', (error: any) => {
+      console.error('[SOA Soketi] Subscription error:', error);
+    });
+
+    soaChannel.bind('soa-updated', handleUpdate);
+
+    // Re-subscribe on reconnection
+    const stateHandler = (states: { previous: string; current: string }) => {
+      console.log(`[SOA Soketi] Connection state: ${states.previous} -> ${states.current}`);
+      if (states.current === 'connected' && soaChannel.subscribed !== true) {
+        pusher.subscribe('soa');
+      }
+    };
+    pusher.connection.bind('state_change', stateHandler);
+
+    return () => {
+      soaChannel.unbind('pusher:subscription_succeeded');
+      soaChannel.unbind('pusher:subscription_error');
+      soaChannel.unbind('soa-updated', handleUpdate);
+      pusher.connection.unbind('state_change', stateHandler);
+      pusher.unsubscribe('soa');
+    };
+  }, [pollLatestUpdates]);
+
+  // Polling for updates every 60 seconds (fetches only latest modified data)
+  useEffect(() => {
+    const POLLING_INTERVAL = 60000; // 60 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[SOA Page] Polling for updates...');
+      try {
+        await pollLatestUpdates();
+      } catch (err) {
+        console.error('[SOA Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, [pollLatestUpdates]);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -262,7 +543,7 @@ const SOA: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -286,64 +567,22 @@ const SOA: React.FC = () => {
   // Initialize column order and visibility
   useEffect(() => {
     if (displayColumns.length > 0) {
-      if (columnOrder.length === 0) {
-        setColumnOrder(displayColumns.map(col => col.key));
-      }
-      if (visibleColumns.length === 0) {
-        setVisibleColumns(displayColumns.map(col => col.key));
-      }
+      setColumnOrder(displayColumns.map(col => col.key));
+      setVisibleColumns(displayColumns.map(col => col.key));
     }
-  }, [displayColumns, columnOrder.length, visibleColumns.length]);
+  }, [displayColumns]);
 
   // Removed automatic silent refresh on mount to favor session storage
   // and context-managed initial fetch.
 
 
 
+  // 2. Final filtering based on the selected statement date
   const filteredRecords = useMemo(() => {
-    let filtered = soaRecords.filter((record: SOARecordUI) => {
+    let filtered = globalFilteredRecords.filter((record: SOARecordUI) => {
       const matchesDate = selectedDate === 'All' || record.statementDate === selectedDate;
-      const matchesSearch = searchQuery === '' ||
-        record.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.address?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        record.accountNo.includes(searchQuery) ||
-        record.id.includes(searchQuery);
-
-      return matchesDate && matchesSearch;
+      return matchesDate;
     });
-
-    // Apply funnel filters
-    if (activeFilters && Object.keys(activeFilters).length > 0) {
-      filtered = filtered.filter(record => {
-        return Object.entries(activeFilters).every(([key, filter]: [string, any]) => {
-          const recordValue = (record as any)[key];
-
-          if (filter.type === 'text') {
-            if (!filter.value) return true;
-            const value = String(recordValue || '').toLowerCase();
-            return value.includes(filter.value.toLowerCase());
-          }
-
-          if (filter.type === 'number') {
-            const numValue = Number(recordValue);
-            if (isNaN(numValue)) return false;
-            if (filter.from !== undefined && filter.from !== '' && numValue < Number(filter.from)) return false;
-            if (filter.to !== undefined && filter.to !== '' && numValue > Number(filter.to)) return false;
-            return true;
-          }
-
-          if (filter.type === 'date') {
-            if (!recordValue) return false;
-            const dateValue = new Date(recordValue).getTime();
-            if (filter.from && dateValue < new Date(filter.from).getTime()) return false;
-            if (filter.to && dateValue > new Date(filter.to).getTime()) return false;
-            return true;
-          }
-
-          return true;
-        });
-      });
-    }
 
     // Sorting logic
     if (sortColumn) {
@@ -381,25 +620,32 @@ const SOA: React.FC = () => {
     }
 
     return filtered;
-  }, [soaRecords, selectedDate, searchQuery, sortColumn, sortDirection, activeFilters]);
+  }, [globalFilteredRecords, selectedDate, sortColumn, sortDirection, statementDateFrom, statementDateTo]);
 
   // Reset page when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [selectedDate, searchQuery]);
+  }, [selectedDate, searchQuery, itemsPerPage, statementDateFrom, statementDateTo, activeFilters]);
+
+  // Scroll to top on page change
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [currentPage]);
 
   const paginatedRecords = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredRecords.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredRecords, currentPage]);
+  }, [filteredRecords, currentPage, itemsPerPage]);
 
   // Use totalCount for total pages if no filter/search is active
   const totalDisplayCount = useMemo(() => {
-    if (searchQuery || selectedDate !== 'All' || Object.keys(activeFilters).length > 0) {
-      return filteredRecords.length;
+    if (selectedDate === 'All' && searchQuery === '' && Object.keys(activeFilters).length === 0) {
+      return totalCount;
     }
-    return Math.max(totalCount, soaRecords.length);
-  }, [filteredRecords.length, totalCount, soaRecords.length, searchQuery, selectedDate, activeFilters]);
+    return filteredRecords.length;
+  }, [filteredRecords.length, totalCount, selectedDate, searchQuery, activeFilters]);
 
   const totalPages = Math.ceil(totalDisplayCount / itemsPerPage);
 
@@ -409,46 +655,6 @@ const SOA: React.FC = () => {
     }
   };
 
-  const PaginationControls = () => {
-    if (totalPages <= 1) return null;
-
-    return (
-      <div className={`flex items-center justify-between px-4 py-3 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-        <div className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-          Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, totalDisplayCount)}</span> of <span className="font-medium">{totalDisplayCount}</span> results
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === 1
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Previous
-          </button>
-
-          <div className="flex items-center space-x-1">
-            <span className={`px-2 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-              Page {currentPage} of {totalPages}
-            </span>
-          </div>
-
-          <button
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className={`px-3 py-1 rounded text-sm transition-colors ${currentPage === totalPages
-              ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
-              : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
-              }`}
-          >
-            Next
-          </button>
-        </div>
-      </div>
-    );
-  };
 
   const handleRowClick = (record: SOARecordUI) => {
     if (userRole !== 'customer') {
@@ -710,6 +916,20 @@ const SOA: React.FC = () => {
     }
   };
 
+  const formatDate = (dateString: string | null | undefined): string => {
+    if (!dateString) return '-';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
+  };
+
   useEffect(() => {
     if (!resizingColumn) return;
 
@@ -756,10 +976,14 @@ const SOA: React.FC = () => {
     switch (columnKey) {
       case 'id':
         return record.id;
+      case 'statementNo':
+        return record.statementNo || `SOA-${record.id}`;
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'statementDate':
-        return record.statementDate;
+        return formatDate(record.statementDate);
+      case 'disconnectionDate':
+        return '-';
       case 'action':
         return (
           <button
@@ -770,7 +994,7 @@ const SOA: React.FC = () => {
             disabled={!record.printLink}
             className="px-3 py-1 rounded text-sm text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
-              backgroundColor: record.printLink ? (colorPalette?.primary || '#ea580c') : '#6b7280'
+              backgroundColor: record.printLink ? (colorPalette?.primary || '#7c3aed') : '#6b7280'
             }}
             onMouseEnter={(e) => {
               if (record.printLink && colorPalette?.accent) {
@@ -805,7 +1029,7 @@ const SOA: React.FC = () => {
       case 'vat':
         return `₱ ${(record.vat ?? 0).toFixed(2)}`;
       case 'dueDate':
-        return record.dueDate || '-';
+        return formatDate(record.dueDate);
       case 'amountDue':
         return `₱ ${(record.amountDue ?? 0).toFixed(2)}`;
       case 'totalAmountDue':
@@ -813,11 +1037,11 @@ const SOA: React.FC = () => {
       case 'printLink':
         return record.printLink || 'NULL';
       case 'createdAt':
-        return record.createdAt || '-';
+        return formatDate(record.createdAt);
       case 'createdBy':
         return record.createdBy || '-';
       case 'updatedAt':
-        return record.updatedAt || '-';
+        return formatDate(record.updatedAt);
       case 'updatedBy':
         return record.updatedBy || '-';
       case 'fullName':
@@ -831,7 +1055,7 @@ const SOA: React.FC = () => {
       case 'plan':
         return record.plan || '-';
       case 'dateInstalled':
-        return record.dateInstalled || '-';
+        return formatDate(record.dateInstalled);
       case 'barangay':
         return record.barangay || '-';
       case 'city':
@@ -853,39 +1077,154 @@ const SOA: React.FC = () => {
             }`}>
             <div className="flex items-center justify-between mb-1">
               <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>SOA</h2>
+                }`}>Statements</h2>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto">
-            {dateItems.map((item, index) => (
-              <button
-                key={index}
-                onClick={() => setSelectedDate(item.date)}
-                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                  } ${selectedDate === item.date
-                    ? ''
-                    : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+            {/* Date Range Filter Section */}
+            <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                  Statement Date Range
+                </span>
+                {(statementDateFrom || statementDateTo) && (
+                  <button
+                    onClick={() => {
+                      setStatementDateFrom('');
+                      setStatementDateTo('');
+                    }}
+                    className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                    style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <div className="space-y-2">
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                  <input
+                    type="date"
+                    value={statementDateFrom}
+                    onChange={(e) => setStatementDateFrom(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={statementDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+                <div className="relative">
+                  <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                  <input
+                    type="date"
+                    value={statementDateTo}
+                    onChange={(e) => setStatementDateTo(e.target.value)}
+                    className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white'
+                      : 'bg-white border-gray-300 text-gray-900'
+                      }`}
+                    style={statementDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* All Level */}
+            <button
+              onClick={() => setSelectedDate('All')}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${selectedDate === 'All'
+                  ? ''
+                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
+              } : {}}
+            >
+              <div className="flex items-center">
+                <span>All Records</span>
+              </div>
+              <span
+                className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                  ? 'text-white'
+                  : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                   }`}
-                style={selectedDate === item.date ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
-                <span className="text-sm font-medium flex items-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                  </svg>
-                  {item.date}
-                </span>
+                {dateItems.all}
+              </span>
+            </button>
+
+            {/* Statement Month Dropdown */}
+            <div className={`p-0 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'}`}>
+              <button
+                onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+              >
+                <div className="flex items-center">
+                  <span className="font-medium">Statement Month</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                      }`}
+                  >
+                    {dateItems.dates.length}
+                  </span>
+                  <ChevronDown
+                    className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`}
+                  />
+                </div>
               </button>
-            ))}
+
+              {isDateDropdownOpen && (
+                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50 shadow-inner'}`}>
+                  {dateItems.dates.map((item, index) => (
+                    <button
+                      key={index}
+                      onClick={() => setSelectedDate(item.date)}
+                      className={`w-full flex items-center justify-between px-6 py-2.5 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                        } ${selectedDate === item.date
+                          ? ''
+                          : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}
+                      style={selectedDate === item.date ? {
+                        backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                        color: colorPalette?.primary || '#7c3aed',
+                        fontWeight: 500
+                      } : {}}
+                    >
+                      <div className="flex items-center">
+                        <Calendar className="h-4 w-4 mr-3 opacity-60" />
+                        <span className="truncate">{item.date}</span>
+                      </div>
+                      <span
+                        className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedDate === item.date
+                          ? 'text-white'
+                          : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-500'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        } : {}}
+                      >
+                        {item.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
 
           <div
             className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
             style={{
-              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#ea580c') : 'transparent'
+              backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
             }}
             onMouseEnter={(e) => {
               if (!isResizingSidebar && colorPalette?.primary) {
@@ -908,18 +1247,27 @@ const SOA: React.FC = () => {
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
+              {userRole !== 'customer' && (
+                <button
+                  onClick={() => setMobileMenuOpen(true)}
+                  className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                    }`}
+                >
+                  <Menu className="h-5 w-5" />
+                </button>
+              )}
               <div className="relative flex-1">
                 <input
                   type="text"
                   placeholder="Search SOA records..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
                     ? 'bg-gray-800 text-white border border-gray-700'
                     : 'bg-white text-gray-900 border border-gray-300'
                     }`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
@@ -932,12 +1280,44 @@ const SOA: React.FC = () => {
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <button
                 onClick={() => setIsFunnelFilterOpen(true)}
-                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${isDarkMode
-                  ? 'hover:bg-gray-700 text-white'
-                  : 'hover:bg-gray-200 text-gray-900'
+                title={Object.keys(activeFilters).length > 0
+                  ? `Active Filters:\n${Object.entries(activeFilters).map(([key, filter]: [string, any]) => {
+                    const colName = filterColumns.find(c => c.key === key)?.label || key;
+                    if (filter.type === 'text') return `${colName}: ${filter.value}`;
+                    if (filter.type === 'number') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} - ${filter.to}`;
+                      if (filter.from) return `${colName}: > ${filter.from}`;
+                      if (filter.to) return `${colName}: < ${filter.to}`;
+                    }
+                    if (filter.type === 'date') {
+                      if (filter.from && filter.to) return `${colName}: ${filter.from} to ${filter.to}`;
+                      if (filter.from) return `${colName}: After ${filter.from}`;
+                      if (filter.to) return `${colName}: Before ${filter.to}`;
+                    }
+                    if (filter.type === 'checklist') {
+                      return `${colName}: ${Array.isArray(filter.value) ? filter.value.join(', ') : filter.value}`;
+                    }
+                    return colName;
+                  }).join('\n')}`
+                  : "Filter SOA Records"
+                }
+                className={`px-4 py-2 rounded text-sm transition-colors flex items-center ${Object.keys(activeFilters).length > 0
+                  ? 'text-red-500 hover:bg-red-500/10'
+                  : isDarkMode
+                    ? 'hover:bg-gray-700 text-white'
+                    : 'hover:bg-gray-200 text-gray-900'
                   }`}
               >
                 <Filter className="h-5 w-5" />
@@ -950,8 +1330,9 @@ const SOA: React.FC = () => {
                       : 'hover:bg-gray-200 text-gray-900'
                       }`}
                     onClick={() => setFilterDropdownOpen(!filterDropdownOpen)}
+                    title="Column Visibility"
                   >
-                    <ListFilter className="h-5 w-5" />
+                    <Columns3 className="h-5 w-5" />
                   </button>
                   {filterDropdownOpen && (
                     <div className={`absolute top-full right-0 mt-2 w-80 rounded shadow-lg z-50 max-h-[70vh] flex flex-col ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
@@ -964,7 +1345,7 @@ const SOA: React.FC = () => {
                           <button
                             onClick={handleSelectAllColumns}
                             className="text-xs"
-                            style={{ color: colorPalette?.primary || '#f97316' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             Select All
                           </button>
@@ -972,7 +1353,7 @@ const SOA: React.FC = () => {
                           <button
                             onClick={handleDeselectAllColumns}
                             className="text-xs"
-                            style={{ color: colorPalette?.primary || '#f97316' }}
+                            style={{ color: colorPalette?.primary || '#7c3aed' }}
                           >
                             Deselect All
                           </button>
@@ -996,7 +1377,7 @@ const SOA: React.FC = () => {
                                 : 'border-gray-300 bg-white focus:ring-offset-white'
                                 }`}
                               style={{
-                                accentColor: colorPalette?.primary || '#ea580c'
+                                accentColor: colorPalette?.primary || '#7c3aed'
                               }}
                             />
                             <span>{column.label}</span>
@@ -1013,7 +1394,7 @@ const SOA: React.FC = () => {
                   disabled={isPaymentProcessing}
                   className="text-white px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{
-                    backgroundColor: isPaymentProcessing ? '#6b7280' : (colorPalette?.primary || '#ea580c')
+                    backgroundColor: isPaymentProcessing ? '#6b7280' : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isPaymentProcessing && colorPalette?.accent) {
@@ -1034,7 +1415,7 @@ const SOA: React.FC = () => {
                 disabled={isLoading}
                 className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
                 style={{
-                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading && colorPalette?.accent) {
@@ -1052,9 +1433,84 @@ const SOA: React.FC = () => {
             </div>
           </div>
 
+          {/* Active Funnel Filters Row */}
+          {Object.keys(activeFilters || {}).length > 0 && (
+            <div className={`px-4 py-2 border-b flex flex-wrap items-center gap-2 overflow-x-auto no-scrollbar ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Active Filters:
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {Object.entries(activeFilters || {}).map(([key, filter]: [string, any]) => {
+                  const column = filterColumns.find(c => (c as any).key === key);
+                  const label = column?.label || key;
+
+                  let displayValue = '';
+                  if (filter.type === 'text' || filter.type === 'boolean') {
+                    displayValue = String(filter.value);
+                  } else if (filter.type === 'checklist') {
+                    displayValue = Array.isArray(filter.value)
+                      ? filter.value.join(', ')
+                      : String(filter.value || '');
+                  } else if (filter.type === 'number' || filter.type === 'date') {
+                    if (filter.from && filter.to) displayValue = `${filter.from} - ${filter.to}`;
+                    else if (filter.from) displayValue = `> ${filter.from}`;
+                    else if (filter.to) displayValue = `< ${filter.to}`;
+                  }
+
+                  return (
+                    <div
+                      key={key}
+                      className={`group flex items-center h-7 pl-2 pr-1 rounded-full text-xs font-medium transition-all`}
+                      style={{
+                        backgroundColor: hexToRgba(colorPalette?.primary || '#7c3aed', isDarkMode ? 0.1 : 0.05),
+                        color: colorPalette?.primary || '#7c3aed',
+                        border: `1px solid ${hexToRgba(colorPalette?.primary || '#7c3aed', 0.2)}`
+                      }}
+                    >
+                      <span className="opacity-70 mr-1">{label}:</span>
+                      <span className="truncate max-w-[150px]">{displayValue}</span>
+                      <button
+                        onClick={() => removeFilter(key)}
+                        className={`ml-1 p-0.5 rounded-full transition-colors`}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.primary) {
+                            e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.2);
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = 'transparent';
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  );
+                })}
+                <button
+                  onClick={() => {
+                    setActiveFilters({});
+                    localStorage.removeItem('soaFunnelFilters');
+                  }}
+                  className={`text-[10px] font-bold uppercase tracking-wider underline-offset-4 hover:underline transition-colors px-2 py-1 rounded-md`}
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = hexToRgba(colorPalette.primary, 0.1);
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-hidden flex flex-col">
             <div className="flex-1 overflow-hidden">
-              {isLoading ? (
+              {isLoading && soaRecords.length === 0 ? (
                 <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>
                   <div className="animate-pulse flex flex-col items-center">
@@ -1081,7 +1537,7 @@ const SOA: React.FC = () => {
               ) : (
                 <>
                   <div className="h-full relative flex flex-col">
-                    <div className="flex-1 overflow-auto">
+                    <div className="flex-1 overflow-auto" ref={scrollRef}>
                       <table className="w-max min-w-full text-sm border-separate border-spacing-0">
                         <thead>
                           <tr className={`border-b sticky top-0 z-10 ${isDarkMode
@@ -1170,10 +1626,159 @@ const SOA: React.FC = () => {
                 </>
               )}
             </div>
-            <PaginationControls />
+            <PaginationControls
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              isDarkMode={isDarkMode}
+              currentPage={currentPage}
+              totalDisplayCount={totalDisplayCount}
+              handlePageChange={handlePageChange}
+            />
           </div>
         </div>
       </div>
+
+      {/* Mobile Overlay Menu */}
+      {mobileMenuOpen && userRole !== 'customer' && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div className="absolute inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)} />
+          <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}>
+            <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
+              }`}>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Categories</h2>
+              <button
+                onClick={() => setMobileMenuOpen(false)}
+                className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto">
+              {/* All Level */}
+              <button
+                onClick={() => {
+                  setSelectedDate('All');
+                  setMobileMenuOpen(false);
+                }}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+                style={selectedDate === 'All' ? {
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed',
+                  fontWeight: 500
+                } : {
+                  color: isDarkMode ? '#d1d5db' : '#374151'
+                }}
+              >
+                <div className="flex items-center">
+                  <Globe className="h-4 w-4 mr-2" />
+                  <span>All Records</span>
+                </div>
+                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                  {dateItems.all}
+                </span>
+              </button>
+
+              {/* Mobile Date Range Filter Section */}
+              <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+                <div className="flex items-center justify-between">
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Statement Date Range
+                  </span>
+                  {(statementDateFrom || statementDateTo) && (
+                    <button
+                      onClick={() => {
+                        setStatementDateFrom('');
+                        setStatementDateTo('');
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                      style={{ color: colorPalette?.primary || '#7c3aed' }}
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                    <input
+                      type="date"
+                      value={statementDateFrom}
+                      onChange={(e) => setStatementDateFrom(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={statementDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                  <div className="relative">
+                    <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                    <input
+                      type="date"
+                      value={statementDateTo}
+                      onChange={(e) => setStatementDateTo(e.target.value)}
+                      className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                        ? 'bg-gray-800 border-gray-700 text-white'
+                        : 'bg-white border-gray-300 text-gray-900'
+                        }`}
+                      style={statementDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Mobile Statement Month Dropdown */}
+              <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+                <button
+                  onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                    }`}
+                >
+                  <div className="flex items-center">
+                    <Calendar className="h-4 w-4 mr-2" />
+                    <span className="font-medium">Statement Month</span>
+                  </div>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isDateDropdownOpen && (
+                  <div className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50'}>
+                    {dateItems.dates.map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setSelectedDate(item.date);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-6 py-3 text-sm transition-colors border-b last:border-0 ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                          color: colorPalette?.primary || '#7c3aed',
+                          fontWeight: 500
+                        } : {
+                          color: isDarkMode ? '#9ca3af' : '#4b5563'
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2 opacity-60" />
+                          <span>{item.date}</span>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-[10px] bg-gray-700 text-gray-300">
+                          {item.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {selectedRecord && userRole !== 'customer' && (
         <div className="flex-shrink-0 overflow-hidden">
@@ -1195,7 +1800,7 @@ const SOA: React.FC = () => {
               <div className="text-center">
                 <div
                   className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                  style={{ borderBottomColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
                 ></div>
                 <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
               </div>
@@ -1270,7 +1875,7 @@ const SOA: React.FC = () => {
                     : 'bg-white border-gray-300 text-gray-900'
                     } border focus:outline-none focus:ring-2`}
                   style={{
-                    '--tw-ring-color': colorPalette?.primary || '#ea580c'
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
                   } as React.CSSProperties}
                 />
                 <div className={`text-sm text-right mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -1301,7 +1906,7 @@ const SOA: React.FC = () => {
                   style={{
                     backgroundColor: (isPaymentProcessing || paymentAmount < 1)
                       ? '#6b7280'
-                      : (colorPalette?.primary || '#ea580c')
+                      : (colorPalette?.primary || '#7c3aed')
                   }}
                   onMouseEnter={(e) => {
                     if (!isPaymentProcessing && paymentAmount >= 1 && colorPalette?.accent) {
@@ -1349,7 +1954,7 @@ const SOA: React.FC = () => {
                 </p>
                 <div className="flex justify-between mt-4">
                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
                     ₱{pendingPayment.amount.toFixed(2)}
                   </span>
                 </div>
@@ -1368,7 +1973,7 @@ const SOA: React.FC = () => {
                 <button
                   onClick={handleResumePendingPayment}
                   className="flex-1 px-4 py-3 rounded font-bold text-white transition-colors"
-                  style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                  style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                   onMouseEnter={(e) => {
                     if (colorPalette?.accent) {
                       e.currentTarget.style.backgroundColor = colorPalette.accent;
@@ -1405,7 +2010,7 @@ const SOA: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Amount:</span>
-                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#ea580c' }}>
+                  <span className="font-bold text-lg" style={{ color: colorPalette?.primary || '#7c3aed' }}>
                     ₱{paymentLinkData.amount.toFixed(2)}
                   </span>
                 </div>
@@ -1414,7 +2019,7 @@ const SOA: React.FC = () => {
               <button
                 onClick={handleOpenPaymentLink}
                 className="w-full px-4 py-3 rounded font-bold text-white transition-colors"
-                style={{ backgroundColor: colorPalette?.primary || '#ea580c' }}
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
                     e.currentTarget.style.backgroundColor = colorPalette.accent;
@@ -1441,6 +2046,7 @@ const SOA: React.FC = () => {
           setIsFunnelFilterOpen(false);
         }}
         currentFilters={activeFilters}
+        records={soaRecords}
       />
     </div>
   );

@@ -4,6 +4,7 @@ import InventoryFormModal from '../modals/InventoryFormModal';
 import InventoryDetails from '../components/InventoryDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import apiClient from '../config/api';
+import pusher from '../services/pusherService';
 
 interface InventoryItem {
   item_name: string;
@@ -44,7 +45,7 @@ interface ApiResponse<T = any> {
 
 const Inventory: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [showInventoryForm, setShowInventoryForm] = useState(false);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -91,6 +92,45 @@ const Inventory: React.FC = () => {
     fetchCategories();
   }, []);
 
+  // Real-time updates via Pusher/Soketi
+  useEffect(() => {
+    const handleUpdate = async (data: any) => {
+      console.log('[Inventory Soketi] Update received, refreshing:', data);
+      try {
+        await Promise.all([fetchInventoryData(true), fetchCategories()]);
+        console.log('[Inventory Soketi] Data refreshed successfully');
+      } catch (err) {
+        console.error('[Inventory Soketi] Failed to refresh data:', err);
+      }
+    };
+
+    const inventoryChannel = pusher.subscribe('inventory');
+    inventoryChannel.bind('inventory-updated', handleUpdate);
+
+    return () => {
+      inventoryChannel.unbind('inventory-updated', handleUpdate);
+      pusher.unsubscribe('inventory');
+    };
+  }, []);
+
+  // Polling for updates every 3 seconds
+  useEffect(() => {
+    const POLLING_INTERVAL = 3000; // 3 seconds
+    const intervalId = setInterval(async () => {
+      console.log('[Inventory Page] Polling for updates...');
+      try {
+        await Promise.all([
+          fetchInventoryData(true),
+          fetchCategories()
+        ]);
+      } catch (err) {
+        console.error('[Inventory Page] Polling failed:', err);
+      }
+    }, POLLING_INTERVAL);
+
+    return () => clearInterval(intervalId);
+  }, []);
+
   // Idle detection and auto-refresh logic
   useEffect(() => {
     const IDLE_TIME_LIMIT = 15 * 60 * 1000; // 15 minutes
@@ -119,7 +159,7 @@ const Inventory: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -165,6 +205,36 @@ const Inventory: React.FC = () => {
     }
   }, [inventoryItems, dbCategories]);
 
+  const getDriveDirectUrl = (url: string | undefined) => {
+    if (!url) return '';
+
+    // Check for Google Drive URLs
+    if (url.includes('drive.google.com') || url.includes('docs.google.com')) {
+      let fileId = '';
+
+      // Try to match /d/ID pattern
+      const matchD = url.match(/\/d\/([a-zA-Z0-9_-]+)/);
+      if (matchD && matchD[1]) {
+        fileId = matchD[1];
+      }
+
+      // If not found, try id=ID pattern
+      if (!fileId) {
+        const matchId = url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        if (matchId && matchId[1]) {
+          fileId = matchId[1];
+        }
+      }
+
+      if (fileId) {
+        // Use thumbnail endpoint which is more reliable for images
+        return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+      }
+    }
+
+    return url;
+  };
+
   const fetchInventoryData = async (silent = false) => {
     try {
       if (!silent) setLoading(true);
@@ -175,6 +245,7 @@ const Inventory: React.FC = () => {
 
       if (data.success) {
         setInventoryItems(data.data || []);
+        return data.data || [];
       } else {
         setError(data.message || 'Failed to fetch inventory data');
         console.error('API Error:', data);
@@ -184,6 +255,16 @@ const Inventory: React.FC = () => {
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    const items = await fetchInventoryData(true);
+    if (selectedItem && items) {
+      const updatedItem = items.find(i => i.item_id === selectedItem.item_id);
+      if (updatedItem) {
+        setSelectedItem(updatedItem);
+      }
     }
   };
 
@@ -206,9 +287,15 @@ const Inventory: React.FC = () => {
     const itemCategory = (item.category || '').toLowerCase().replace(/\s+/g, '-');
     const matchesCategory = selectedCategory === 'all' || itemCategory === selectedCategory;
 
-    const matchesSearch = searchQuery === '' ||
-      item.item_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.item_description && item.item_description.toLowerCase().includes(searchQuery.toLowerCase()));
+    const checkValue = (val: any): boolean => {
+      if (val === null || val === undefined) return false;
+      if (typeof val === 'object') {
+        return Object.values(val).some(v => checkValue(v));
+      }
+      return String(val).toLowerCase().includes(searchQuery.toLowerCase());
+    };
+
+    const matchesSearch = searchQuery === '' || checkValue(item);
 
     return matchesCategory && matchesSearch;
   });
@@ -304,7 +391,7 @@ const Inventory: React.FC = () => {
       <div className={`h-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
         }`}>
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 mb-4" style={{ borderColor: 'transparent', borderBottomColor: colorPalette?.primary || '#7c3aed' }}></div>
           <div className={`text-lg ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Loading inventory...</div>
         </div>
@@ -326,7 +413,7 @@ const Inventory: React.FC = () => {
             onClick={() => fetchInventoryData()}
             className="text-white px-4 py-2 rounded transition-colors"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -370,11 +457,11 @@ const Inventory: React.FC = () => {
                 className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                   }`}
                 style={selectedCategory === category.id ? {
-                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c',
+                  backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                  color: colorPalette?.primary || '#7c3aed',
                   fontWeight: 500,
                   borderRight: '2px solid',
-                  borderRightColor: colorPalette?.primary || '#ea580c'
+                  borderRightColor: colorPalette?.primary || '#7c3aed'
                 } : {
                   color: isDarkMode ? '#d1d5db' : '#374151'
                 }}
@@ -383,7 +470,7 @@ const Inventory: React.FC = () => {
                 <span
                   className="px-2 py-1 rounded-full text-xs"
                   style={selectedCategory === category.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                     color: 'white'
                   } : {
                     backgroundColor: isDarkMode ? '#374151' : '#e5e7eb',
@@ -412,7 +499,7 @@ const Inventory: React.FC = () => {
                   placeholder="Search inventory..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 border focus:outline-none ${isDarkMode
+                  className={`w-full rounded pl-10 pr-10 py-2 border focus:outline-none ${isDarkMode
                     ? 'bg-gray-800 text-white border-gray-700'
                     : 'bg-gray-100 text-gray-900 border-gray-300'
                     }`}
@@ -429,12 +516,21 @@ const Inventory: React.FC = () => {
                 />
                 <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
               </div>
               <button
                 className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors"
                 onClick={handleAddItem}
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -462,75 +558,64 @@ const Inventory: React.FC = () => {
                     key={item.item_name + index}
                     className={`px-6 py-4 flex items-center justify-between transition-colors cursor-pointer group ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                       } ${selectedItem?.item_name === item.item_name
-                        ? isDarkMode ? 'bg-gray-800 border-r-2 border-orange-500' : 'bg-gray-100 border-r-2 border-orange-500'
+                        ? isDarkMode ? 'bg-gray-800 border-r-2' : 'bg-gray-100 border-r-2'
                         : ''
                       }`}
+                    style={selectedItem?.item_name === item.item_name ? { borderRightColor: colorPalette?.primary || '#7c3aed' } : {}}
                     onClick={() => handleItemClick(item)}
                   >
-                    <div>
-                      <div className={`font-medium text-base ${isDarkMode ? 'text-white' : 'text-gray-900'
-                        }`}>
-                        {item.item_name}
+                    <div className="flex items-center">
+                      <div className={`w-12 h-12 rounded mr-4 flex items-center justify-center overflow-hidden flex-shrink-0 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-200'}`}>
+                        {item.image ? (
+                          <img
+                            src={getDriveDirectUrl(item.image)}
+                            alt={item.item_name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                              (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                            }}
+                          />
+                        ) : (
+                          <Package size={24} className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                        )}
+                        <Package
+                          size={24}
+                          className={`hidden absolute ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}
+                        />
                       </div>
-                      {item.modified_date && (
-                        <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      <div>
+                        <div className={`font-medium text-base ${isDarkMode ? 'text-white' : 'text-gray-900'
                           }`}>
-                          {new Date(item.modified_date).toLocaleDateString('en-US', {
-                            year: 'numeric',
-                            month: '2-digit',
-                            day: '2-digit',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            second: '2-digit',
-                            hour12: true
-                          })}
+                          {item.item_name}
                         </div>
-                      )}
+                        {item.modified_date && (
+                          <div className={`text-sm mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                            }`}>
+                            {(() => {
+                              const date = new Date(item.modified_date);
+                              if (isNaN(date.getTime())) return item.modified_date;
+                              const mm = String(date.getMonth() + 1).padStart(2, '0');
+                              const dd = String(date.getDate()).padStart(2, '0');
+                              const yyyy = date.getFullYear();
+                              return `${mm}/${dd}/${yyyy}`;
+                            })()}
+                          </div>
+                        )}
+                      </div>
                     </div>
                     <div className="flex items-center">
-                      <div className={`mr-4 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                        Qty: <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.total_quantity || 0}</span>
-                      </div>
-                      <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          className={`p-2 rounded transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                            }`}
-                          title="View Details"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleItemClick(item);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
-                        </button>
-                        <button
-                          className={`p-2 rounded transition-colors ${isDarkMode ? 'text-gray-400 hover:text-red-400' : 'text-gray-600 hover:text-red-600'
-                            }`}
-                          title="Delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteItem(item);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </button>
-                        <button
-                          className="p-2 text-gray-400 hover:text-white rounded transition-colors"
-                          title="Edit"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleEditItem(item);
-                          }}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                          </svg>
-                        </button>
+                      <div className={`mr-4 text-xs md:text-sm flex flex-col md:flex-row md:items-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                        <div className="flex items-center">
+                          Total Stock: <span className={`font-medium ml-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{item.total_quantity || 0}</span>
+                        </div>
+                        {item.quantity_alert !== undefined && item.quantity_alert !== null && (
+                          <div className={`flex items-center md:ml-4 mt-1 md:mt-0 ${item.total_quantity && item.total_quantity <= (item.quantity_alert || 0) ? 'text-red-500 font-bold' : ''}`}>
+                            Quantity Alert: <span className={`font-medium ml-1 ${isDarkMode && !(item.total_quantity && item.total_quantity <= (item.quantity_alert || 0)) ? 'text-white' : ''}`}>
+                              {item.quantity_alert}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -570,8 +655,8 @@ const Inventory: React.FC = () => {
                 : 'text-gray-300'
                 }`}
               style={selectedCategory === category.id ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#fb923c'
+                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                color: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
               <Package className="h-5 w-5 mb-1" />
@@ -579,7 +664,7 @@ const Inventory: React.FC = () => {
               {category.count > 0 && (
                 <span className="mt-1 px-2 py-0.5 rounded-full text-xs"
                   style={selectedCategory === category.id ? {
-                    backgroundColor: colorPalette?.primary || '#ea580c',
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
                     color: 'white'
                   } : {
                     backgroundColor: '#374151',
@@ -608,6 +693,7 @@ const Inventory: React.FC = () => {
             onEdit={handleEditItem}
             onDelete={handleDeleteItem}
             onClose={handleCloseDetails}
+            onRefresh={handleRefresh}
           />
         </div>
       )}

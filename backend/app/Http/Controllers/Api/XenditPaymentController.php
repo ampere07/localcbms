@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Exception;
+use App\Events\PaymentUpdated;
 
 class XenditPaymentController extends Controller
 {
@@ -17,9 +18,27 @@ class XenditPaymentController extends Controller
 
     public function __construct()
     {
-        $this->xenditApiKey = env('XENDIT_API_KEY');
-        $this->xenditCallbackToken = env('XENDIT_CALLBACK_TOKEN');
-        $this->portalLink = env('APP_URL', 'https://sync.atssfiber.ph');
+        $this->xenditApiKey = (string) (config('services.xendit.api_key') ?: env('XENDIT_API_KEY', ''));
+        $this->xenditCallbackToken = (string) (config('services.xendit.callback_token') ?: env('XENDIT_CALLBACK_TOKEN', ''));
+        
+        // Fallback for production environments where config cache might be returning null
+        // and we cannot easily run `php artisan config:clear`
+        if (empty($this->xenditApiKey) || empty($this->xenditCallbackToken)) {
+            $envPath = base_path('.env');
+            if (file_exists($envPath)) {
+                $envContent = file_get_contents($envPath);
+                
+                if (empty($this->xenditApiKey) && preg_match('/^XENDIT_API_KEY=(.*)$/m', $envContent, $matches)) {
+                    $this->xenditApiKey = trim($matches[1], "\"' \t\n\r\0\x0B");
+                }
+                
+                if (empty($this->xenditCallbackToken) && preg_match('/^XENDIT_CALLBACK_TOKEN=(.*)$/m', $envContent, $matches)) {
+                    $this->xenditCallbackToken = trim($matches[1], "\"' \t\n\r\0\x0B");
+                }
+            }
+        }
+
+        $this->portalLink = (string) (config('app.url') ?: env('APP_URL', 'https://sync.atssfiber.ph'));
     }
 
     public function createPayment(Request $request)
@@ -175,6 +194,8 @@ class XenditPaymentController extends Controller
                 'payment_id' => $paymentId
             ]);
 
+            event(new PaymentUpdated(['action' => 'created', 'reference_no' => $referenceNo, 'account_no' => $accountNo, 'amount' => $amount]));
+
             return response()->json([
                 'status' => 'success',
                 'reference_no' => $referenceNo,
@@ -273,7 +294,9 @@ class XenditPaymentController extends Controller
 
             if ($isPaid) {
                 $newStatus = 'QUEUED';
-            } elseif (in_array($status, ['EXPIRED', 'FAILED', 'PAYMENT_FAILED'])) {
+            } elseif ($status === 'EXPIRED') {
+                $newStatus = 'EXPIRED';
+            } elseif (in_array($status, ['FAILED', 'PAYMENT_FAILED'])) {
                 $newStatus = 'FAILED';
             }
 
@@ -293,6 +316,8 @@ class XenditPaymentController extends Controller
                         'reference_no' => $ref,
                         'new_status' => $newStatus
                     ]);
+
+                    event(new PaymentUpdated(['action' => 'webhook_update', 'reference_no' => $ref, 'status' => $newStatus]));
                 } else {
                     Log::info('Xendit Webhook: No Update Needed', [
                         'reference_no' => $ref,
@@ -325,11 +350,17 @@ class XenditPaymentController extends Controller
                 ], 400);
             }
 
-            // Check for pending payments within the last 5 minutes
+            // Cleanup old pending payments (older than 24 hours) to 'EXPIRED'
+            DB::table('pending_payments')
+                ->where('status', 'PENDING')
+                ->where('payment_date', '<', now()->subHours(24))
+                ->update(['status' => 'EXPIRED', 'updated_at' => now()]);
+
+            // Check for pending payments within the last 24 hours (matching Xendit invoice duration)
             $pendingPayment = DB::table('pending_payments')
                 ->where('account_no', $accountNo)
                 ->where('status', 'PENDING')
-                ->where('payment_date', '>', now()->subMinutes(5))
+                ->where('payment_date', '>', now()->subHours(24))
                 ->orderBy('payment_date', 'desc')
                 ->first();
 
@@ -457,4 +488,5 @@ class XenditPaymentController extends Controller
         }
     }
 }
+
 

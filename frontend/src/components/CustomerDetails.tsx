@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings } from 'lucide-react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings, Circle, CircleArrowRight } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -14,12 +14,15 @@ import { relatedDataColumns } from '../config/relatedDataColumns';
 import { BillingDetailRecord } from '../types/billing';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { customerDetailUpdateService } from '../services/customerDetailUpdateService';
+import { userService } from '../services/userService';
 import { relatedDataService } from '../services/relatedDataService';
 import SOADetails from './SOADetails';
 import InvoiceDetails from './InvoiceDetails';
 import ServiceOrderDetails from './ServiceOrderDetails';
 import PaymentPortalDetails from './PaymentPortalDetails';
 import TransactionListDetails from './TransactionListDetails';
+import LcpNapLocationDetails from './LcpNapLocationDetails';
+import * as lcpnapService from '../services/lcpnapService';
 import { transformServiceOrder } from '../store/serviceOrderStore';
 
 // Fix Leaflet default icon issue
@@ -29,6 +32,20 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
+
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return '-';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateString;
+  }
+};
 
 interface OnlineStatusRecord {
   id: string;
@@ -44,13 +61,15 @@ interface BillingDetailsProps {
   onlineStatusRecords?: OnlineStatusRecord[];
   onClose?: () => void;
   onRefresh?: () => Promise<void> | void;
+  refreshKey?: number;
 }
 
 const BillingDetails: React.FC<BillingDetailsProps> = ({
   billingRecord,
   onlineStatusRecords = [],
   onClose,
-  onRefresh
+  onRefresh,
+  refreshKey
 }) => {
   console.log('CustomerDetails - Received billingRecord:', billingRecord);
   console.log('CustomerDetails - houseFrontPicture value:', billingRecord.houseFrontPicture);
@@ -147,26 +166,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     if (!id) return;
     try {
       setLoadingServiceOrder(true);
-      // Assuming relatedDataService has getServiceOrderById or similar. 
-      // If not, use getRelatedServiceOrders? No, that's a list.
-      // Wait, ServiceOrderDetails expects a specific object structure.
-      // Let's check relatedDataService for getDetails method or reuse the data if it's correct.
-      // But typically we fetch details. I'll use the existing service.
-      // Wait, looking at `ServiceOrderDetails.tsx`, it takes `serviceOrder` prop.
-      // I should assume fetching by ID.
-      // Let me check `relatedDataService.ts` content... but I don't want to break flow.
-      // I'll assume getServiceOrderById exists or use a generic getter.
-      // Actually, looking at `CustomerDetails.tsx` imports, `relatedDataService` is used.
-      // Let me check if `getServiceOrderById` is available.
-      // I'll take a quick peek at `relatedDataService.ts` in a separate tool call if needed, 
-      // but for now I'll use `relatedDataService.getServiceOrderById(id)` pattern.
-      // Wait, better to be safe. I'll assume it exists if others do.
 
-      // Checking `ServiceOrderDetails.tsx` again, it expects a lot of fields.
-      // If `relatedDataService` doesn't have it, I might need to add it or use `serviceOrderService`.
-      // But let's stick to `relatedDataService` context.
-
-      // Let's assume `getServiceOrderById` exists in `relatedDataService` for now.
       const response = await relatedDataService.getServiceOrderById(id);
       if (response.success && response.data) {
         const transformedOrder = transformServiceOrder(response.data);
@@ -180,27 +180,79 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       setLoadingServiceOrder(false);
     }
   };
-  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
-    invoices: false,
-    paymentPortalLogs: false,
-    transactions: false,
-    advancedPayments: false,
-    discounts: false,
-    staggeredInstallations: false,
-    staggeredPayments: false,
-    serviceOrders: false,
-    serviceOrderLogs: false,
-    reconnectionLogs: false,
-    disconnectedLogs: false,
-    detailsUpdateLogs: false,
-    inventoryLogs: false,
-    onlineStatus: true,
-    borrowedLogs: false,
-    planChangeLogs: false,
-    serviceChargeLogs: false,
-    changeDueLogs: false,
-    securityDeposits: false
-  });
+
+  const [selectedLcpNapLocation, setSelectedLcpNapLocation] = useState<any>(null);
+  const [loadingLcpNap, setLoadingLcpNap] = useState(false);
+
+  const handleLcpNapClick = async () => {
+    if (!billingRecord.lcpnap) return;
+
+    const parseCoordinates = (coordString: string): { latitude: number; longitude: number } | null => {
+      if (!coordString) return null;
+      const coords = coordString.split(',').map(c => c.trim());
+      if (coords.length !== 2) return null;
+      const latitude = parseFloat(coords[0]);
+      const longitude = parseFloat(coords[1]);
+      if (isNaN(latitude) || isNaN(longitude)) return null;
+      return { latitude, longitude };
+    };
+
+    try {
+      setLoadingLcpNap(true);
+      console.log('Fetching LCP NAP locations to find match for:', billingRecord.lcpnap);
+
+      // OPTIMIZATION: Try to fetch the specific LCP NAP by name first
+      let response = await lcpnapService.getAllLCPNAPsForMap(false, billingRecord.lcpnap);
+
+      // If none found with SEARCH (maybe name mismatch), try the full list
+      if (!response.success || !response.data || response.data.length === 0) {
+        console.log('Specific LCP NAP search yielded no results, falling back to full list...');
+        response = await lcpnapService.getAllLCPNAPsForMap();
+      }
+
+      if (response.success && response.data) {
+        const target = billingRecord.lcpnap.trim().toLowerCase();
+
+        // Match logic:
+        // 1. Exact match
+        // 2. Normalized match (trim/lowercase)
+        // 3. Partial match (target in name or vice versa)
+        const matchedItem = response.data.find(loc => {
+          const name = loc.lcpnap_name.trim().toLowerCase();
+          return name === target || name.includes(target) || target.includes(name);
+        });
+
+        if (matchedItem) {
+          console.log('Found matching LCP NAP location:', matchedItem);
+
+          // Parse coordinates to provide latitude and longitude required by LcpNapLocationDetails
+          const coords = parseCoordinates(matchedItem.coordinates);
+          const locationWithCoords = {
+            ...matchedItem,
+            latitude: coords?.latitude,
+            longitude: coords?.longitude
+          };
+
+          if (locationWithCoords.latitude === undefined || locationWithCoords.longitude === undefined) {
+            console.warn('Matching location found but coordinates are invalid:', matchedItem.coordinates);
+            alert(`Found location "${matchedItem.lcpnap_name}" but it has invalid coordinates: ${matchedItem.coordinates}`);
+            return;
+          }
+
+          setSelectedLcpNapLocation(locationWithCoords);
+        } else {
+          console.warn('LCP NAP location not found. Available names:', response.data.slice(0, 10).map(l => l.lcpnap_name));
+        }
+      } else {
+        console.error('Failed to fetch LCP NAP locations:', response.message);
+      }
+    } catch (error) {
+      console.error('Error in handleLcpNapClick:', error);
+    } finally {
+      setLoadingLcpNap(false);
+    }
+  };
+
   const [showTransactModal, setShowTransactModal] = useState(false);
   const [showTransactionFormModal, setShowTransactionFormModal] = useState(false);
   const [showStaggeredInstallationModal, setShowStaggeredInstallationModal] = useState(false);
@@ -218,6 +270,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   // Related data states
   const [relatedData, setRelatedData] = useState<Record<string, any[]>>({
     invoices: [],
+    statementOfAccounts: [],
     paymentPortalLogs: [],
     transactions: [],
     staggered: [],
@@ -235,6 +288,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   // Full related data (not limited to 5 items)
   const [fullRelatedData, setFullRelatedData] = useState<Record<string, any[]>>({
     invoices: [],
+    statementOfAccounts: [],
     paymentPortalLogs: [],
     transactions: [],
     staggered: [],
@@ -251,6 +305,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
   const [relatedDataCounts, setRelatedDataCounts] = useState<Record<string, number>>({
     invoices: 0,
+    statementOfAccounts: 0,
     paymentPortalLogs: 0,
     transactions: 0,
     staggered: 0,
@@ -266,6 +321,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   });
 
   const [loadingData, setLoadingData] = useState<Record<string, boolean>>({});
+  const [userEmailCache, setUserEmailCache] = useState<Record<string, string>>({});
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
 
@@ -374,6 +430,27 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     localStorage.setItem(FIELD_ORDER_KEY, JSON.stringify(fieldOrder));
   }, [fieldOrder]);
 
+  const getStatusInfo = (record: any) => {
+    const accessStatus = record.status || 'inactive';
+    const lowerStatus = accessStatus.toLowerCase();
+    const lowerOnlineStatus = (record.onlineStatus || '').toLowerCase();
+
+    let bucket = 'offline';
+    if (lowerStatus.includes('block') || lowerOnlineStatus.includes('block')) bucket = 'Blocked';
+    else if (lowerStatus === 'not found' || lowerOnlineStatus === 'not found') bucket = 'not found';
+    else if (lowerStatus === 'inactive' || lowerOnlineStatus === 'inactive') bucket = 'inactive';
+    else if (['online', 'active', 'connected'].includes(lowerOnlineStatus)) bucket = 'online';
+    else if (lowerOnlineStatus && lowerOnlineStatus !== 'offline') bucket = lowerOnlineStatus;
+
+    const lower = bucket.toLowerCase();
+    if (lower === 'online') return { label: 'ONLINE', color: 'text-green-500', hex: '#22c55e', fillColor: 'bg-green-500', hollow: false };
+    if (lower === 'offline') return { label: 'OFFLINE', color: 'text-yellow-400', hex: '#facc15', hollow: true };
+    if (lower === 'not found') return { label: 'NOT FOUND', color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
+    if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#7c3aed', hollow: true };
+    if (lower === 'inactive') return { label: 'INACTIVE', color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
+    return { label: bucket.toUpperCase(), color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
+  };
+
   const fetchRelatedData = async () => {
     if (!billingRecord.applicationId) {
       console.log('❌ No applicationId found in billingRecord');
@@ -435,10 +512,38 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     setRelatedDataCounts(newCounts);
   };
 
-  // Fetch related data when account number changes
+  // Fetch related data when account number changes or refreshKey increments
   useEffect(() => {
     fetchRelatedData();
-  }, [billingRecord.applicationId]);
+  }, [billingRecord.applicationId, refreshKey]);
+
+  // Resolve user IDs for Created By / Updated By fields
+  useEffect(() => {
+    const resolveUserIds = async () => {
+      const ids = [
+        billingRecord.billingAccountCreatedBy,
+        billingRecord.billingAccountUpdatedBy
+      ].filter((v): v is string => !!v && !isNaN(Number(v)));
+
+      const uniqueIds = Array.from(new Set(ids));
+
+      await Promise.all(
+        uniqueIds.map(async (id) => {
+          if (userEmailCache[id]) return;
+          try {
+            const res = await userService.getUserById(Number(id));
+            if (res.success && res.data?.email_address) {
+              setUserEmailCache(prev => ({ ...prev, [id]: res.data!.email_address }));
+            }
+          } catch {
+            // silently ignore unresolvable IDs
+          }
+        })
+      );
+    };
+
+    resolveUserIds();
+  }, [billingRecord.billingAccountCreatedBy, billingRecord.billingAccountUpdatedBy]);
 
   const toggleColumnVisibility = (column: string) => {
     setColumnVisibility((prev: Record<string, boolean>) => ({
@@ -541,14 +646,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
   const renderField = (fieldKey: string, billingRecord: BillingDetailRecord): React.ReactElement | null => {
     const fieldRenderers: Record<string, () => React.ReactElement | null> = {
-      fullName: () => (
+      fullName: () => billingRecord.customerName ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Full Name</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.customerName}</span>
         </div>
-      ),
+      ) : null,
       emailAddress: () => (billingRecord.emailAddress || billingRecord.email) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -605,14 +710,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.region}</span>
         </div>
       ) : null,
-      referredBy: () => (
+      referredBy: () => billingRecord.referredBy ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Referred By</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.referredBy || '-'}</span>
+            }`}>{billingRecord.referredBy}</span>
         </div>
-      ),
+      ) : null,
       addressCoordinates: () => {
         if (!billingRecord.addressCoordinates) return null;
 
@@ -648,6 +753,9 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               <MapContainer
                 center={[lat, lng]}
                 zoom={16}
+                minZoom={6}
+                maxBounds={L.latLngBounds([4.3, 114.0], [21.5, 127.5])}
+                maxBoundsViscosity={1.0}
                 style={{ height: '100%', width: '100%', zIndex: 1 }}
                 scrollWheelZoom={false}
               >
@@ -686,146 +794,167 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </button>
         </div>
       ) : null,
-      usageType: () => (
+      usageType: () => billingRecord.usageType ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Usage Type</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.usageType || '-'}</span>
+            }`}>{billingRecord.usageType}</span>
         </div>
-      ),
-      dateInstalled: () => (
+      ) : null,
+      dateInstalled: () => billingRecord.dateInstalled ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Date Installed</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.dateInstalled || '-'}</span>
+            }`}>{formatDate(billingRecord.dateInstalled)}</span>
         </div>
-      ),
-      username: () => (
+      ) : null,
+      username: () => billingRecord.username ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>PPPOE Username</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.username || '-'}</span>
+            }`}>{billingRecord.username}</span>
         </div>
-      ),
-      connectionType: () => (
+      ) : null,
+      connectionType: () => billingRecord.connectionType ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Connection Type</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.connectionType || '-'}</span>
+            }`}>{billingRecord.connectionType}</span>
         </div>
-      ),
-      routerModel: () => (
+      ) : null,
+      routerModel: () => billingRecord.routerModel ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Router Model</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModel || '-'}</span>
+            }`}>{billingRecord.routerModel}</span>
         </div>
-      ),
-      routerModemSN: () => (
+      ) : null,
+      routerModemSN: () => billingRecord.routerModemSN ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Router Serial Number</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.routerModemSN || '-'}</span>
+            }`}>{billingRecord.routerModemSN}</span>
         </div>
-      ),
-      onlineStatus: () => (
-        <div className="flex justify-between items-center">
-          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Online Status</span>
-          <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${billingRecord.onlineStatus === 'Online' ? 'bg-green-400' : 'bg-red-400'
-              }`}></div>
-            <span className={`font-medium ${billingRecord.onlineStatus === 'Online' ? 'text-green-400' : 'text-red-400'
-              }`}>{billingRecord.onlineStatus || '-'}</span>
+      ) : null,
+      onlineStatus: () => {
+        if (!billingRecord.status && !billingRecord.onlineStatus) return null;
+        const statusInfo = getStatusInfo(billingRecord);
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Online Status</span>
+            <div className="flex items-center space-x-2">
+              {statusInfo.hollow ? (
+                <Circle className={`h-3.5 w-3.5 ${statusInfo.color}`} strokeWidth={3} />
+              ) : (
+                <div className={`h-3.5 w-3.5 rounded-full ${statusInfo.fillColor}`} />
+              )}
+              <span className={`font-bold text-xs tracking-tight ${statusInfo.color}`}>
+                {statusInfo.label}
+              </span>
+            </div>
           </div>
-        </div>
-      ),
-      mikrotikId: () => (
+        );
+      },
+      mikrotikId: () => billingRecord.mikrotikId ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Mikrotik ID</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.mikrotikId || '-'}</span>
+            }`}>{billingRecord.mikrotikId}</span>
         </div>
-      ),
-      lcpnap: () => (
+      ) : null,
+      lcpnap: () => billingRecord.lcpnap ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>LCP NAP</span>
-          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcpnap || '-'}</span>
+          <div className="flex items-center space-x-2">
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{billingRecord.lcpnap}</span>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                handleLcpNapClick();
+              }}
+              disabled={loadingLcpNap}
+              className={`p-1 rounded transition-colors ${loadingLcpNap ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'
+                }`}
+              title="View LCP NAP Location Details"
+            >
+              <CircleArrowRight size={18} className={loadingLcpNap ? 'animate-pulse' : ''} />
+            </button>
+          </div>
         </div>
-      ),
-      lcp: () => (
+      ) : null,
+      lcp: () => billingRecord.lcp ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>LCP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.lcp || '-'}</span>
+            }`}>{billingRecord.lcp}</span>
         </div>
-      ),
-      nap: () => (
+      ) : null,
+      nap: () => billingRecord.nap ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>NAP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.nap || '-'}</span>
+            }`}>{billingRecord.nap}</span>
         </div>
-      ),
-      port: () => (
+      ) : null,
+      port: () => billingRecord.port ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>PORT</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.port || '-'}</span>
+            }`}>{billingRecord.port}</span>
         </div>
-      ),
-      vlan: () => (
+      ) : null,
+      vlan: () => billingRecord.vlan ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>VLAN</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.vlan || '-'}</span>
+            }`}>{billingRecord.vlan}</span>
         </div>
-      ),
-      sessionIp: () => (
+      ) : null,
+      sessionIp: () => (billingRecord.sessionIp || billingRecord.sessionIP) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>SESSION IP</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.sessionIp || billingRecord.sessionIP || '-'}</span>
+            }`}>{billingRecord.sessionIp || billingRecord.sessionIP}</span>
         </div>
-      ),
-      accountNumber: () => (
+      ) : null,
+      accountNumber: () => billingRecord.applicationId ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Account Number</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.applicationId}</span>
         </div>
-      ),
-      billingStatus: () => (
+      ) : null,
+      billingStatus: () => billingRecord.billingStatus ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Billing Status</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.billingStatus}</span>
         </div>
-      ),
-      billingDay: () => (
+      ) : null,
+      billingDay: () => (billingRecord.billingDay !== undefined && billingRecord.billingDay !== null) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Billing Day</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingDay === 0 ? 'Every end of month' : (billingRecord.billingDay || '-')}</span>
+            }`}>{billingRecord.billingDay === 0 ? 'Every end of month' : (billingRecord.billingDay)}</span>
         </div>
-      ),
+      ) : null,
       plan: () => billingRecord.plan ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
@@ -834,74 +963,83 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>{billingRecord.plan}</span>
         </div>
       ) : null,
-      accountBalance: () => (
+      accountBalance: () => (billingRecord.accountBalance !== undefined && billingRecord.accountBalance !== null) || (billingRecord.balance !== undefined && billingRecord.balance !== null) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Account Balance</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>₱{Number(billingRecord.accountBalance ?? billingRecord.balance ?? 0).toFixed(2)}</span>
         </div>
-      ),
-      billingAccountCreatedBy: () => (
-        <div className="flex justify-between items-center">
-          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Created By</span>
-          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountCreatedBy || '-'}</span>
-        </div>
-      ),
-      billingAccountCreatedAt: () => (
+      ) : null,
+      billingAccountCreatedBy: () => {
+        const raw = billingRecord.billingAccountCreatedBy;
+        if (!raw) return null;
+        const display = (raw && !isNaN(Number(raw)))
+          ? (userEmailCache[raw] || raw)
+          : raw;
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Created By</span>
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{display}</span>
+          </div>
+        );
+      },
+      billingAccountCreatedAt: () => billingRecord.billingAccountCreatedAt ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Created At</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountCreatedAt || '-'}</span>
+            }`}>{formatDate(billingRecord.billingAccountCreatedAt)}</span>
         </div>
-      ),
-      billingAccountUpdatedBy: () => (
-        <div className="flex justify-between items-center">
-          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-            }`}>Updated By</span>
-          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountUpdatedBy || '-'}</span>
-        </div>
-      ),
-      billingAccountUpdatedAt: () => (
+      ) : null,
+      billingAccountUpdatedBy: () => {
+        const raw = billingRecord.billingAccountUpdatedBy;
+        if (!raw) return null;
+        const display = (raw && !isNaN(Number(raw)))
+          ? (userEmailCache[raw] || raw)
+          : raw;
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+              }`}>Updated By</span>
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{display}</span>
+          </div>
+        );
+      },
+      billingAccountUpdatedAt: () => billingRecord.billingAccountUpdatedAt ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Updated At</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.billingAccountUpdatedAt || '-'}</span>
+            }`}>{formatDate(billingRecord.billingAccountUpdatedAt)}</span>
         </div>
-      ),
-      balanceUpdateDate: () => (
+      ) : null,
+      balanceUpdateDate: () => billingRecord.balanceUpdateDate ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Balance Update Date</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{billingRecord.balanceUpdateDate || '-'}</span>
+            }`}>{formatDate(billingRecord.balanceUpdateDate)}</span>
         </div>
-      ),
-      totalPaid: () => (
+      ) : null,
+      totalPaid: () => (billingRecord.totalPaid !== undefined && billingRecord.totalPaid !== null) ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
             }`}>Total Paid</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>₱{Number(billingRecord.totalPaid || 0).toFixed(2)}</span>
         </div>
-      )
+      ) : null
     };
 
     const renderer = fieldRenderers[fieldKey];
     return renderer ? renderer() : null;
   };
 
-  const toggleSection = (section: string) => {
-    setExpandedSections((prev: Record<string, boolean>) => ({
-      ...prev,
-      [section]: !prev[section]
-    }));
-  };
+
 
   useEffect(() => {
     if (!isResizing) return;
@@ -1060,6 +1198,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       if (onRefresh) {
         await onRefresh();
       }
+      await fetchRelatedData();
 
       // We don't close the modal here anymore. The modal component handles the success UI and closing.
     } catch (error) {
@@ -1090,6 +1229,16 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       splynxId: '1'
     }
   ];
+
+  if (selectedLcpNapLocation) {
+    return (
+      <LcpNapLocationDetails
+        location={selectedLcpNapLocation}
+        onClose={() => setSelectedLcpNapLocation(null)}
+        externalWidth={detailsWidth}
+      />
+    );
+  }
 
   if (selectedSOARecord) {
     return (
@@ -1149,11 +1298,11 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       <div
         className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
         style={{
-          backgroundColor: isResizing ? (colorPalette?.primary || '#ea580c') : 'transparent'
+          backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
         }}
         onMouseEnter={(e) => {
           if (!isResizing) {
-            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#ea580c';
+            e.currentTarget.style.backgroundColor = colorPalette?.accent || '#7c3aed';
           }
         }}
         onMouseLeave={(e) => {
@@ -1178,6 +1327,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
+            title="Service Order Request"
           >
             <Wrench size={18} />
           </button>
@@ -1187,6 +1337,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
               ? 'text-gray-400 hover:text-white hover:bg-gray-700'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
               }`}
+            title="Edit Customer Details"
           >
             <Edit size={18} />
           </button>
@@ -1194,7 +1345,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             onClick={handleTransactClick}
             className="px-3 py-1 rounded text-sm transition-colors text-white"
             style={{
-              backgroundColor: colorPalette?.primary || '#ea580c'
+              backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
             onMouseEnter={(e) => {
               if (colorPalette?.accent) {
@@ -1376,10 +1527,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
         }`}></div>
 
       <div className="flex-1 overflow-y-auto">
+        {/* Related Invoices */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Invoices</span>
@@ -1397,22 +1548,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.invoices ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('invoices')}
-                className="flex items-center"
-              >
-                {expandedSections.invoices ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.invoices && (
+          {relatedDataCounts.invoices > 0 && (
             <div className="px-6 pb-4">
               <RelatedDataTable
                 data={relatedData.invoices}
@@ -1426,7 +1567,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
         {/* Related Statement of Accounts */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Related Statement of Accounts</span>
               <span className={`text-xs px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'}`}>{relatedDataCounts.statementOfAccounts}</span>
@@ -1439,19 +1580,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 }}
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'}`}
               >
-                {expandedSections.statementOfAccounts ? 'Collapse' : 'Expand'}
-              </button>
-              <button onClick={() => toggleSection('statementOfAccounts')} className="flex items-center">
-                {expandedSections.statementOfAccounts ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.statementOfAccounts && (
+          {relatedDataCounts.statementOfAccounts > 0 && (
             <div className="px-6 pb-4">
               <RelatedDataTable
                 data={relatedData.statementOfAccounts}
@@ -1466,10 +1600,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
+        {/* Related Payment Portal Logs */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Payment Portal Logs</span>
@@ -1487,22 +1621,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.paymentPortalLogs ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('paymentPortalLogs')}
-                className="flex items-center"
-              >
-                {expandedSections.paymentPortalLogs ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.paymentPortalLogs && (
+          {relatedDataCounts.paymentPortalLogs > 0 && (
             <div className="px-6 pb-4">
               <RelatedDataTable
                 data={relatedData.paymentPortalLogs}
@@ -1514,10 +1638,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
+        {/* Related Transactions */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Transactions</span>
@@ -1535,22 +1659,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.transactions ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('transactions')}
-                className="flex items-center"
-              >
-                {expandedSections.transactions ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.transactions && (
+          {relatedDataCounts.transactions > 0 && (
             <div className="px-6 pb-4">
               <RelatedDataTable
                 data={relatedData.transactions}
@@ -1568,10 +1682,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
+        {/* Related Staggered */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Staggered</span>
@@ -1589,22 +1703,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.staggeredInstallations ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('staggeredInstallations')}
-                className="flex items-center"
-              >
-                {expandedSections.staggeredInstallations ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.staggeredInstallations && (
+          {relatedDataCounts.staggered > 0 && (
             <div className="px-6 pb-4">
               <RelatedDataTable
                 data={relatedData.staggered}
@@ -1626,10 +1730,10 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           )}
         </div>
 
+        {/* Related Discounts */}
         <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
-          <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-            }`}>
+          <div className={`w-full px-6 py-4 flex items-center justify-between`}>
             <div className="flex items-center space-x-2">
               <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>Related Discounts</span>
@@ -1647,22 +1751,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                   }`}
               >
-                {expandedSections.discounts ? 'Collapse' : 'Expand'}
-              </button>
-              <button
-                onClick={() => toggleSection('discounts')}
-                className="flex items-center"
-              >
-                {expandedSections.discounts ? (
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                ) : (
-                  <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                )}
+                Expand
               </button>
             </div>
           </div>
 
-          {expandedSections.discounts && (
+          {relatedDataCounts.discounts > 0 && (
             <div className="px-6 pb-4">
               <RelatedDataTable
                 data={relatedData.discounts}
@@ -1683,20 +1777,20 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             </div>
           )}
         </div>
-        {[
-          { key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
-          { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
-          { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
-          { key: 'detailsUpdateLogs', label: 'Related Details Update Logs', dataKey: 'detailsUpdateLogs' },
-          { key: 'planChangeLogs', label: 'Related Plan Change Logs', dataKey: 'planChangeLogs' },
-          { key: 'serviceChargeLogs', label: 'Related Service Charge Logs', dataKey: 'serviceChargeLogs' },
-          { key: 'changeDueLogs', label: 'Related Change Due Logs', dataKey: 'changeDueLogs' },
-          { key: 'securityDeposits', label: 'Related Security Deposits', dataKey: 'securityDeposits' }
+
+        {/* Other Sections */}
+        {[{ key: 'serviceOrders', label: 'Related Service Orders', dataKey: 'serviceOrders' },
+        { key: 'reconnectionLogs', label: 'Related Reconnection Logs', dataKey: 'reconnectionLogs' },
+        { key: 'disconnectedLogs', label: 'Related Disconnected Logs', dataKey: 'disconnectedLogs' },
+        { key: 'detailsUpdateLogs', label: 'Related Details Update Logs', dataKey: 'detailsUpdateLogs' },
+        { key: 'planChangeLogs', label: 'Related Plan Change Logs', dataKey: 'planChangeLogs' },
+        { key: 'serviceChargeLogs', label: 'Related Service Charge Logs', dataKey: 'serviceChargeLogs' },
+        { key: 'changeDueLogs', label: 'Related Change Due Logs', dataKey: 'changeDueLogs' },
+        { key: 'securityDeposits', label: 'Related Security Deposits', dataKey: 'securityDeposits' }
         ].map((section) => (
           <div key={section.key} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
             }`}>
-            <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              }`}>
+            <div className={`w-full px-6 py-4 flex items-center justify-between`}>
               <div className="flex items-center space-x-2">
                 <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>{section.label}</span>
@@ -1714,22 +1808,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                   className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'
                     }`}
                 >
-                  {expandedSections[section.key] ? 'Collapse' : 'Expand'}
-                </button>
-                <button
-                  onClick={() => toggleSection(section.key)}
-                  className="flex items-center"
-                >
-                  {expandedSections[section.key] ? (
-                    <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  ) : (
-                    <ChevronRight size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                  )}
+                  Expand
                 </button>
               </div>
             </div>
 
-            {expandedSections[section.key] && (
+            {relatedDataCounts[section.key] > 0 && (
               <div className="px-6 pb-4">
                 <RelatedDataTable
                   data={relatedData[section.key]}
@@ -1817,7 +1901,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
                 onClick={handleSORequestConfirm}
                 className="px-4 py-2 rounded transition-colors text-white"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {

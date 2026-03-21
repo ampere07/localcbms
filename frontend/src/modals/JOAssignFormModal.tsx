@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, ChevronDown, Minus, Plus, Loader2 } from 'lucide-react';
+import { X, Calendar, ChevronDown, Minus, Plus, Loader2, Search } from 'lucide-react';
 import { createJobOrder, JobOrderData } from '../services/jobOrderService';
 import { updateApplication } from '../services/applicationService';
 import { getAllGroups, Group } from '../services/groupService';
@@ -44,9 +44,9 @@ interface JOFormData {
   choosePlan: string;
   promo: string;
   remarks: string;
-  installationFee: number;
+  installationFee: number | string;
   billingDay: string;
-  isLastDayOfMonth: boolean;
+
   onsiteStatus: string;
   assignedEmail: string;
   modifiedBy: string;
@@ -77,12 +77,12 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@ampere.com';
+  const currentUserEmail = currentUser?.email || 'unknown@email.com';
 
   const [formData, setFormData] = useState<JOFormData>({
     timestamp: new Date().toLocaleString('sv-SE').replace(' ', ' '),
 
-    status: '',
+    status: 'Confirmed',
     referredBy: '',
     firstName: '',
     middleInitial: '',
@@ -96,9 +96,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     choosePlan: '',
     promo: '',
     remarks: '',
-    installationFee: 0.00,
+    installationFee: 0,
     billingDay: '',
-    isLastDayOfMonth: false,
+
     onsiteStatus: 'In Progress',
     assignedEmail: '',
     modifiedBy: currentUserEmail,
@@ -151,6 +151,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const [promos, setPromos] = useState<Promo[]>([]);
   const [technicians, setTechnicians] = useState<Array<{ email: string; name: string }>>([]);
   const [groups, setGroups] = useState<Group[]>([]);
+  const [agents, setAgents] = useState<any[]>([]);
+  const [referredBySearch, setReferredBySearch] = useState('');
+  const [isReferredByOpen, setIsReferredByOpen] = useState(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -211,6 +214,31 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     };
 
     fetchTechnicians();
+  }, [isOpen]);
+
+  useEffect(() => {
+    const fetchAgents = async () => {
+      if (isOpen) {
+        try {
+          // Use role_id 4 or name 'agent' as requested
+          const response = await userService.getUsersByRole('agent');
+          if (response.success && response.data) {
+            setAgents(response.data);
+          } else {
+            // Fallback to role ID 4 if 'agent' name doesn't return anything
+            const responseById = await userService.getUsersByRoleId(4);
+            if (responseById.success && responseById.data) {
+              setAgents(responseById.data);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch agents:', error);
+          setAgents([]);
+        }
+      }
+    };
+
+    fetchAgents();
   }, [isOpen]);
 
   useEffect(() => {
@@ -361,9 +389,13 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
         installationLandmark: applicationData.landmark || ''
       }));
     }
-  }, [applicationData, isOpen]);
+  }, [isOpen]);
 
   const handleInputChange = (field: keyof JOFormData, value: string | number | boolean) => {
+    if (field === 'middleInitial' && typeof value === 'string') {
+      value = value.replace(/[0-9]/g, '');
+    }
+
     if (field === 'billingDay') {
       const numValue = parseInt(value as string);
       if (!isNaN(numValue) && numValue > 30) {
@@ -376,9 +408,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     setFormData(prev => {
       const newData = { ...prev, [field]: value };
 
-      if (field === 'isLastDayOfMonth' && value === true) {
-        newData.billingDay = '0';
-      }
+
 
       if (field === 'region') {
         newData.city = '';
@@ -396,11 +426,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
 
   const handleInstallationFeeChange = (value: string) => {
     if (value === '' || value === '-') {
-      setFormData(prev => ({ ...prev, installationFee: 0 }));
+      setFormData(prev => ({ ...prev, installationFee: value }));
     } else {
       const numValue = parseFloat(value);
       if (!isNaN(numValue)) {
-        setFormData(prev => ({ ...prev, installationFee: numValue }));
+        setFormData(prev => ({ ...prev, installationFee: value }));
       }
     }
     if (errors.installationFee) {
@@ -411,9 +441,10 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   const handleNumberChange = (field: 'installationFee' | 'billingDay', increment: boolean) => {
     setFormData(prev => {
       if (field === 'installationFee') {
+        const currentVal = Number(prev[field]) || 0;
         return {
           ...prev,
-          [field]: increment ? prev[field] + 0.01 : Math.max(0, prev[field] - 0.01)
+          [field]: increment ? currentVal + 0.01 : Math.max(0, currentVal - 0.01)
         };
       } else {
         const currentValue = parseInt(prev[field]) || 1;
@@ -479,19 +510,17 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       newErrors.choosePlan = 'Choose Plan is required';
     }
 
-    if (formData.installationFee < 0) {
+    if (Number(formData.installationFee) < 0) {
       newErrors.installationFee = 'Installation fee cannot be negative';
     }
 
 
 
     const billingDayNum = parseInt(formData.billingDay);
-    if (!formData.isLastDayOfMonth) {
-      if (isNaN(billingDayNum) || billingDayNum < 1) {
-        newErrors.billingDay = 'Billing Day must be at least 1';
-      } else if (billingDayNum > 30) {
-        newErrors.billingDay = 'Billing Day cannot exceed 30';
-      }
+    if (isNaN(billingDayNum) || billingDayNum < 1) {
+      newErrors.billingDay = 'Billing Day must be at least 1';
+    } else if (billingDayNum > 30) {
+      newErrors.billingDay = 'Billing Day cannot exceed 30';
     }
 
     if (formData.status === 'Confirmed') {
@@ -531,8 +560,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     return {
       application_id: applicationId,
       timestamp: formattedTimestamp,
-      installation_fee: data.installationFee || 0,
-      billing_day: data.isLastDayOfMonth ? 0 : (parseInt(data.billingDay) || 30),
+      installation_fee: Number(data.installationFee) || 0,
+      billing_day: parseInt(data.billingDay) || 30,
       billing_status: 'In Progress',
       modem_router_sn: null,
       onsite_status: data.onsiteStatus || 'In Progress',
@@ -701,7 +730,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             }`}>
             <Loader2
               className="w-20 h-20 animate-spin"
-              style={{ color: colorPalette?.primary || '#ea580c' }}
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
             />
             <div className="text-center">
               <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
@@ -733,7 +762,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                 disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {
@@ -741,7 +770,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {loading ? 'Saving...' : 'Save'}
@@ -804,18 +833,100 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                 {errors.status && <p className="text-red-500 text-xs mt-1">{errors.status}</p>}
               </div>
 
-              <div>
+              <div className="relative">
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                   }`}>Referred By</label>
-                <input
-                  type="text"
-                  value={formData.referredBy}
-                  onChange={(e) => handleInputChange('referredBy', e.target.value)}
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
-                    }`}
-                />
+                <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                  } ${isReferredByOpen ? 'border-orange-500' : ''}`}>
+                  <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                  <input
+                    type="text"
+                    placeholder="Search Agent..."
+                    value={isReferredByOpen ? referredBySearch : (formData.referredBy || '')}
+                    onChange={(e) => {
+                      setReferredBySearch(e.target.value);
+                      if (!isReferredByOpen) setIsReferredByOpen(true);
+                    }}
+                    onFocus={() => {
+                      setIsReferredByOpen(true);
+                    }}
+                    className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (isReferredByOpen) {
+                        setIsReferredByOpen(false);
+                        setReferredBySearch('');
+                      } else {
+                        handleInputChange('referredBy', '');
+                        setReferredBySearch('');
+                      }
+                    }}
+                    className={`ml-2 transition-transform duration-200 ${isReferredByOpen ? 'rotate-180' : ''}`}
+                  >
+                    <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                  </button>
+                </div>
+
+                {/* Agents Dropdown */}
+                {isReferredByOpen && (
+                  <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-100'}`} style={{ minWidth: '100%' }}>
+                    <div className="max-h-60 overflow-y-auto">
+                      {agents
+                        .filter(agent => {
+                          const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                          const searchLower = referredBySearch.toLowerCase();
+                          return fullName.toLowerCase().includes(searchLower) ||
+                            (agent.username && agent.username.toLowerCase().includes(searchLower)) ||
+                            (agent.email_address && agent.email_address.toLowerCase().includes(searchLower));
+                        })
+                        .map((agent) => {
+                          const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                          return (
+                            <div
+                              key={agent.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.referredBy === fullName ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('referredBy', fullName);
+                                setIsReferredByOpen(false);
+                                setReferredBySearch('');
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{fullName}</span>
+                                {formData.referredBy === fullName && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      {agents.filter(agent => {
+                        const fullName = `${agent.first_name || ''} ${agent.middle_initial || ''} ${agent.last_name || ''}`.replace(/\s+/g, ' ').trim();
+                        const searchLower = referredBySearch.toLowerCase();
+                        return fullName.toLowerCase().includes(searchLower) ||
+                          (agent.username && agent.username.toLowerCase().includes(searchLower)) ||
+                          (agent.email_address && agent.email_address.toLowerCase().includes(searchLower));
+                      }).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No Agent found for "{referredBySearch}"
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Click outside to close */}
+                {isReferredByOpen && (
+                  <div
+                    className="fixed inset-0 z-40 bg-transparent"
+                    onClick={() => {
+                      setIsReferredByOpen(false);
+                      setReferredBySearch('');
+                    }}
+                  />
+                )}
               </div>
             </div>
 
@@ -844,6 +955,11 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   type="text"
                   value={formData.middleInitial}
                   onChange={(e) => handleInputChange('middleInitial', e.target.value)}
+                  onKeyDown={(e) => {
+                    if (/[0-9]/.test(e.key)) {
+                      e.preventDefault();
+                    }
+                  }}
                   maxLength={1}
                   className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                     ? 'bg-gray-800 text-white border-gray-700'
@@ -1135,7 +1251,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     max="30"
                     value={formData.billingDay}
                     onChange={(e) => handleInputChange('billingDay', e.target.value)}
-                    disabled={formData.isLastDayOfMonth}
+                    disabled={false}
                     className={`flex-1 px-3 py-2 bg-transparent focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode ? 'text-white' : 'text-gray-900'
                       } ${errors.billingDay ? 'border-red-500' : ''}`}
                   />
@@ -1143,7 +1259,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleNumberChange('billingDay', false)}
-                      disabled={formData.isLastDayOfMonth}
+                      disabled={false}
                       className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                         ? 'text-gray-400 hover:text-white border-gray-700'
                         : 'text-gray-600 hover:text-gray-900 border-gray-300'
@@ -1154,7 +1270,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                     <button
                       type="button"
                       onClick={() => handleNumberChange('billingDay', true)}
-                      disabled={formData.isLastDayOfMonth}
+                      disabled={false}
                       className={`px-3 py-2 border-l transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
                         ? 'text-gray-400 hover:text-white border-gray-700'
                         : 'text-gray-600 hover:text-gray-900 border-gray-300'
@@ -1165,27 +1281,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   </div>
                 </div>
 
-                <div className="mt-2 flex items-center">
-                  <input
-                    type="checkbox"
-                    id="isLastDayOfMonth"
-                    checked={formData.isLastDayOfMonth}
-                    onChange={(e) => handleInputChange('isLastDayOfMonth', e.target.checked)}
-                    className={`w-4 h-4 rounded text-orange-600 focus:ring-orange-500 focus:ring-2 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                      }`}
-                  />
-                  <label htmlFor="isLastDayOfMonth" className={`ml-2 text-sm cursor-pointer ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                    }`}>
-                    Always use last day of the month
-                  </label>
-                </div>
 
-                {parseInt(formData.billingDay) > 30 && !formData.isLastDayOfMonth && (
-                  <p className="text-orange-500 text-xs mt-1 flex items-center">
-                    <span className="mr-1">⚠</span>
-                    Billing Day must be between 1 and 30
-                  </p>
-                )}
                 {errors.billingDay && <p className="text-red-500 text-xs mt-1">{errors.billingDay}</p>}
               </div>
             </div>
@@ -1313,7 +1409,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
             {modal.type === 'loading' ? (
               <div className="text-center">
                 <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#ea580c' }}></div>
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
                 </div>
                 <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
                   }`}>{modal.title}</h3>
@@ -1342,7 +1438,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                         onClick={modal.onConfirm}
                         className="px-4 py-2 text-white rounded transition-colors"
                         style={{
-                          backgroundColor: colorPalette?.primary || '#ea580c'
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
                         }}
                         onMouseEnter={(e) => {
                           if (colorPalette?.accent) {
@@ -1350,7 +1446,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                           }
                         }}
                         onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                         }}
                       >
                         Confirm
@@ -1367,7 +1463,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                       }}
                       className="px-4 py-2 text-white rounded transition-colors"
                       style={{
-                        backgroundColor: colorPalette?.primary || '#ea580c'
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
                       }}
                       onMouseEnter={(e) => {
                         if (colorPalette?.accent) {
@@ -1375,7 +1471,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                         }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                       }}
                     >
                       OK

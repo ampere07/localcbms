@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Edit2, Trash2, Loader2 } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Loader2, X } from 'lucide-react';
 import { concernService, Concern } from '../services/concernService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import EditConcernModal from '../modals/EditConcernModal';
@@ -28,7 +28,7 @@ const ConcernConfig: React.FC = () => {
         console.error('Failed to fetch color palette:', err);
       }
     };
-    
+
     fetchColorPalette();
   }, []);
 
@@ -69,7 +69,7 @@ const ConcernConfig: React.FC = () => {
 
   const handleDelete = async (item: Concern, event: React.MouseEvent) => {
     event.stopPropagation();
-    
+
     if (!window.confirm(`⚠️ PERMANENT DELETE WARNING ⚠️\n\nAre you sure you want to permanently delete "${item.concern_name}"?\n\nThis action CANNOT BE UNDONE!\n\nClick OK to permanently delete, or Cancel to keep the item.`)) {
       return;
     }
@@ -79,7 +79,7 @@ const ConcernConfig: React.FC = () => {
       newSet.add(item.id);
       return newSet;
     });
-    
+
     try {
       await concernService.deleteConcern(item.id);
       await loadConcerns();
@@ -126,17 +126,14 @@ const ConcernConfig: React.FC = () => {
   });
 
   return (
-    <div className={`${
-      isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
-    } h-full flex overflow-hidden`}>
-      <div className={`${
-        isDarkMode ? 'bg-gray-900' : 'bg-white'
-      } overflow-hidden flex-1`}>
+    <div className={`${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
+      } h-full flex overflow-hidden`}>
+      <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-white'
+        } overflow-hidden flex-1`}>
         <div className="flex flex-col h-full">
           {/* Header */}
-          <div className={`p-4 border-b flex-shrink-0 ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
                 <input
@@ -144,11 +141,10 @@ const ConcernConfig: React.FC = () => {
                   placeholder="Search Concerns"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${
-                    isDarkMode 
-                      ? 'bg-gray-800 text-white border-gray-700' 
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode
+                      ? 'bg-gray-800 text-white border-gray-700'
                       : 'bg-gray-100 text-gray-900 border-gray-300'
-                  } border`}
+                    } border`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
@@ -160,15 +156,23 @@ const ConcernConfig: React.FC = () => {
                     e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                }`} />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
               <button
                 onClick={handleAddNew}
                 className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -186,32 +190,29 @@ const ConcernConfig: React.FC = () => {
               </button>
             </div>
           </div>
-          
+
           {/* Content */}
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
-                <div className={`px-4 py-12 text-center ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   <div className="animate-pulse flex flex-col items-center">
-                    <div className={`h-4 w-1/3 rounded mb-4 ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
-                    <div className={`h-4 w-1/2 rounded ${
-                      isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
-                    }`}></div>
+                    <div className={`h-4 w-1/3 rounded mb-4 ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
+                    <div className={`h-4 w-1/2 rounded ${isDarkMode ? 'bg-gray-700' : 'bg-gray-300'
+                      }`}></div>
                   </div>
                   <p className="mt-4">Loading concerns...</p>
                 </div>
               ) : error ? (
                 <div className={`px-4 py-12 text-center text-red-400`}>
                   <p>{error}</p>
-                  <button 
+                  <button
                     onClick={() => loadConcerns()}
                     className="mt-4 px-4 py-2 rounded text-white transition-colors"
                     style={{
-                      backgroundColor: colorPalette?.primary || '#ea580c'
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
                     }}
                     onMouseEnter={(e) => {
                       if (colorPalette?.accent) {
@@ -231,28 +232,25 @@ const ConcernConfig: React.FC = () => {
                   {filteredConcerns.map((item) => (
                     <div
                       key={item.id}
-                      className={`px-4 py-3 cursor-pointer transition-colors border-b ${
-                        isDarkMode 
-                          ? 'hover:bg-gray-800 border-gray-800' 
+                      className={`px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
+                          ? 'hover:bg-gray-800 border-gray-800'
                           : 'hover:bg-gray-100 border-gray-200'
-                      }`}
+                        }`}
                     >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 min-w-0">
-                          <div className={`font-medium text-sm mb-1 uppercase ${
-                            isDarkMode ? 'text-white' : 'text-gray-900'
-                          }`}>
+                          <div className={`font-medium text-sm mb-1 uppercase ${isDarkMode ? 'text-white' : 'text-gray-900'
+                            }`}>
                             {item.concern_name}
                           </div>
                         </div>
                         <div className="flex items-center space-x-2 ml-4 flex-shrink-0">
                           <button
                             onClick={(e) => handleEdit(item, e)}
-                            className={`p-1.5 rounded transition-colors ${
-                              isDarkMode 
-                                ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700' 
+                            className={`p-1.5 rounded transition-colors ${isDarkMode
+                                ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
                                 : 'text-gray-600 hover:text-blue-600 hover:bg-gray-200'
-                            }`}
+                              }`}
                             title="Edit Concern"
                           >
                             <Edit2 size={16} />
@@ -260,11 +258,10 @@ const ConcernConfig: React.FC = () => {
                           <button
                             onClick={(e) => handleDelete(item, e)}
                             disabled={deletingItems.has(item.id)}
-                            className={`p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                              isDarkMode 
-                                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700' 
+                            className={`p-1.5 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
+                                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
                                 : 'text-gray-600 hover:text-red-600 hover:bg-gray-200'
-                            }`}
+                              }`}
                             title={deletingItems.has(item.id) ? 'Deleting...' : 'Delete Concern'}
                           >
                             {deletingItems.has(item.id) ? (
@@ -279,9 +276,8 @@ const ConcernConfig: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className={`text-center py-12 ${
-                  isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
+                <div className={`text-center py-12 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>
                   No concerns found
                 </div>
               )}

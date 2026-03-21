@@ -54,7 +54,7 @@ const RouterModelList: React.FC = () => {
       startTimer();
     };
 
-    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
+    const activityEvents = ['mousedown', 'keypress', 'touchstart'];
 
     const handleActivity = () => {
       resetTimer();
@@ -186,14 +186,16 @@ const RouterModelList: React.FC = () => {
 
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-PH', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateString;
+    }
   };
 
   const getFilteredRouters = () => {
@@ -274,7 +276,7 @@ const RouterModelList: React.FC = () => {
                 onClick={handleAddNew}
                 className="px-4 py-2 text-white rounded-lg flex items-center gap-2 transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#dc2626'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {
@@ -282,7 +284,7 @@ const RouterModelList: React.FC = () => {
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#dc2626';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 <Plus className="h-4 w-4" />

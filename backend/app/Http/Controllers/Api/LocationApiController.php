@@ -6,10 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Region;
 use App\Models\City;
 use App\Models\Barangay;
-use App\Models\Village;
+use App\Models\LocationDetail;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use App\Models\ActivityLog;
 
 class LocationApiController extends Controller
 {
@@ -36,7 +37,14 @@ class LocationApiController extends Controller
                                 return [
                                     'id' => $barangay->id,
                                     'name' => $barangay->barangay,
-                                    'city_id' => $barangay->city_id
+                                    'city_id' => $barangay->city_id,
+                                    'active_locations' => $barangay->locations->map(function($location) {
+                                        return [
+                                            'id' => $location->id,
+                                            'name' => $location->location_name,
+                                            'barangay_id' => $location->barangay_id
+                                        ];
+                                    })
                                 ];
                             })
                         ];
@@ -211,65 +219,65 @@ class LocationApiController extends Controller
     }
 
     /**
-     * Get villages by barangay
+     * Get locations by barangay
      */
-    public function getVillagesByBarangay($barangayId)
+    public function getLocationsByBarangay($barangayId)
     {
         try {
-            $villages = Village::where('barangay_id', $barangayId)
-                ->orderBy('village')
+            $locations = LocationDetail::where('barangay_id', $barangayId)
+                ->orderBy('location_name')
                 ->get();
             
             // Transform to match frontend expectations
-            $transformedVillages = $villages->map(function($village) {
+            $transformedLocations = $locations->map(function($location) {
                 return [
-                    'id' => $village->id,
-                    'name' => $village->village,
-                    'village' => $village->village,
-                    'barangay_id' => $village->barangay_id,
-                    'borough_id' => $village->barangay_id  // Frontend uses borough_id
+                    'id' => $location->id,
+                    'name' => $location->location_name,
+                    'location_name' => $location->location_name,
+                    'barangay_id' => $location->barangay_id,
+                    'borough_id' => $location->barangay_id  // Frontend uses borough_id
                 ];
             });
             
             return response()->json([
                 'success' => true,
-                'data' => $transformedVillages
+                'data' => $transformedLocations
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching villages: ' . $e->getMessage()
+                'message' => 'Error fetching locations: ' . $e->getMessage()
             ], 500);
         }
     }
 
     /**
-     * Get all villages
+     * Get all locations
      */
-    public function getAllVillages()
+    public function getAllDetails()
     {
         try {
-            $villages = Village::orderBy('village')->get();
+            $locations = LocationDetail::orderBy('location_name')->get();
             
             // Transform to match frontend expectations
-            $transformedVillages = $villages->map(function($village) {
+            $transformedLocations = $locations->map(function($location) {
                 return [
-                    'id' => $village->id,
-                    'name' => $village->village,
-                    'village' => $village->village,
-                    'barangay_id' => $village->barangay_id,
-                    'borough_id' => $village->barangay_id  // Frontend uses borough_id
+                    'id' => $location->id,
+                    'name' => $location->location_name,
+                    'location_name' => $location->location_name,
+                    'barangay_id' => $location->barangay_id,
+                    'borough_id' => $location->barangay_id  // Frontend uses borough_id
                 ];
             });
             
             return response()->json([
                 'success' => true,
-                'data' => $transformedVillages
+                'data' => $transformedLocations
             ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error fetching villages: ' . $e->getMessage()
+                'message' => 'Error fetching locations: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -306,6 +314,18 @@ class LocationApiController extends Controller
                 'region' => $name
             ]);
             
+            // Log Activity
+            ActivityLog::log(
+                'Location Created',
+                "New Region created: {$name}",
+                'info',
+                [
+                    'resource_type' => 'Region',
+                    'resource_id' => $region->id,
+                    'additional_data' => $region->toArray()
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Region added successfully',
@@ -358,6 +378,18 @@ class LocationApiController extends Controller
                 'city' => $name
             ]);
             
+            // Log Activity
+            ActivityLog::log(
+                'Location Created',
+                "New City created: {$name} in Region ID: {$regionId}",
+                'info',
+                [
+                    'resource_type' => 'City',
+                    'resource_id' => $city->id,
+                    'additional_data' => $city->toArray()
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'City added successfully',
@@ -410,6 +442,18 @@ class LocationApiController extends Controller
                 'barangay' => $name
             ]);
             
+            // Log Activity
+            ActivityLog::log(
+                'Location Created',
+                "New Barangay created: {$name} in City ID: {$cityId}",
+                'info',
+                [
+                    'resource_type' => 'Barangay',
+                    'resource_id' => $barangay->id,
+                    'additional_data' => $barangay->toArray()
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => 'Barangay added successfully',
@@ -425,13 +469,13 @@ class LocationApiController extends Controller
     }
 
     /**
-     * Add new village
+     * Add new location
      */
-    public function addVillage(Request $request)
+    public function addLocation(Request $request)
     {
         try {
             $validator = Validator::make($request->all(), [
-                'barangay_id' => 'nullable|integer',
+                'barangay_id' => 'nullable|integer|exists:barangay,id',
                 'name' => 'required|string|max:255'
             ]);
 
@@ -446,19 +490,8 @@ class LocationApiController extends Controller
             $barangayId = $request->input('barangay_id');
             $name = $request->input('name');
             
-            // Check if barangay exists if barangay_id is provided
-            if ($barangayId) {
-                $barangayExists = Barangay::find($barangayId);
-                if (!$barangayExists) {
-                    return response()->json([
-                        'success' => false,
-                        'message' => 'Barangay not found'
-                    ], 422);
-                }
-            }
-            
-            // Check for duplicate village name in same barangay
-            $query = Village::whereRaw('LOWER(village) = ?', [strtolower($name)]);
+            // Check for duplicate location name in same barangay
+            $query = LocationDetail::whereRaw('LOWER(location_name) = ?', [strtolower($name)]);
             if ($barangayId) {
                 $query->where('barangay_id', $barangayId);
             }
@@ -467,25 +500,37 @@ class LocationApiController extends Controller
             if ($existing) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'A village with this name already exists in this barangay'
+                    'message' => 'A location with this name already exists in this barangay'
                 ], 422);
             }
             
-            $village = Village::create([
+            $location = LocationDetail::create([
                 'barangay_id' => $barangayId,
-                'village' => $name
+                'location_name' => $name
             ]);
             
+            // Log Activity
+            ActivityLog::log(
+                'Location Created',
+                "New Location created: {$name}" . ($barangayId ? " in Barangay ID: {$barangayId}" : ""),
+                'info',
+                [
+                    'resource_type' => 'LocationDetail',
+                    'resource_id' => $location->id,
+                    'additional_data' => $location->toArray()
+                ]
+            );
+
             return response()->json([
                 'success' => true,
-                'message' => 'Village added successfully',
-                'data' => $village
+                'message' => 'Location added successfully',
+                'data' => $location
             ], 201);
             
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'Error adding village: ' . $e->getMessage()
+                'message' => 'Error adding location: ' . $e->getMessage()
             ], 500);
         }
     }
@@ -510,7 +555,7 @@ class LocationApiController extends Controller
 
             $name = $request->input('name');
             
-            $validTypes = ['region', 'city', 'barangay', 'village'];
+            $validTypes = ['region', 'city', 'barangay', 'location'];
             if (!in_array($type, $validTypes)) {
                 return response()->json([
                     'success' => false,
@@ -590,31 +635,43 @@ class LocationApiController extends Controller
                     $location->save();
                     break;
                     
-                case 'village':
-                    $location = Village::find($id);
+                case 'location':
+                    $location = LocationDetail::find($id);
                     if (!$location) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'Village not found'
+                            'message' => 'Location not found'
                         ], 404);
                     }
                     
-                    $existing = Village::where('id', '!=', $id)
+                    $existing = LocationDetail::where('id', '!=', $id)
                         ->where('barangay_id', $location->barangay_id)
-                        ->whereRaw('LOWER(village) = ?', [strtolower($name)])
+                        ->whereRaw('LOWER(location_name) = ?', [strtolower($name)])
                         ->first();
                     if ($existing) {
                         return response()->json([
                             'success' => false,
-                            'message' => 'A village with this name already exists in this barangay'
+                            'message' => 'A location with this name already exists in this barangay'
                         ], 422);
                     }
                     
-                    $location->village = $name;
+                    $location->location_name = $name;
                     $location->save();
                     break;
             }
             
+            // Log Activity
+            ActivityLog::log(
+                'Location Updated',
+                ucfirst($type) . " updated: {$name} (ID: {$id})",
+                'info',
+                [
+                    'resource_type' => ucfirst($type),
+                    'resource_id' => $id,
+                    'additional_data' => $location->toArray()
+                ]
+            );
+
             return response()->json([
                 'success' => true,
                 'message' => ucfirst($type) . ' updated successfully',
@@ -635,7 +692,7 @@ class LocationApiController extends Controller
     public function deleteLocation($type, $id, Request $request)
     {
         try {
-            $validTypes = ['region', 'city', 'barangay', 'village'];
+            $validTypes = ['region', 'city', 'barangay', 'location'];
             if (!in_array($type, $validTypes)) {
                 return response()->json([
                     'success' => false,
@@ -685,7 +742,7 @@ class LocationApiController extends Controller
                             foreach ($cities as $city) {
                                 $barangays = Barangay::where('city_id', $city->id)->get();
                                 foreach ($barangays as $barangay) {
-                                    Village::where('barangay_id', $barangay->id)->delete();
+                                    LocationDetail::where('barangay_id', $barangay->id)->delete();
                                 }
                                 Barangay::where('city_id', $city->id)->delete();
                             }
@@ -703,7 +760,7 @@ class LocationApiController extends Controller
                                 'success' => false,
                                 'message' => 'City not found'
                             ], 404);
-                        }
+                         }
                         
                         $barangays = Barangay::where('city_id', $id)->get();
                         
@@ -723,7 +780,7 @@ class LocationApiController extends Controller
                         
                         if ($cascade) {
                             foreach ($barangays as $barangay) {
-                                Village::where('barangay_id', $barangay->id)->delete();
+                                LocationDetail::where('barangay_id', $barangay->id)->delete();
                             }
                             Barangay::where('city_id', $id)->delete();
                         }
@@ -741,43 +798,55 @@ class LocationApiController extends Controller
                             ], 404);
                         }
                         
-                        $villages = Village::where('barangay_id', $id)->get();
+                        $locationDetails = LocationDetail::where('barangay_id', $id)->get();
                         
-                        if ($villages->count() > 0 && !$cascade) {
+                        if ($locationDetails->count() > 0 && !$cascade) {
                             DB::rollBack();
                             return response()->json([
                                 'success' => false,
-                                'message' => 'Cannot delete barangay: contains villages',
+                                'message' => 'Cannot delete barangay: contains locations',
                                 'data' => [
                                     'can_cascade' => true,
                                     'type' => 'barangay',
                                     'name' => $barangay->barangay,
-                                    'village_count' => $villages->count()
+                                    'location_count' => $locationDetails->count()
                                 ]
                             ], 422);
                         }
                         
                         if ($cascade) {
-                            Village::where('barangay_id', $id)->delete();
+                            LocationDetail::where('barangay_id', $id)->delete();
                         }
                         
                         $barangay->delete();
                         break;
                         
-                    case 'village':
-                        $village = Village::find($id);
-                        if (!$village) {
+                    case 'location':
+                        $location = LocationDetail::find($id);
+                        if (!$location) {
                             DB::rollBack();
                             return response()->json([
                                 'success' => false,
-                                'message' => 'Village not found'
+                                'message' => 'Location not found'
                             ], 404);
                         }
                         
-                        $village->delete();
+                        $location->delete();
                         break;
                 }
                 
+                // Log Activity
+                ActivityLog::log(
+                    'Location Deleted',
+                    ucfirst($type) . " deleted: ID: {$id}" . ($cascade ? " (with all dependent locations)" : ""),
+                    'warning',
+                    [
+                        'resource_type' => ucfirst($type),
+                        'resource_id' => $id,
+                        'cascade' => $cascade
+                    ]
+                );
+
                 DB::commit();
                 
                 $message = ucfirst($type) . ' deleted successfully';
@@ -812,7 +881,7 @@ class LocationApiController extends Controller
             $regions = Region::count();
             $cities = City::count();  
             $barangays = Barangay::count();
-            $villages = Village::count();
+            $locations = LocationDetail::count();
             
             return response()->json([
                 'success' => true,
@@ -820,8 +889,8 @@ class LocationApiController extends Controller
                     'regions' => $regions,
                     'cities' => $cities,
                     'barangays' => $barangays,
-                    'villages' => $villages,
-                    'total' => $regions + $cities + $barangays + $villages
+                    'villages' => $locations, // Keep key name for API compatibility
+                    'total' => $regions + $cities + $barangays + $locations
                 ]
             ]);
         } catch (\Exception $e) {
@@ -832,3 +901,4 @@ class LocationApiController extends Controller
         }
     }
 }
+

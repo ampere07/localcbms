@@ -64,7 +64,7 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
   useEffect(() => {
     const authData = localStorage.getItem('authData');
     let userEmail = 'Unknown User';
-    
+
     if (authData) {
       try {
         const userData = JSON.parse(authData);
@@ -96,7 +96,7 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
   const resetForm = () => {
     const authData = localStorage.getItem('authData');
     let userEmail = 'Unknown User';
-    
+
     if (authData) {
       try {
         const userData = JSON.parse(authData);
@@ -145,10 +145,10 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
         description: formData.description.trim()
       };
 
-      const url = editingRouter 
+      const url = editingRouter
         ? `${API_BASE_URL}/router-models/${editingRouter.SN}`
         : `${API_BASE_URL}/router-models`;
-      
+
       const method = editingRouter ? 'PUT' : 'POST';
 
       const response = await fetch(url, {
@@ -161,7 +161,7 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
       });
 
       const data = await response.json();
-      
+
       if (response.ok && data.success) {
         alert(data.message || `Router model ${editingRouter ? 'updated' : 'added'} successfully`);
         onSave();
@@ -191,28 +191,24 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-      <div 
-        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}
+      <div
+        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+          }`}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${
-          isDarkMode
+        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
             ? 'bg-gray-800 border-gray-700'
             : 'bg-gray-100 border-gray-300'
-        }`}>
-          <h2 className={`text-xl font-semibold ${
-            isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>{editingRouter ? 'Edit Router Model' : 'Add Router Model'}</h2>
+          }`}>
+          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{editingRouter ? 'Edit Router Model' : 'Add Router Model'}</h2>
           <div className="flex items-center space-x-3">
             <button
               onClick={handleClose}
-              className={`px-4 py-2 rounded text-sm ${
-                isDarkMode
+              className={`px-4 py-2 rounded text-sm ${isDarkMode
                   ? 'bg-gray-700 hover:bg-gray-600 text-white'
                   : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-              }`}
+                }`}
             >
               Cancel
             </button>
@@ -221,7 +217,7 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
               disabled={loading}
               className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
               style={{
-                backgroundColor: colorPalette?.primary || '#ea580c'
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -229,7 +225,7 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
               }}
             >
               {loading ? (
@@ -252,120 +248,104 @@ const AddRouterModelModal: React.FC<AddRouterModelModalProps> = ({
 
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               Brand<span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.brand}
               onChange={(e) => setFormData({ ...formData, brand: e.target.value })}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                errors.brand ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.brand ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`}
               placeholder="Enter router brand"
             />
             {errors.brand && <p className="text-red-500 text-xs mt-1">{errors.brand}</p>}
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               Model<span className="text-red-500">*</span>
             </label>
             <input
               type="text"
               value={formData.model}
               onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                errors.model ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-              } ${
-                isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-              }`}
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.model ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                }`}
               placeholder="Enter router model"
             />
             {errors.model && <p className="text-red-500 text-xs mt-1">{errors.model}</p>}
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               Description
             </label>
             <textarea
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={4}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${
-                isDarkMode
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
                   ? 'bg-gray-800 border-gray-700 text-white'
                   : 'bg-white border-gray-300 text-gray-900'
-              }`}
+                }`}
               placeholder="Enter router description or specifications"
             />
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               Modified By
             </label>
             <div className="relative">
               <input
                 type="email"
                 value={formData.modifiedBy}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                     ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                  }`}
                 placeholder="Current user email"
                 readOnly
               />
-              <User className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 pointer-events-none ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-400'
-              }`} />
+              <User className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 pointer-events-none ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`} />
             </div>
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${
-              isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>
+            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>
               Modified Date
             </label>
             <div className="relative">
               <input
                 type="datetime-local"
                 value={formData.modifiedDate}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${
-                  isDarkMode
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
                     ? 'bg-gray-800 border-gray-700 text-white'
                     : 'bg-white border-gray-300 text-gray-900'
-                }`}
+                  }`}
                 readOnly
               />
-              <Calendar className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 pointer-events-none ${
-                isDarkMode ? 'text-gray-500' : 'text-gray-400'
-              }`} />
+              <Calendar className={`absolute right-3 top-1/2 transform -translate-y-1/2 h-5 w-5 pointer-events-none ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                }`} />
             </div>
           </div>
 
           <div>
-            <div className={`p-4 border rounded-lg ${
-              isDarkMode
+            <div className={`p-4 border rounded-lg ${isDarkMode
                 ? 'bg-blue-900/20 border-blue-700/30'
                 : 'bg-blue-50 border-blue-200'
-            }`}>
-              <p className={`text-sm ${
-                isDarkMode ? 'text-blue-300' : 'text-blue-700'
               }`}>
+              <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
+                }`}>
                 <strong>Note:</strong> Serial Number (SN) will be automatically generated based on brand and model. Modified date and user information will be set automatically when the router model is created or updated.
               </p>
             </div>

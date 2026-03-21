@@ -89,3 +89,4 @@ class ConsolidatedNotificationController extends Controller
         }
     }
 }
+

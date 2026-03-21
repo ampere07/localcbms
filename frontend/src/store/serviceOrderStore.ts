@@ -41,13 +41,33 @@ export interface ServiceOrder {
     supportStatus?: string;
     priorityLevel?: string;
     newRouterSn?: string;
-    newLcpnap?: string;
     newPlan?: string;
     clientSignatureUrl?: string;
     image1Url?: string;
     image2Url?: string;
     image3Url?: string;
     rawUpdatedAt?: string;
+    referredBy?: string;
+    status?: string;
+    routerModel?: string;
+    oldLcp?: string;
+    oldNap?: string;
+    oldPort?: string;
+    oldVlan?: string;
+    oldLcpnap?: string;
+    newLcp?: string;
+    newNap?: string;
+    newPort?: string;
+    newVlan?: string;
+    newLcpnap?: string;
+    billingDay?: string;
+    onsiteRemarks?: string;
+    statusRemarks?: string;
+    contractTemplate?: string;
+    ipAddress?: string;
+    usageType?: string;
+    start_time?: string | null;
+    end_time?: string | null;
 }
 
 export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => {
@@ -69,10 +89,10 @@ export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => 
         username: order.username || '',
         connectionType: order.connection_type || '',
         routerModemSN: order.router_modem_sn || '',
-        lcp: order.lcp || '',
-        nap: order.nap || '',
-        port: order.port || '',
-        vlan: order.vlan || '',
+        lcp: order.lcp || order.old_lcp || '',
+        nap: order.nap || order.old_nap || '',
+        port: order.port || order.old_port || '',
+        vlan: order.vlan || order.old_vlan || '',
         concern: order.concern || '',
         concernRemarks: order.concern_remarks || '',
         visitStatus: order.visit_status || '',
@@ -91,13 +111,33 @@ export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => 
         supportStatus: order.support_status || '',
         priorityLevel: order.priority_level || '',
         newRouterSn: order.new_router_sn || '',
-        newLcpnap: order.new_lcpnap || '',
         newPlan: order.new_plan || '',
         clientSignatureUrl: order.client_signature_url || '',
         image1Url: order.image1_url || '',
         image2Url: order.image2_url || '',
         image3Url: order.image3_url || '',
-        rawUpdatedAt: order.updated_at || ''
+        rawUpdatedAt: order.updated_at || '',
+        referredBy: (order as any).referred_by || '',
+        status: (order as any).status || '',
+        routerModel: (order as any).router_model || '',
+        oldLcp: (order as any).old_lcp || '',
+        oldNap: (order as any).old_nap || '',
+        oldPort: (order as any).old_port || '',
+        oldVlan: (order as any).old_vlan || '',
+        oldLcpnap: (order as any).old_lcpnap || '',
+        newLcp: (order as any).new_lcp || '',
+        newNap: (order as any).new_nap || '',
+        newPort: (order as any).new_port || '',
+        newVlan: (order as any).new_vlan || '',
+        newLcpnap: (order as any).new_lcpnap || '',
+        billingDay: (order as any).billing_day || '',
+        onsiteRemarks: (order as any).onsite_remarks || '',
+        statusRemarks: (order as any).status_remarks || '',
+        contractTemplate: (order as any).contract_template || '',
+        ipAddress: (order as any).ip_address || '',
+        usageType: (order as any).usage_type || '',
+        start_time: order.start_time || null,
+        end_time: order.end_time || null,
     };
 };
 
@@ -111,9 +151,10 @@ interface ServiceOrderState {
     searchQuery: string;
     lastUpdated: Date | null;
 
-    fetchServiceOrders: (page?: number, limit?: number, searchQuery?: string, silent?: boolean) => Promise<void>;
+    fetchServiceOrders: (force?: boolean, silent?: boolean, assignedEmail?: string) => Promise<void>;
     refreshServiceOrders: () => Promise<void>;
-    silentRefresh: () => Promise<void>;
+    silentRefresh: (assignedEmail?: string) => Promise<void>;
+    fetchUpdates: (assignedEmail?: string) => Promise<void>;
 }
 
 export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
@@ -126,63 +167,195 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
     searchQuery: '',
     lastUpdated: null,
 
-    fetchServiceOrders: async (page = 1, limit = 50, query = get().searchQuery, silent = false) => {
-        const { serviceOrders } = get();
+    fetchServiceOrders: async (force = false, silent = false, assignedEmail?: string) => {
+        const { serviceOrders, isLoading, totalCount } = get();
 
-        if (page === 1 && (!silent || serviceOrders.length === 0)) {
+        // Prevent re-fetching if we already have data and not forced
+        if (!force && serviceOrders.length >= totalCount && totalCount > 0) {
+            return;
+        }
+
+        // If already loading and not forced, ignore
+        if (isLoading && !force) return;
+
+        const isInitialFetch = serviceOrders.length === 0;
+
+        // Only show loading if not silent OR if we have no data
+        if (!silent || isInitialFetch) {
             set({ isLoading: true, error: null });
         }
 
         try {
-            const authData = localStorage.getItem('authData');
-            let assignedEmail: string | undefined;
-
-            if (authData) {
-                try {
-                    const userData = JSON.parse(authData);
-                    if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
-                        assignedEmail = userData.email;
-                    }
-                } catch (err) { }
+            // Use provided email or fallback to localStorage
+            let fetchEmail = assignedEmail;
+            if (!fetchEmail) {
+                const authData = localStorage.getItem('authData');
+                if (authData) {
+                    try {
+                        const userData = JSON.parse(authData);
+                        if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+                            fetchEmail = userData.email;
+                        }
+                    } catch (err) { }
+                }
             }
 
-            const response = (await getServiceOrders(assignedEmail, page, limit, query)) as any;
+            const CHUNK_SIZE = 2000;
+            // If forced but silent, we use a map to merge with current orders to avoid "blank" states
+            const ordersMap = new Map();
+            if (!(force && !silent)) {
+                serviceOrders.forEach(o => ordersMap.set(o.id, o));
+            }
+            
+            let currentOffset = (force) ? 0 : serviceOrders.length;
+            let currentFetchPage = Math.floor(currentOffset / CHUNK_SIZE) + 1;
 
-            if (response.success && Array.isArray(response.data)) {
-                const orders = response.data.map(transformServiceOrder);
+            console.log(`[ServiceOrderStore] Fetching records... Page: ${currentFetchPage}, Limit: ${CHUNK_SIZE}`);
 
-                set((state) => ({
-                    serviceOrders: page === 1 ? orders : [...state.serviceOrders, ...orders],
-                    totalCount: response.pagination?.total || orders.length,
-                    hasMore: response.pagination?.has_more ?? false,
-                    currentPage: response.pagination?.current_page ?? page,
-                    searchQuery: query,
-                    lastUpdated: new Date(),
-                    isLoading: false,
-                    error: null
-                }));
-            } else {
-                set({
-                    serviceOrders: page === 1 ? [] : get().serviceOrders,
-                    hasMore: false,
-                    isLoading: false,
-                    error: response.message || 'Failed to fetch service orders'
+            const firstResult = (await getServiceOrders(fetchEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
+
+            if (firstResult && firstResult.success && Array.isArray(firstResult.data)) {
+                const dbTotal = firstResult.pagination?.total_count || firstResult.pagination?.total || firstResult.data.length;
+                const newTransformed = firstResult.data.map(transformServiceOrder);
+                
+                newTransformed.forEach((o: ServiceOrder) => ordersMap.set(o.id, o));
+
+                const mergedOrders = Array.from(ordersMap.values()).sort((a: any, b: any) => {
+                    const idA = parseInt(a.id) || 0;
+                    const idB = parseInt(b.id) || 0;
+                    return idB - idA;
                 });
+
+                set({
+                    serviceOrders: mergedOrders,
+                    totalCount: dbTotal,
+                    lastUpdated: new Date(),
+                    error: null,
+                    isLoading: false
+                });
+
+                // Continue fetching remaining chunks progressively
+                let hasMore = firstResult.pagination?.has_more ?? (mergedOrders.length < dbTotal);
+                currentFetchPage++;
+
+                while (hasMore) {
+                    try {
+                        const result = (await getServiceOrders(fetchEmail, currentFetchPage, CHUNK_SIZE, '')) as any;
+
+                        if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                            const chunkTransformed = result.data.map(transformServiceOrder);
+                            chunkTransformed.forEach((o: ServiceOrder) => ordersMap.set(o.id, o));
+                            
+                            const updatedMerged = Array.from(ordersMap.values()).sort((a: any, b: any) => {
+                                const idA = parseInt(a.id) || 0;
+                                const idB = parseInt(b.id) || 0;
+                                return idB - idA;
+                            });
+
+                            const currentTotal = result.pagination?.total_count || result.pagination?.total || dbTotal;
+                            set({
+                                serviceOrders: updatedMerged,
+                                totalCount: currentTotal
+                            });
+
+                            hasMore = result.pagination?.has_more ?? (updatedMerged.length < currentTotal);
+                            currentFetchPage++;
+                        } else {
+                            hasMore = false;
+                        }
+                    } catch (chunkErr) {
+                        console.error(`Error fetching ServiceOrder chunk:`, chunkErr);
+                        hasMore = false;
+                    }
+                }
+            } else {
+                if (force || serviceOrders.length === 0) {
+                    set({
+                        serviceOrders: (force && !silent) ? [] : get().serviceOrders,
+                        hasMore: false,
+                        isLoading: false,
+                        error: firstResult.message || 'Failed to fetch service orders'
+                    });
+                }
             }
         } catch (err: any) {
             console.error('Failed to fetch service orders:', err);
-            set({
-                error: err.message || 'Failed to load service orders',
-                isLoading: false
-            });
+            if (!silent || get().serviceOrders.length === 0) {
+                set({
+                    error: err.message || 'Failed to load service orders',
+                    isLoading: false
+                });
+            }
+        } finally {
+            set({ isLoading: false });
         }
     },
 
     refreshServiceOrders: async () => {
-        await get().fetchServiceOrders(1, 10000, '', false);
+        await get().fetchServiceOrders(true, false);
     },
 
-    silentRefresh: async () => {
-        await get().fetchServiceOrders(1, 10000, '', true);
+    silentRefresh: async (assignedEmail?: string) => {
+        await get().fetchServiceOrders(true, true, assignedEmail);
+    },
+
+    fetchUpdates: async (assignedEmail?: string) => {
+        const { serviceOrders, lastUpdated } = get();
+        
+        // Use provided email or fallback to auto-detection
+        let fetchEmail = assignedEmail;
+        if (!fetchEmail) {
+            const authData = localStorage.getItem('authData');
+            if (authData) {
+                try {
+                    const userData = JSON.parse(authData);
+                    if (userData.role && userData.role.toLowerCase() === 'technician' && userData.email) {
+                        fetchEmail = userData.email;
+                    }
+                } catch (err) { }
+            }
+        }
+
+        if (!lastUpdated) {
+            await get().silentRefresh(fetchEmail);
+            return;
+        }
+
+        try {
+            // Format date for MySQL: YYYY-MM-DD HH:mm:ss
+            const formattedDate = lastUpdated.toISOString().slice(0, 19).replace('T', ' ');
+            
+            console.log(`[ServiceOrderStore] Fetching updates since: ${formattedDate}`);
+            const result = await getServiceOrders(fetchEmail, 1, 1000, '', formattedDate) as any;
+
+            if (result && result.success && Array.isArray(result.data) && result.data.length > 0) {
+                console.log(`[ServiceOrderStore] Received ${result.data.length} updates/new records`);
+                const updatedTransformed = result.data.map(transformServiceOrder);
+                
+                // Merge updates into existing serviceOrders
+                // We overwrite existing items with same ID and prepend/append new ones
+                const mergedOrders = [...serviceOrders];
+                
+                updatedTransformed.forEach((newOrder: ServiceOrder) => {
+                    const existingIndex = mergedOrders.findIndex(o => o.id === newOrder.id);
+                    if (existingIndex !== -1) {
+                        mergedOrders[existingIndex] = newOrder;
+                    } else {
+                        // Prepend new orders (assuming they are latest)
+                        mergedOrders.unshift(newOrder);
+                    }
+                });
+
+                set({ 
+                    serviceOrders: mergedOrders,
+                    lastUpdated: new Date(),
+                    totalCount: result.pagination?.total || (get().totalCount + updatedTransformed.filter((n: ServiceOrder) => !serviceOrders.find(o => o.id === n.id)).length)
+                });
+            } else {
+                set({ lastUpdated: new Date() });
+            }
+        } catch (err) {
+            console.error('[ServiceOrderStore] Failed to fetch updates:', err);
+        }
     }
 }));

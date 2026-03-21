@@ -133,15 +133,11 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
-      return date.toLocaleString('en-US', {
-        month: '2-digit',
-        day: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      });
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+      return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
     }
@@ -219,7 +215,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
           className="absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50"
           onMouseDown={handleMouseDownResize}
           style={{
-            backgroundColor: isResizing ? (colorPalette?.primary || '#f97316') : 'transparent'
+            backgroundColor: isResizing ? (colorPalette?.primary || '#7c3aed') : 'transparent'
           }}
           onMouseEnter={(e) => {
             if (!isResizing && colorPalette?.accent) {
@@ -249,7 +245,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
                 disabled={loading}
                 className="flex items-center space-x-2 disabled:bg-gray-600 disabled:cursor-not-allowed text-white px-3 py-1.5 rounded text-sm transition-colors"
                 style={{
-                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#ea580c')
+                  backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
                 }}
                 onMouseEnter={(e) => {
                   if (!loading && colorPalette?.accent) {
@@ -474,7 +470,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
                 }}
                 className="text-white px-6 py-2 rounded transition-colors"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent) {

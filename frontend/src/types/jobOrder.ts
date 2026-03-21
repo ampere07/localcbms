@@ -19,6 +19,8 @@ export interface JobOrder {
   StartTimeStamp?: string | null;
   EndTimeStamp?: string | null;
   Duration?: string | null;
+  start_time?: string | null;
+  end_time?: string | null;
   Date_Installed?: string | null;
   Modified_Date?: string | null;
   Created_At?: string;

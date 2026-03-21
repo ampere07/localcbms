@@ -22,10 +22,10 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
   onSave
 }) => {
   const [paletteName, setPaletteName] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#f97316');
-  const [secondaryColor, setSecondaryColor] = useState('#1f2937');
-  const [accentColor, setAccentColor] = useState('#fb923c');
+  const [primaryColor, setPrimaryColor] = useState('#7c3aed');
+  const [accentColor, setAccentColor] = useState('#7c3aed');
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [focusedField, setFocusedField] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingProgress, setLoadingProgress] = useState(0);
   const [showError, setShowError] = useState(false);
@@ -85,10 +85,6 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
       newErrors.primary = 'Invalid hex color';
     }
 
-    if (!validateHexColor(secondaryColor)) {
-      newErrors.secondary = 'Invalid hex color';
-    }
-
     if (!validateHexColor(accentColor)) {
       newErrors.accent = 'Invalid hex color';
     }
@@ -110,7 +106,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
       id: `custom_${Date.now()}`,
       name: paletteName,
       primary: primaryColor,
-      secondary: secondaryColor,
+      secondary: '#1f2937', // Default secondary value
       accent: accentColor
     };
 
@@ -130,11 +126,10 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
 
   const handleClose = () => {
     if (isLoading) return;
-    
+
     setPaletteName('');
-    setPrimaryColor('#f97316');
-    setSecondaryColor('#1f2937');
-    setAccentColor('#fb923c');
+    setPrimaryColor('#7c3aed');
+    setAccentColor('#7c3aed');
     setErrors({});
     setShowError(false);
     setErrorMessage('');
@@ -147,26 +142,22 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${
-            isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-gray-100 border-gray-300'
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
-            <h2 className={`text-xl font-semibold ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Add Custom Color Palette</h2>
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
+            }`}>
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Add Custom Color Palette</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleClose}
                 disabled={isLoading}
-                className={`px-4 py-2 rounded text-sm disabled:cursor-not-allowed ${
-                  isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-600'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300'
-                }`}
+                className={`px-4 py-2 rounded text-sm disabled:cursor-not-allowed ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white disabled:bg-gray-600'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900 disabled:bg-gray-300'
+                  }`}
               >
                 Cancel
               </button>
@@ -175,7 +166,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                 disabled={isLoading}
                 className="px-4 py-2 text-white rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !isLoading) {
@@ -183,7 +174,7 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
@@ -192,11 +183,10 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
               <button
                 onClick={handleClose}
                 disabled={isLoading}
-                className={`transition-colors disabled:cursor-not-allowed ${
-                  isDarkMode
-                    ? 'text-gray-400 hover:text-white disabled:text-gray-600'
-                    : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
-                }`}
+                className={`transition-colors disabled:cursor-not-allowed ${isDarkMode
+                  ? 'text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+                  }`}
               >
                 <X size={24} />
               </button>
@@ -205,29 +195,24 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
 
           <div className="flex-1 overflow-y-auto p-6 space-y-6">
             {showError && (
-              <div className={`border rounded p-4 flex items-start gap-3 ${
-                isDarkMode
-                  ? 'bg-red-900/20 border-red-500'
-                  : 'bg-red-50 border-red-300'
-              }`}>
-                <XCircle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${
-                  isDarkMode ? 'text-red-500' : 'text-red-600'
-                }`} />
+              <div className={`border rounded p-4 flex items-start gap-3 ${isDarkMode
+                ? 'bg-red-900/20 border-red-500'
+                : 'bg-red-50 border-red-300'
+                }`}>
+                <XCircle className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isDarkMode ? 'text-red-500' : 'text-red-600'
+                  }`} />
                 <div>
-                  <p className={`font-medium ${
-                    isDarkMode ? 'text-red-500' : 'text-red-900'
-                  }`}>Error</p>
-                  <p className={`text-sm mt-1 ${
-                    isDarkMode ? 'text-red-400' : 'text-red-700'
-                  }`}>{errorMessage}</p>
+                  <p className={`font-medium ${isDarkMode ? 'text-red-500' : 'text-red-900'
+                    }`}>Error</p>
+                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-700'
+                    }`}>{errorMessage}</p>
                 </div>
               </div>
             )}
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Palette Name<span className="text-red-500">*</span>
               </label>
               <input
@@ -239,22 +224,25 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                 }}
                 placeholder="Enter palette name"
                 disabled={isLoading}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed ${
-                  errors.name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+                className={`w-full px-3 py-2 border rounded focus:outline-none disabled:cursor-not-allowed ${errors.name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode
                     ? 'bg-gray-800 text-white disabled:bg-gray-700'
                     : 'bg-white text-gray-900 disabled:bg-gray-100'
-                }`}
+                  }`}
+                style={{
+                  borderColor: (focusedField === 'name' && !errors.name) ? (colorPalette?.primary || '#7c3aed') : undefined,
+                  boxShadow: (focusedField === 'name' && !errors.name) ? `0 0 0 1px ${colorPalette?.primary || '#7c3aed'}` : undefined
+                }}
               />
               {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Primary Color<span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-3">
@@ -266,15 +254,19 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                         setPrimaryColor(e.target.value);
                         if (errors.primary) setErrors({ ...errors, primary: '' });
                       }}
-                      placeholder="#f97316"
+                      placeholder="#7c3aed"
                       disabled={isLoading}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed ${
-                        errors.primary ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${
-                        isDarkMode
+                      onFocus={() => setFocusedField('primary')}
+                      onBlur={() => setFocusedField(null)}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none disabled:cursor-not-allowed ${errors.primary ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode
                           ? 'bg-gray-800 text-white disabled:bg-gray-700'
                           : 'bg-white text-gray-900 disabled:bg-gray-100'
-                      }`}
+                        }`}
+                      style={{
+                        borderColor: (focusedField === 'primary' && !errors.primary) ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        boxShadow: (focusedField === 'primary' && !errors.primary) ? `0 0 0 1px ${colorPalette?.primary || '#7c3aed'}` : undefined
+                      }}
                     />
                     {errors.primary && <p className="text-red-500 text-xs mt-1">{errors.primary}</p>}
                   </div>
@@ -283,72 +275,24 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                     value={primaryColor}
                     onChange={(e) => setPrimaryColor(e.target.value)}
                     disabled={isLoading}
-                    className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-300'
-                    }`}
+                    className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700'
+                      : 'bg-white border-gray-300'
+                      }`}
                   />
                 </div>
                 <div
-                  className={`mt-2 h-12 rounded border ${
-                    isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  }`}
+                  className={`mt-2 h-12 rounded border ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    }`}
                   style={{ backgroundColor: primaryColor }}
                 />
               </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                  Secondary Color<span className="text-red-500">*</span>
-                </label>
-                <div className="flex gap-3">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={secondaryColor}
-                      onChange={(e) => {
-                        setSecondaryColor(e.target.value);
-                        if (errors.secondary) setErrors({ ...errors, secondary: '' });
-                      }}
-                      placeholder="#1f2937"
-                      disabled={isLoading}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed ${
-                        errors.secondary ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${
-                        isDarkMode
-                          ? 'bg-gray-800 text-white disabled:bg-gray-700'
-                          : 'bg-white text-gray-900 disabled:bg-gray-100'
-                      }`}
-                    />
-                    {errors.secondary && <p className="text-red-500 text-xs mt-1">{errors.secondary}</p>}
-                  </div>
-                  <input
-                    type="color"
-                    value={secondaryColor}
-                    onChange={(e) => setSecondaryColor(e.target.value)}
-                    disabled={isLoading}
-                    className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-300'
-                    }`}
-                  />
-                </div>
-                <div
-                  className={`mt-2 h-12 rounded border ${
-                    isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  }`}
-                  style={{ backgroundColor: secondaryColor }}
-                />
-              </div>
+
 
               <div>
-                <label className={`block text-sm font-medium mb-2 ${
-                  isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
+                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>
                   Accent Color<span className="text-red-500">*</span>
                 </label>
                 <div className="flex gap-3">
@@ -360,15 +304,19 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                         setAccentColor(e.target.value);
                         if (errors.accent) setErrors({ ...errors, accent: '' });
                       }}
-                      placeholder="#fb923c"
+                      placeholder="#7c3aed"
                       disabled={isLoading}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 disabled:cursor-not-allowed ${
-                        errors.accent ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                      } ${
-                        isDarkMode
+                      onFocus={() => setFocusedField('accent')}
+                      onBlur={() => setFocusedField(null)}
+                      className={`w-full px-3 py-2 border rounded focus:outline-none disabled:cursor-not-allowed ${errors.accent ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                        } ${isDarkMode
                           ? 'bg-gray-800 text-white disabled:bg-gray-700'
                           : 'bg-white text-gray-900 disabled:bg-gray-100'
-                      }`}
+                        }`}
+                      style={{
+                        borderColor: (focusedField === 'accent' && !errors.accent) ? (colorPalette?.primary || '#7c3aed') : undefined,
+                        boxShadow: (focusedField === 'accent' && !errors.accent) ? `0 0 0 1px ${colorPalette?.primary || '#7c3aed'}` : undefined
+                      }}
                     />
                     {errors.accent && <p className="text-red-500 text-xs mt-1">{errors.accent}</p>}
                   </div>
@@ -377,60 +325,44 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
                     value={accentColor}
                     onChange={(e) => setAccentColor(e.target.value)}
                     disabled={isLoading}
-                    className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${
-                      isDarkMode
-                        ? 'bg-gray-800 border-gray-700'
-                        : 'bg-white border-gray-300'
-                    }`}
+                    className={`w-16 h-10 border rounded cursor-pointer disabled:cursor-not-allowed ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700'
+                      : 'bg-white border-gray-300'
+                      }`}
                   />
                 </div>
                 <div
-                  className={`mt-2 h-12 rounded border ${
-                    isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  }`}
+                  className={`mt-2 h-12 rounded border ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                    }`}
                   style={{ backgroundColor: accentColor }}
                 />
               </div>
             </div>
 
-            <div className={`pt-4 border-t ${
-              isDarkMode ? 'border-gray-700' : 'border-gray-300'
-            }`}>
-              <h3 className={`text-sm font-medium mb-3 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>Preview</h3>
-              <div className={`p-4 rounded border ${
-                isDarkMode
-                  ? 'bg-gray-800 border-gray-700'
-                  : 'bg-gray-50 border-gray-300'
+            <div className={`pt-4 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
               }`}>
+              <h3 className={`text-sm font-medium mb-3 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>Preview</h3>
+              <div className={`p-4 rounded border ${isDarkMode
+                ? 'bg-gray-800 border-gray-700'
+                : 'bg-gray-50 border-gray-300'
+                }`}>
                 <div className="flex gap-3">
                   <div className="flex-1">
                     <div
                       className="h-16 rounded"
                       style={{ backgroundColor: primaryColor }}
                     />
-                    <p className={`text-xs mt-2 text-center ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Primary</p>
-                  </div>
-                  <div className="flex-1">
-                    <div
-                      className="h-16 rounded"
-                      style={{ backgroundColor: secondaryColor }}
-                    />
-                    <p className={`text-xs mt-2 text-center ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Secondary</p>
+                    <p className={`text-xs mt-2 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Primary</p>
                   </div>
                   <div className="flex-1">
                     <div
                       className="h-16 rounded"
                       style={{ backgroundColor: accentColor }}
                     />
-                    <p className={`text-xs mt-2 text-center ${
-                      isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>Accent</p>
+                    <p className={`text-xs mt-2 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Accent</p>
                   </div>
                 </div>
               </div>
@@ -441,18 +373,16 @@ const AddColorPaletteModal: React.FC<AddColorPaletteModalProps> = ({
 
       {isLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
-          <div className={`rounded-lg p-12 flex flex-col items-center gap-6 ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <Loader2 
-              className="h-16 w-16 animate-spin" 
+          <div className={`rounded-lg p-12 flex flex-col items-center gap-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="h-16 w-16 animate-spin"
               style={{
-                color: colorPalette?.primary || '#ea580c'
+                color: colorPalette?.primary || '#7c3aed'
               }}
             />
-            <p className={`font-bold text-4xl ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{Math.round(loadingProgress)}%</p>
+            <p className={`font-bold text-4xl ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{Math.round(loadingProgress)}%</p>
           </div>
         </div>
       )}

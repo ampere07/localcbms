@@ -6,6 +6,8 @@ use App\Models\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
+use App\Models\ActivityLog;
+use App\Models\User;
 
 class ApplicationController extends Controller
 {
@@ -16,15 +18,22 @@ class ApplicationController extends Controller
             $limit = $request->input('limit', 50); // Default 50 for faster response
             $search = $request->input('search', '');
             $fastMode = $request->input('fast', false); // Fast mode: skip heavy processing
+            $since = $request->input('since'); // Filter by updated_at since this timestamp
 
             Log::info('ApplicationController: Starting to fetch applications', [
                 'page' => $page,
                 'limit' => $limit,
                 'search' => $search,
-                'fast_mode' => $fastMode
+                'fast_mode' => $fastMode,
+                'since' => $since
             ]);
 
             $query = Application::orderBy('id', 'desc');
+
+            // Apply 'since' filter if provided
+            if ($since) {
+                $query->where('updated_at', '>', $since);
+            }
 
             // Apply search filter
             if ($search) {
@@ -177,15 +186,15 @@ class ApplicationController extends Controller
                 'customer_name' => $this->getFullName($application),
                 'plan_name' => $application->desired_plan ?? 'Unknown',
                 'status' => $application->status ?? 'pending',
-                'title' => '🔔 New Application',
+                'title' => 'New Application',
                 'message' => 'A new customer application has been received',
                 'timestamp' => now()->timestamp,
-                'formatted_date' => now()->format('Y-m-d h:i:s A') // e.g. 2026-02-11 05:53:42 PM
+                'formatted_date' => now()->format('Y-m-d h:i:s A')
             ];
 
-            Http::timeout(2)->post('http://127.0.0.1:3001/broadcast/new-application', $data);
+            event(new \App\Events\NewApplicationCreated($data));
         } catch (\Exception $e) {
-            Log::warning('Failed to broadcast new application to socket server', [
+            Log::warning('Failed to broadcast new application via Soketi', [
                 'error' => $e->getMessage()
             ]);
         }
@@ -228,6 +237,22 @@ class ApplicationController extends Controller
             $application = Application::create($validatedData);
 
             $this->broadcastNewApplication($application);
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Application Created',
+                "New Application received for {$application->first_name} {$application->last_name} ({$application->desired_plan})",
+                'info',
+                [
+                    'resource_type' => 'Application',
+                    'resource_id' => $application->id,
+                    'additional_data' => [
+                        'email' => $application->email_address,
+                        'plan' => $application->desired_plan,
+                        'city' => $application->city
+                    ]
+                ]
+            );
 
             $formattedApplication = [
                 'id' => (string)$application->id,
@@ -373,8 +398,25 @@ class ApplicationController extends Controller
             ]);
 
             $application = Application::findOrFail($id);
+            $oldStatus = $application->status;
             $validatedData['updated_by'] = auth()->user()->email ?? 'system';
             $application->update($validatedData);
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Application Updated',
+                "Application #{$id} updated by " . (auth()->user()->email ?? 'System') . ($oldStatus !== $application->status ? " (Status: {$oldStatus} -> {$application->status})" : ""),
+                'info',
+                [
+                    'resource_type' => 'Application',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'old_status' => $oldStatus,
+                        'new_status' => $application->status,
+                        'updated_fields' => array_keys($validatedData)
+                    ]
+                ]
+            );
 
             return response()->json([
                 'message' => 'Application updated successfully',
@@ -396,7 +438,22 @@ class ApplicationController extends Controller
     {
         try {
             $application = Application::findOrFail($id);
+            $applicationData = $application->toArray();
             $application->delete();
+
+            // Create Activity Log
+            ActivityLog::log(
+                'Application Deleted',
+                "Application #{$id} ({$applicationData['first_name']} {$applicationData['last_name']}) deleted by " . (auth()->user()->email ?? 'System'),
+                'warning',
+                [
+                    'resource_type' => 'Application',
+                    'resource_id' => $id,
+                    'additional_data' => [
+                        'application_data' => $applicationData
+                    ]
+                ]
+            );
 
             return response()->json([
                 'message' => 'Application deleted successfully',
@@ -413,3 +470,4 @@ class ApplicationController extends Controller
         }
     }
 }
+

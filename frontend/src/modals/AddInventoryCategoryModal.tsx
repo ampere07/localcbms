@@ -86,25 +86,25 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
 
   const handleSave = async () => {
     const isValid = validateForm();
-    
+
     if (!isValid) {
       return;
     }
 
     setLoading(true);
-    
+
     try {
       console.log('Creating new inventory category:', categoryName);
-      
+
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      onSave({ 
+
+      onSave({
         name: categoryName.trim(),
         modified_by: modifiedBy
       });
-      
+
       setLoadingProgress(100);
-      
+
       setTimeout(() => {
         setLoading(false);
         handleClose();
@@ -119,7 +119,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
 
   const handleClose = () => {
     if (loading) return;
-    
+
     setCategoryName('');
     setErrors({});
     setLoadingProgress(0);
@@ -131,37 +131,32 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
   return (
     <>
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
-        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${
-          isDarkMode ? 'bg-gray-900' : 'bg-white'
-        }`}>
-          <div className={`px-6 py-4 flex items-center justify-between ${
-            isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
+        <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
           }`}>
+          <div className={`px-6 py-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'
+            }`}>
             <div className="flex items-center space-x-4">
               <button
                 onClick={handleClose}
                 disabled={loading}
-                className={`transition-colors disabled:cursor-not-allowed ${
-                  isDarkMode
-                    ? 'text-gray-400 hover:text-white disabled:text-gray-600'
-                    : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
-                }`}
+                className={`transition-colors disabled:cursor-not-allowed ${isDarkMode
+                  ? 'text-gray-400 hover:text-white disabled:text-gray-600'
+                  : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
+                  }`}
               >
                 <X size={24} />
               </button>
-              <h2 className={`text-xl font-semibold ${
-                isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Inventory Category Form</h2>
+              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>Inventory Category Form</h2>
             </div>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleClose}
                 disabled={loading}
-                className={`px-6 py-2 border rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                  isDarkMode
-                    ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white'
-                    : 'border-red-500 text-red-500 hover:bg-red-500 hover:text-white'
-                }`}
+                className={`px-6 py-2 border rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${isDarkMode
+                  ? 'border-red-600 text-red-600 hover:bg-red-600 hover:text-white'
+                  : 'border-red-500 text-red-500 hover:bg-red-500 hover:text-white'
+                  }`}
               >
                 Cancel
               </button>
@@ -170,7 +165,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                 disabled={loading}
                 className="px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
-                  backgroundColor: colorPalette?.primary || '#ea580c'
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
                   if (colorPalette?.accent && !loading) {
@@ -178,7 +173,7 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                   }
                 }}
                 onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#ea580c';
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
                 {loading && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
@@ -189,9 +184,8 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
 
           <div className="flex-1 overflow-y-auto p-8 space-y-6">
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Category Name<span className="text-red-500">*</span>
               </label>
               <input
@@ -205,37 +199,32 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                 }}
                 placeholder=""
                 disabled={loading}
-                className={`w-full px-4 py-3 border rounded focus:outline-none focus:border-red-500 disabled:cursor-not-allowed ${
-                  errors.categoryName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${
-                  isDarkMode
+                className={`w-full px-4 py-3 border rounded focus:outline-none focus:border-red-500 disabled:cursor-not-allowed ${errors.categoryName ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                  } ${isDarkMode
                     ? 'bg-gray-900 text-white disabled:bg-gray-800'
                     : 'bg-white text-gray-900 disabled:bg-gray-100'
-                }`}
+                  }`}
                 autoFocus
               />
               {errors.categoryName && <p className="text-red-500 text-xs mt-1">{errors.categoryName}</p>}
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Modified By
               </label>
-              <div className={`inline-block px-4 py-2 border rounded-full text-sm ${
-                isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white'
-                  : 'bg-gray-100 border-gray-300 text-gray-900'
-              }`}>
+              <div className={`inline-block px-4 py-2 border rounded-full text-sm ${isDarkMode
+                ? 'bg-gray-800 border-gray-700 text-white'
+                : 'bg-gray-100 border-gray-300 text-gray-900'
+                }`}>
                 {modifiedBy}
               </div>
             </div>
 
             <div>
-              <label className={`block text-sm font-medium mb-2 ${
-                isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                }`}>
                 Modified Date
               </label>
               <div className="relative">
@@ -243,15 +232,13 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
                   type="text"
                   value={modifiedDate}
                   readOnly
-                  className={`w-full px-4 py-3 border rounded focus:outline-none cursor-default ${
-                    isDarkMode
-                      ? 'bg-gray-900 border-gray-700 text-gray-400'
-                      : 'bg-gray-50 border-gray-300 text-gray-600'
-                  }`}
+                  className={`w-full px-4 py-3 border rounded focus:outline-none cursor-default ${isDarkMode
+                    ? 'bg-gray-900 border-gray-700 text-gray-400'
+                    : 'bg-gray-50 border-gray-300 text-gray-600'
+                    }`}
                 />
-                <Calendar className={`absolute right-4 top-3.5 ${
-                  isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                }`} size={20} />
+                <Calendar className={`absolute right-4 top-3.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                  }`} size={20} />
               </div>
             </div>
           </div>
@@ -260,18 +247,16 @@ const AddInventoryCategoryModal: React.FC<AddInventoryCategoryModalProps> = ({
 
       {loading && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
-          <div className={`rounded-lg p-12 flex flex-col items-center gap-6 ${
-            isDarkMode ? 'bg-gray-800' : 'bg-white'
-          }`}>
-            <Loader2 
-              className="h-16 w-16 animate-spin" 
+          <div className={`rounded-lg p-12 flex flex-col items-center gap-6 ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="h-16 w-16 animate-spin"
               style={{
-                color: colorPalette?.primary || '#ea580c'
+                color: colorPalette?.primary || '#7c3aed'
               }}
             />
-            <p className={`font-bold text-4xl ${
-              isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{Math.round(loadingProgress)}%</p>
+            <p className={`font-bold text-4xl ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{Math.round(loadingProgress)}%</p>
           </div>
         </div>
       )}
