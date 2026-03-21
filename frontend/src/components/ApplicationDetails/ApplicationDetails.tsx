@@ -15,6 +15,7 @@ import { settingsColorPaletteService, ColorPalette } from '../../services/settin
 import { planService, Plan } from '../../services/planService';
 
 const PlanListDetails = React.lazy(() => import('../PlanListDetails'));
+const NotFoundModal = React.lazy(() => import('../../modals/NotFoundModal'));
 
 interface ApplicationDetailsProps {
   application: Application;
@@ -45,6 +46,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
   const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
+  const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
 
   const FIELD_VISIBILITY_KEY = 'applicationDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'applicationDetailsFieldOrder';
@@ -593,7 +595,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
                     if (match) {
                       setSelectedPlanForOverlay(match);
                     } else {
-                      alert('Plan details not found.');
+                      setNotFoundMessage('Plan details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding plan', err);
@@ -601,7 +603,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
                     setLoadingPlanOverlay(false);
                   }
                 }}
-                className={`p-1 rounded-full transition-colors ${isDarkMode ? 'text-blue-400 hover:bg-gray-800' : 'text-blue-600 hover:bg-blue-50'}`}
+                className={`p-1 rounded-full transition-colors ${isDarkMode ? 'text-white hover:bg-gray-800' : 'text-black hover:bg-gray-100'}`}
                 title="View Plan Details"
                 disabled={loadingPlanOverlay}
               >
@@ -880,8 +882,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <React.Suspense fallback={
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                <p>Loading plan details...</p>
+                <p className="loading-dots pt-4">Loading Plan Details</p>
               </div>
             </div>
           }>
@@ -1211,6 +1212,15 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         onConfirm={() => setShowSuccessModal(false)}
         onCancel={() => setShowSuccessModal(false)}
       />
+
+      {/* Not Found Modal */}
+      <React.Suspense fallback={null}>
+        <NotFoundModal
+          isOpen={!!notFoundMessage}
+          onClose={() => setNotFoundMessage(null)}
+          message={notFoundMessage || ''}
+        />
+      </React.Suspense>
     </div>
   );
 };

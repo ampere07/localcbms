@@ -23,6 +23,7 @@ const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const UserDetails = React.lazy(() => import('./UserDetails'));
 const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
 const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
+const NotFoundModal = React.lazy(() => import('../modals/NotFoundModal'));
 
 const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, onRefresh, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -58,6 +59,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
   const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
   const [selectedInventoryForOverlay, setSelectedInventoryForOverlay] = useState<any | null>(null);
   const [loadingInventoryOverlay, setLoadingInventoryOverlay] = useState(false);
+  const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
 
   const hasActiveOverlay = !!selectedPlanForOverlay || !!selectedUserForOverlay || loadingPlanOverlay || loadingUserOverlay || !!selectedCustomerForOverlay || loadingCustomerOverlay || !!selectedInventoryForOverlay || loadingInventoryOverlay;
 
@@ -867,7 +869,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                     if (match) {
                       setSelectedPlanForOverlay(match);
                     } else {
-                      alert('Plan details not found.');
+                      setNotFoundMessage('Plan details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding plan', err);
@@ -964,7 +966,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                         image: match.image_url,
                       });
                     } else {
-                      alert('Inventory details not found for this router model.');
+                      setNotFoundMessage('Inventory details not found for this router model.');
                     }
                   } catch (err) {
                     console.error('Error finding inventory', err);
@@ -1086,7 +1088,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                     if (match) {
                       setSelectedUserForOverlay(match);
                     } else {
-                      alert('User details not found.');
+                      setNotFoundMessage('User details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding user', err);
@@ -1126,7 +1128,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                     if (match) {
                       setSelectedUserForOverlay(match);
                     } else {
-                      alert('User details not found.');
+                      setNotFoundMessage('User details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding user', err);
@@ -1166,7 +1168,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                     if (match) {
                       setSelectedUserForOverlay(match);
                     } else {
-                      alert('User details not found.');
+                      setNotFoundMessage('User details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding user', err);
@@ -1296,7 +1298,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                     if (match) {
                       setSelectedUserForOverlay(match);
                     } else {
-                      alert('User details not found for this email.');
+                      setNotFoundMessage('User details not found for this email.');
                     }
                   } catch (err) {
                     console.error('Error finding user', err);
@@ -1492,32 +1494,28 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           {loadingPlanOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-orange-500" />
-                <p>Loading plan details...</p>
+                <p className="loading-dots pt-4">Loading Plan Details</p>
               </div>
             </div>
           )}
           {loadingUserOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-blue-500" />
-                <p>Loading user details...</p>
+                <p className="loading-dots pt-4">Loading User Details</p>
               </div>
             </div>
           )}
           {loadingCustomerOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-green-500" />
-                <p>Loading customer details...</p>
+                <p className="loading-dots pt-4">Loading Customer Details</p>
               </div>
             </div>
           )}
           {loadingInventoryOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-yellow-500" />
-                <p>Loading inventory details...</p>
+                <p className="loading-dots pt-4">Loading Inventory Details</p>
               </div>
             </div>
           )}
@@ -1525,8 +1523,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                  <p>Loading plan overlay...</p>
+                  <p className="loading-dots pt-4">Loading Plan Overlay</p>
                 </div>
               </div>
             }>
@@ -1543,8 +1540,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                  <p>Loading user overlay...</p>
+                  <p className="loading-dots pt-4">Loading User Overlay</p>
                 </div>
               </div>
             }>
@@ -1565,8 +1561,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
-                  <p>Loading customer overlay...</p>
+                  <p className="loading-dots pt-4">Loading Customer Overlay</p>
                 </div>
               </div>
             }>
@@ -1582,8 +1577,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin" />
-                  <p>Loading inventory overlay...</p>
+                  <p className="loading-dots pt-4">Loading Inventory Overlay</p>
                 </div>
               </div>
             }>
@@ -1592,30 +1586,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                   item={selectedInventoryForOverlay}
                   onClose={() => setSelectedInventoryForOverlay(null)}
                 />
-              </div>
-            </React.Suspense>
-          )}
-          {selectedUserForOverlay && (
-            <React.Suspense fallback={
-              <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
-                <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                  <p>Loading user overlay...</p>
-                </div>
-              </div>
-            }>
-              <div className="w-full h-full relative border-0 flex justify-center p-0 md:p-6 bg-gray-50 dark:bg-gray-950">
-                <div className="bg-white dark:bg-gray-900 w-full h-full shadow-lg rounded-none md:rounded-lg overflow-hidden border dark:border-gray-800">
-                  <UserDetails
-                    user={selectedUserForOverlay}
-                    onClose={() => setSelectedUserForOverlay(null)}
-                    onEdit={() => {}}
-                    onDelete={() => {}}
-                    isMobile={true}
-                    isDarkMode={isDarkMode}
-                    colorPalette={colorPalette}
-                  />
-                </div>
               </div>
             </React.Suspense>
           )}
@@ -1856,6 +1826,15 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         onConfirm={() => setShowErrorModal(false)}
         onCancel={() => setShowErrorModal(false)}
       />
+
+      {/* Not Found Modal */}
+      <React.Suspense fallback={null}>
+        <NotFoundModal
+          isOpen={!!notFoundMessage}
+          onClose={() => setNotFoundMessage(null)}
+          message={notFoundMessage || ''}
+        />
+      </React.Suspense>
     </div>
   );
 };
