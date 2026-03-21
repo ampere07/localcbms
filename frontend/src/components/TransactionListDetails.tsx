@@ -603,7 +603,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                   {transaction.account?.account_no || '-'}
                   <button
                     onClick={() => setShowCustomerDetails(true)}
-                    className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${showCustomerDetails ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                    className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${showCustomerDetails ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-black dark:text-white') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
                     title="View Customer Details"
                   >
                     <CircleArrowRight size={16} />

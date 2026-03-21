@@ -40,3 +40,15 @@ code {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.loading-dots::after {
+  content: ' .';
+  animation: loadingDots 1.5s steps(4, end) infinite;
+}
+
+@keyframes loadingDots {
+  0%, 20% { content: ''; }
+  40% { content: ' .'; }
+  60% { content: ' ..'; }
+  80%, 100% { content: ' ...'; }
+}

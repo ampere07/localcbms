@@ -488,8 +488,7 @@ const PlanListDetails: React.FC<PlanListDetailsProps> = ({ plan, onClose, isMobi
               {loadingDetailsOverlay && (
                 <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                   <div className="flex flex-col items-center gap-3">
-                    <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                    <p>Loading details...</p>
+                    <p className="loading-dots pt-4">Loading Details</p>
                   </div>
                 </div>
               )}

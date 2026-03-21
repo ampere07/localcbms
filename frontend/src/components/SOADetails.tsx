@@ -7,6 +7,7 @@ import { BillingDetailRecord } from '../types/billing';
 
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
+const NotFoundModal = React.lazy(() => import('../modals/NotFoundModal'));
 
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-';
@@ -34,7 +35,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
-    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? ({1:'In Progress', 2:'Active', 3:'Suspended', 4:'Cancelled', 5:'Overdue', 6:'Service Account'}[customerData.billingAccount.billingStatusId] || `Status ${customerData.billingAccount.billingStatusId}`) : '',
     dateInstalled: customerData.billingAccount?.dateInstalled || '',
     contactNumber: customerData.contactNumberPrimary,
     secondContactNumber: customerData.contactNumberSecondary || '',
@@ -127,6 +128,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
 
   const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
   const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
+  const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
 
   const hasActiveOverlay = selectedPlanForOverlay || selectedCustomerForOverlay || loadingPlanOverlay || loadingCustomerOverlay;
 
@@ -274,7 +276,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
                       if (details) {
                         setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
                       } else {
-                        alert('Customer details not found.');
+                        setNotFoundMessage('Customer details not found.');
                       }
                     } catch (err) {
                       console.error('Error finding customer', err);
@@ -324,7 +326,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
                       if (match) {
                         setSelectedPlanForOverlay(match);
                       } else {
-                        alert('Plan details not found.');
+                        setNotFoundMessage('Plan details not found.');
                       }
                     } catch (err) {
                       console.error('Error finding plan', err);
@@ -439,16 +441,14 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
           {loadingPlanOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-orange-500" />
-                <p>Loading plan details...</p>
+                <p className="loading-dots pt-4">Loading Plan Details</p>
               </div>
             </div>
           )}
           {loadingCustomerOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-green-500" />
-                <p>Loading customer details...</p>
+                <p className="loading-dots pt-4">Loading Customer Details</p>
               </div>
             </div>
           )}
@@ -456,8 +456,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                  <p>Loading plan overlay...</p>
+                  <p className="loading-dots pt-4">Loading Plan Overlay</p>
                 </div>
               </div>
             }>
@@ -474,8 +473,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-green-500 border-t-transparent animate-spin" />
-                  <p>Loading customer overlay...</p>
+                  <p className="loading-dots pt-4">Loading Customer Overlay</p>
                 </div>
               </div>
             }>
@@ -489,6 +487,15 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
           )}
         </div>
       )}
+
+      {/* Not Found Modal */}
+      <React.Suspense fallback={null}>
+        <NotFoundModal
+          isOpen={!!notFoundMessage}
+          onClose={() => setNotFoundMessage(null)}
+          message={notFoundMessage || ''}
+        />
+      </React.Suspense>
     </div>
   );
 };

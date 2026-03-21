@@ -15,6 +15,18 @@ interface BillingDetailApiResponse {
   status?: string;
 }
 
+const getFallbackBillingStatus = (id: string | number): string => {
+  const map: Record<string, string> = {
+    '1': 'In Progress',
+    '2': 'Active',
+    '3': 'Suspended',
+    '4': 'Cancelled',
+    '5': 'Overdue',
+    '6': 'Service Account'
+  };
+  return map[String(id)] || `Status ${id}`;
+};
+
 export const getBillingRecords = async (page: number = 1, perPage: number = 50, updatedSince?: string): Promise<{ data: BillingRecord[], total: number, hasMore: boolean, serverTime?: string }> => {
   try {
     const params: any = { page, per_page: perPage };
@@ -43,7 +55,7 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50, 
         cityId: null,
         regionId: null,
         timestamp: item.Modified_Date || '',
-        billingStatus: item.Billing_Status_Name || (item.Billing_Status_ID ? `Status ${item.Billing_Status_ID}` : ''),
+        billingStatus: item.Billing_Status_Name || (item.Billing_Status_ID ? getFallbackBillingStatus(item.Billing_Status_ID) : ''),
         billing_status_id: item.Billing_Status_ID,
         dateInstalled: item.Date_Installed || '',
         contactNumber: item.Contact_Number || '',
@@ -128,7 +140,7 @@ export const getBillingRecordDetails = async (id: string): Promise<BillingDetail
         cityId: null,
         regionId: null,
         timestamp: item.Modified_Date || '',
-        billingStatus: item.Billing_Status_Name || (item.Billing_Status_ID ? `Status ${item.Billing_Status_ID}` : ''),
+        billingStatus: item.Billing_Status_Name || (item.Billing_Status_ID ? getFallbackBillingStatus(item.Billing_Status_ID) : ''),
         billing_status_id: item.Billing_Status_ID,
         dateInstalled: item.Date_Installed || '',
         contactNumber: item.Contact_Number || '',

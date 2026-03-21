@@ -15,6 +15,7 @@ import { getAllInventoryItems } from '../services/inventoryItemService';
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const UserDetails = React.lazy(() => import('./UserDetails'));
 const InventoryDetails = React.lazy(() => import('./InventoryDetails'));
+const NotFoundModal = React.lazy(() => import('../modals/NotFoundModal'));
 
 const formatDate = (dateString: string | null | undefined): string => {
   if (!dateString) return '-';
@@ -42,7 +43,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
-    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? ({1:'In Progress', 2:'Active', 3:'Suspended', 4:'Cancelled', 5:'Overdue', 6:'Service Account'}[customerData.billingAccount.billingStatusId] || `Status ${customerData.billingAccount.billingStatusId}`) : '',
     dateInstalled: customerData.billingAccount?.dateInstalled || '',
     contactNumber: customerData.contactNumberPrimary,
     secondContactNumber: customerData.contactNumberSecondary || '',
@@ -150,6 +151,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
   const [loadingCustomerOverlay, setLoadingCustomerOverlay] = useState(false);
   const [selectedInventoryForOverlay, setSelectedInventoryForOverlay] = useState<any | null>(null);
   const [loadingInventoryOverlay, setLoadingInventoryOverlay] = useState(false);
+  const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
 
   const hasActiveOverlay = !!selectedPlanForOverlay || !!selectedUserForOverlay || loadingPlanOverlay || loadingUserOverlay || !!selectedCustomerForOverlay || loadingCustomerOverlay || !!selectedInventoryForOverlay || loadingInventoryOverlay;
 
@@ -556,7 +558,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                     if (details) {
                       setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
                     } else {
-                      alert('Customer details not found for this account.');
+                      setNotFoundMessage('Customer details not found for this account.');
                     }
                   } catch (err) {
                     console.error('Error finding customer', err);
@@ -565,7 +567,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                     setLoadingCustomerOverlay(false);
                   }
                 }}
-                className={`ml-2 p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${selectedCustomerForOverlay ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                className={`ml-2 p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${selectedCustomerForOverlay ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-black dark:text-white') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
                 title="View Customer Details"
                 disabled={loadingCustomerOverlay}
               >
@@ -607,7 +609,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                     if (match) {
                       setSelectedPlanForOverlay(match);
                     } else {
-                      alert('Plan details not found.');
+                      setNotFoundMessage('Plan details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding plan', err);
@@ -659,7 +661,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                         image: match.image_url,
                       });
                     } else {
-                      alert('Inventory details not found for this router/modem SN.');
+                      setNotFoundMessage('Inventory details not found for this router/modem SN.');
                     }
                   } catch (err) {
                     console.error('Error finding inventory', err);
@@ -719,31 +721,32 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
               <span>{visitValue}</span>
               <button
                 onClick={async () => {
-                  if (!serviceOrder.accountNumber || serviceOrder.accountNumber === 'Not provided') {
-                    alert('No valid account number available to fetch customer details.');
-                    return;
-                  }
                   try {
-                    setLoadingCustomerOverlay(true);
-                    const details = await getCustomerDetail(serviceOrder.accountNumber);
+                    setLoadingUserOverlay(true);
+                    const allUsers = (await userService.getAllUsers()).data || [];
+                    const match = allUsers.find(u => 
+                      String(u.id) === visitValue ||
+                      u.username === visitValue ||
+                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitValue.toLowerCase() ||
+                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitValue.toLowerCase()
+                    );
                     
-                    if (details) {
-                      setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
+                    if (match) {
+                      setSelectedUserForOverlay(match);
                     } else {
-                      alert('Customer details not found for this service order.');
+                      setNotFoundMessage('User details not found.');
                     }
                   } catch (err) {
-                    console.error('Error finding customer', err);
-                    alert('Error loading customer details.');
+                    console.error('Error finding user', err);
                   } finally {
-                    setLoadingCustomerOverlay(false);
+                    setLoadingUserOverlay(false);
                   }
                 }}
-                className={`p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
-                title="View Customer Details"
-                disabled={loadingCustomerOverlay}
+                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View User Details"
+                disabled={loadingUserOverlay}
               >
-                {loadingCustomerOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
               </button>
             </div>
           </div>
@@ -776,7 +779,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                     if (match) {
                       setSelectedUserForOverlay(match);
                     } else {
-                      alert('User details not found for this email.');
+                      setNotFoundMessage('User details not found for this email.');
                     }
                   } catch (err) {
                     console.error('Error finding user', err);
@@ -840,7 +843,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                         image: match.image_url,
                       });
                     } else {
-                      alert('Inventory details not found for this router SN.');
+                      setNotFoundMessage('Inventory details not found for this router SN.');
                     }
                   } catch (err) {
                     console.error('Error finding inventory', err);
@@ -880,7 +883,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                     if (match) {
                       setSelectedPlanForOverlay(match);
                     } else {
-                      alert('Plan details not found.');
+                      setNotFoundMessage('Plan details not found.');
                     }
                   } catch (err) {
                     console.error('Error finding plan', err);
@@ -1104,32 +1107,28 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           {loadingPlanOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-orange-500" />
-                <p>Loading plan details...</p>
+                <p className="loading-dots pt-4">Loading Plan Details</p>
               </div>
             </div>
           )}
           {loadingUserOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-blue-500" />
-                <p>Loading user details...</p>
+                <p className="loading-dots pt-4">Loading User Details</p>
               </div>
             </div>
           )}
           {loadingCustomerOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-green-500" />
-                <p>Loading customer details...</p>
+                <p className="loading-dots pt-4">Loading Customer Details</p>
               </div>
             </div>
           )}
           {loadingInventoryOverlay && (
             <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
               <div className="flex flex-col items-center gap-3">
-                <Loader className="w-8 h-8 animate-spin text-yellow-500" />
-                <p>Loading inventory details...</p>
+                <p className="loading-dots pt-4">Loading Inventory Details</p>
               </div>
             </div>
           )}
@@ -1137,8 +1136,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-orange-500 border-t-transparent animate-spin" />
-                  <p>Loading plan overlay...</p>
+                  <p className="loading-dots pt-4">Loading Plan Overlay</p>
                 </div>
               </div>
             }>
@@ -1155,8 +1153,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-blue-500 border-t-transparent animate-spin" />
-                  <p>Loading user overlay...</p>
+                  <p className="loading-dots pt-4">Loading User Overlay</p>
                 </div>
               </div>
             }>
@@ -1185,8 +1182,7 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             <React.Suspense fallback={
               <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-900 text-gray-400' : 'bg-white text-gray-500'}`}>
                 <div className="flex flex-col items-center gap-3">
-                  <div className="w-8 h-8 rounded-full border-2 border-yellow-500 border-t-transparent animate-spin" />
-                  <p>Loading inventory overlay...</p>
+                  <p className="loading-dots pt-4">Loading Inventory Overlay</p>
                 </div>
               </div>
             }>
@@ -1209,6 +1205,15 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
           serviceOrderData={serviceOrder}
         />
       )}
+      
+      {/* Not Found Modal */}
+      <React.Suspense fallback={null}>
+        <NotFoundModal
+          isOpen={!!notFoundMessage}
+          onClose={() => setNotFoundMessage(null)}
+          message={notFoundMessage || ''}
+        />
+      </React.Suspense>
     </div>
   );
 };
