@@ -228,7 +228,10 @@ const JobOrderPage: React.FC = () => {
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      const hh = String(date.getHours()).padStart(2, '0');
+      const min = String(date.getMinutes()).padStart(2, '0');
+      const sc = String(date.getSeconds()).padStart(2, '0');
+      return `${mm}/${dd}/${yyyy} ${hh}:${min}:${sc}`;
     } catch (e) {
       return '-';
     }
@@ -1089,7 +1092,7 @@ const JobOrderPage: React.FC = () => {
   const renderCellValue = (jobOrder: JobOrder, columnKey: string): React.ReactNode => {
     switch (columnKey) {
       case 'timestamp':
-        return formatDate(jobOrder.Timestamp || jobOrder.timestamp);
+        return formatDateTime(jobOrder.Timestamp || jobOrder.timestamp);
       case 'dateInstalled':
         return formatOnlyDate(jobOrder.Date_Installed || jobOrder.date_installed);
       case 'installationFee':
@@ -1196,11 +1199,11 @@ const JobOrderPage: React.FC = () => {
           jobOrder.House_Front_Picture
         );
       case 'createdAt':
-        return formatDate(jobOrder.created_at || jobOrder.Created_At);
+        return formatDateTime(jobOrder.created_at || jobOrder.Created_At);
       case 'createdByUserEmail':
         return getValue(jobOrder.created_by_user_email || jobOrder.Created_By_User_Email);
       case 'updatedAt':
-        return formatDate(jobOrder.updated_at || jobOrder.Updated_At);
+        return formatDateTime(jobOrder.updated_at || jobOrder.Updated_At);
       case 'updatedByUserEmail':
         return getValue(jobOrder.updated_by_user_email || jobOrder.Updated_By_User_Email);
       case 'assignedEmail':
@@ -1218,7 +1221,7 @@ const JobOrderPage: React.FC = () => {
       case 'modifiedBy':
         return getValue(jobOrder.Modified_By || jobOrder.modified_by);
       case 'modifiedDate':
-        return formatDate(jobOrder.Modified_Date || jobOrder.modified_date);
+        return formatDateTime(jobOrder.Modified_Date || jobOrder.modified_date);
       case 'firstName':
         return getValue(jobOrder.First_Name || jobOrder.first_name);
       case 'middleInitial':
@@ -1245,9 +1248,9 @@ const JobOrderPage: React.FC = () => {
       case 'referredBy':
         return getValue(jobOrder.Referred_By || jobOrder.referred_by);
       case 'startTimestamp':
-        return formatDate(jobOrder.StartTimeStamp || jobOrder.start_timestamp || jobOrder.start_time);
+        return formatDateTime(jobOrder.StartTimeStamp || jobOrder.start_timestamp || jobOrder.start_time);
       case 'endTimestamp':
-        return formatDate(jobOrder.EndTimeStamp || jobOrder.end_timestamp || jobOrder.end_time);
+        return formatDateTime(jobOrder.EndTimeStamp || jobOrder.end_timestamp || jobOrder.end_time);
       case 'duration':
         const start = jobOrder.start_time || jobOrder.StartTimeStamp || jobOrder.start_timestamp;
         const end = jobOrder.end_time || jobOrder.EndTimeStamp || jobOrder.end_timestamp;

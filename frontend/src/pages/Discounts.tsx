@@ -3,6 +3,7 @@ import { Receipt, Search, ChevronRight, Tag, ChevronDown, Menu, X, ChevronsLeft,
 import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
 import * as discountService from '../services/discountService';
+import barangayService from '../services/barangayService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
  
 interface DiscountRecord {
@@ -29,6 +30,8 @@ interface DiscountRecord {
   cityId?: number;
   barangay?: string;
   city?: string;
+  region?: string;
+  created_at?: string;
   completeAddress?: string;
   onlineStatus?: string;
 }
@@ -77,9 +80,11 @@ const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
           modifiedDate: discount.updated_at ? new Date(discount.updated_at).toLocaleString() : 'N/A',
           userEmail: discount.processed_by_user?.email_address || discount.processed_by_user?.email || 'N/A',
           remarks: discount.remarks || '',
-          cityId: undefined,
+          cityId: customer?.city_id || undefined,
           barangay: customer?.barangay,
           city: customer?.city,
+          region: customer?.region,
+          created_at: discount.created_at,
           onlineStatus: undefined
         };
       });
@@ -123,6 +128,11 @@ const Discounts: React.FC = () => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isDiscountFormModalOpen, setIsDiscountFormModalOpen] = useState<boolean>(false);
+  const [barangays, setBarangays] = useState<any[]>([]);
+  const [expandedLocations, setExpandedLocations] = useState<Set<string>>(new Set());
+  const [createdDateFrom, setCreatedDateFrom] = useState<string>('');
+  const [createdDateTo, setCreatedDateTo] = useState<string>('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -217,25 +227,34 @@ const Discounts: React.FC = () => {
     };
   }, [cities]);
 
-  const locationItems: LocationItem[] = useMemo(() => {
-    const items: LocationItem[] = [
-      {
-        id: 'all',
-        name: 'All',
-        count: discountRecords.length
-      }
-    ];
-    
-    cities.forEach((city) => {
-      const cityCount = discountRecords.filter(record => record.cityId === city.id).length;
-      items.push({
-        id: String(city.id),
-        name: city.name,
-        count: cityCount
-      });
-    }
+  const searchFilteredRecords = useMemo(() => {
+    return discountRecords.filter(record => {
+      const matchesSearch = searchQuery === '' || 
+        record.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        record.accountNo.includes(searchQuery);
+      
+      if (!matchesSearch) return false;
 
-    return filtered;
+      if (createdDateFrom || createdDateTo) {
+        const recordDate = record.created_at ? new Date(record.created_at) : null;
+        if (!recordDate) return false;
+        
+        recordDate.setHours(0, 0, 0, 0);
+
+        if (createdDateFrom) {
+          const fromDate = new Date(createdDateFrom);
+          if (recordDate < fromDate) return false;
+        }
+
+        if (createdDateTo) {
+          const toDate = new Date(createdDateTo);
+          if (recordDate > toDate) return false;
+        }
+      }
+      
+      return true;
+    });
   }, [discountRecords, searchQuery, createdDateFrom, createdDateTo]);
 
   // Generate hierarchical location items (Derive counts from search results)
@@ -295,16 +314,22 @@ const Discounts: React.FC = () => {
   }, [regions, cities, barangays, searchFilteredRecords]);
 
   const filteredDiscountRecords = useMemo(() => {
-    return discountRecords.filter(record => {
-      const matchesLocation = selectedLocation === 'all' || 
-                             record.cityId === Number(selectedLocation);
+    return searchFilteredRecords.filter(record => {
+      if (selectedLocation === 'all') return true;
       
-      const matchesSearch = searchQuery === '' || 
-                           record.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           record.accountNo.includes(searchQuery);
+      if (selectedLocation.startsWith('reg:')) {
+        return record.region === selectedLocation.replace('reg:', '');
+      }
       
-      return matchesLocation && matchesSearch;
+      if (selectedLocation.startsWith('city:')) {
+        return record.city === selectedLocation.replace('city:', '');
+      }
+      
+      if (selectedLocation.startsWith('brgy:')) {
+        return record.barangay === selectedLocation.replace('brgy:', '');
+      }
+      
+      return record.cityId === Number(selectedLocation);
     });
   }, [searchFilteredRecords, selectedLocation]);
 
@@ -504,16 +529,15 @@ const Discounts: React.FC = () => {
           {locationItems.regions.map((region: any) => (
             <div key={region.id}>
               <button
-                key={location.id}
-                onClick={() => setSelectedLocation(location.id)}
+                onClick={() => setSelectedLocation(region.id)}
                 className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
                   isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
                 } ${
-                  selectedLocation === location.id
+                  selectedLocation === region.id
                     ? ''
                     : isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}
-                style={selectedLocation === location.id ? {
+                style={selectedLocation === region.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                   color: colorPalette?.primary || '#fb923c'
                 } : {}}
@@ -643,6 +667,28 @@ const Discounts: React.FC = () => {
         isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
         <div className="flex flex-col h-full">
+          {/* Mobile Header */}
+          <div className={`md:hidden flex items-center justify-between p-4 border-b ${
+            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          }`}>
+            <div className="flex items-center">
+              <button 
+                onClick={() => setMobileMenuOpen(true)}
+                className={`p-2 -ml-2 mr-2 rounded-md ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                <Menu className="h-6 w-6" />
+              </button>
+              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Discounts</h2>
+            </div>
+            <button 
+              onClick={handleOpenDiscountFormModal}
+              className="p-2 rounded-md text-white flex items-center justify-center w-8 h-8"
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+            >
+              <span className="font-bold">+</span>
+            </button>
+          </div>
+
           <div className="flex-1 overflow-hidden">
             <div className="h-full overflow-y-auto">
               {isLoading ? (
