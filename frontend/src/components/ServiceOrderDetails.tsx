@@ -9,7 +9,7 @@ import { BillingDetailRecord } from '../types/billing';
 import { planService, Plan } from '../services/planService';
 import { userService } from '../services/userService';
 import { User as UserType } from '../types/api';
-import { getBillingRecords, getBillingRecordDetails } from '../services/billingService';
+import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { getAllInventoryItems } from '../services/inventoryItemService';
 
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
@@ -28,6 +28,54 @@ const formatDate = (dateString: string | null | undefined): string => {
   } catch (e) {
     return dateString;
   }
+};
+
+const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
+  return {
+    id: customerData.billingAccount?.accountNo || '',
+    applicationId: customerData.billingAccount?.accountNo || '',
+    customerName: customerData.fullName,
+    address: customerData.address,
+    status: customerData.billingAccount?.billingStatusId === 2 ? 'Active' : 'Inactive',
+    balance: customerData.billingAccount?.accountBalance || 0,
+    onlineStatus: customerData.billingAccount?.billingStatusId === 2 ? 'Online' : 'Offline',
+    cityId: null,
+    regionId: null,
+    timestamp: customerData.updatedAt || '',
+    billingStatus: customerData.billingAccount?.billingStatusId ? `Status ${customerData.billingAccount.billingStatusId}` : '',
+    dateInstalled: customerData.billingAccount?.dateInstalled || '',
+    contactNumber: customerData.contactNumberPrimary,
+    secondContactNumber: customerData.contactNumberSecondary || '',
+    emailAddress: customerData.emailAddress || '',
+    plan: customerData.desiredPlan || '',
+    username: customerData.technicalDetails?.username || '',
+    connectionType: customerData.technicalDetails?.connectionType || '',
+    routerModel: customerData.technicalDetails?.routerModel || '',
+    routerModemSN: customerData.technicalDetails?.routerModemSn || '',
+    lcpnap: customerData.technicalDetails?.lcpnap || '',
+    port: customerData.technicalDetails?.port || '',
+    vlan: customerData.technicalDetails?.vlan || '',
+    billingDay: customerData.billingAccount?.billingDay || 0,
+    totalPaid: 0,
+    provider: '',
+    lcp: customerData.technicalDetails?.lcp || '',
+    nap: customerData.technicalDetails?.nap || '',
+    modifiedBy: '',
+    modifiedDate: customerData.updatedAt || '',
+    barangay: customerData.barangay || '',
+    city: customerData.city || '',
+    region: customerData.region || '',
+    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    referredBy: customerData.referredBy || '',
+    referralContactNo: '',
+    groupName: customerData.groupName || '',
+    mikrotikId: '',
+    sessionIp: customerData.technicalDetails?.ipAddress || '',
+    houseFrontPicture: customerData.houseFrontPictureUrl || '',
+    accountBalance: customerData.billingAccount?.accountBalance || 0,
+    housingStatus: customerData.housingStatus || '',
+    addressCoordinates: customerData.addressCoordinates || '',
+  };
 };
 
 interface ServiceOrderDetailsProps {
@@ -496,11 +544,32 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
             <div className="text-red-500 flex-1 flex items-center">
               <span>{accInfo.join(' | ')}</span>
               <button 
-                onClick={() => setShowCustomerDetails(!showCustomerDetails)}
-                className={`ml-2 p-1 rounded transition-colors ${isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${showCustomerDetails ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
+                onClick={async () => {
+                  if (!serviceOrder.accountNumber || serviceOrder.accountNumber === 'Not provided') {
+                    alert('No valid account number available.');
+                    return;
+                  }
+                  try {
+                    setLoadingCustomerOverlay(true);
+                    const details = await getCustomerDetail(serviceOrder.accountNumber);
+                    
+                    if (details) {
+                      setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
+                    } else {
+                      alert('Customer details not found for this account.');
+                    }
+                  } catch (err) {
+                    console.error('Error finding customer', err);
+                    alert('Error loading customer details.');
+                  } finally {
+                    setLoadingCustomerOverlay(false);
+                  }
+                }}
+                className={`ml-2 p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-800 hover:text-white' : 'hover:bg-gray-200 hover:text-gray-900'} ${selectedCustomerForOverlay ? (colorPalette?.primary ? 'text-[' + colorPalette.primary + ']' : 'text-blue-500') : (isDarkMode ? 'text-gray-400' : 'text-gray-600')}`}
                 title="View Customer Details"
+                disabled={loadingCustomerOverlay}
               >
-                <CircleArrowRight size={16} />
+                {loadingCustomerOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
               </button>
             </div>
           </div>
@@ -650,31 +719,31 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
               <span>{visitValue}</span>
               <button
                 onClick={async () => {
+                  if (!serviceOrder.accountNumber || serviceOrder.accountNumber === 'Not provided') {
+                    alert('No valid account number available to fetch customer details.');
+                    return;
+                  }
                   try {
-                    setLoadingUserOverlay(true);
-                    const allUsers = (await userService.getAllUsers()).data || [];
-                    const match = allUsers.find(u => 
-                      String(u.id) === visitValue ||
-                      u.username === visitValue ||
-                      (u.first_name + ' ' + u.last_name).toLowerCase() === visitValue.toLowerCase() ||
-                      (u.first_name + ' ' + (u.middle_initial ? u.middle_initial + ' ' : '') + u.last_name).toLowerCase() === visitValue.toLowerCase()
-                    );
-                    if (match) {
-                      setSelectedUserForOverlay(match);
+                    setLoadingCustomerOverlay(true);
+                    const details = await getCustomerDetail(serviceOrder.accountNumber);
+                    
+                    if (details) {
+                      setSelectedCustomerForOverlay(convertCustomerDataToBillingDetail(details));
                     } else {
-                      alert('User details not found.');
+                      alert('Customer details not found for this service order.');
                     }
                   } catch (err) {
-                    console.error('Error finding user', err);
+                    console.error('Error finding customer', err);
+                    alert('Error loading customer details.');
                   } finally {
-                    setLoadingUserOverlay(false);
+                    setLoadingCustomerOverlay(false);
                   }
                 }}
-                className={`p-1 rounded transition-colors ${loadingUserOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
-                title="View User Details"
-                disabled={loadingUserOverlay}
+                className={`p-1 rounded transition-colors ${loadingCustomerOverlay ? 'opacity-50 cursor-not-allowed' : isDarkMode ? 'hover:bg-gray-700 text-white' : 'hover:bg-gray-100 text-gray-900'}`}
+                title="View Customer Details"
+                disabled={loadingCustomerOverlay}
               >
-                {loadingUserOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
+                {loadingCustomerOverlay ? <Loader className="w-4 h-4 animate-spin" /> : <CircleArrowRight size={16} />}
               </button>
             </div>
           </div>

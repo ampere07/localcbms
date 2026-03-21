@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Search, Check } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import apiClient from '../config/api';
+import { planService } from '../services/planService';
 
 interface ApplicationVisitFunnelFilterProps {
   isOpen: boolean;
@@ -11,17 +13,18 @@ interface ApplicationVisitFunnelFilterProps {
 
 export interface FilterValues {
   [key: string]: {
-    type: 'text' | 'number' | 'date';
+    type: 'text' | 'number' | 'date' | 'checklist';
     value?: string;
     from?: string | number;
     to?: string | number;
+    selectedOptions?: string[];
   };
 }
 
 interface Column {
   key: string;
   label: string;
-  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'datetime';
+  dataType: 'varchar' | 'text' | 'int' | 'bigint' | 'datetime' | 'checklist';
 }
 
 const STORAGE_KEY = 'applicationVisitFilters';
@@ -41,6 +44,7 @@ const allColumns: Column[] = [
   { key: 'full_address', label: 'Full Address', dataType: 'text' },
   { key: 'created_at', label: 'Created At', dataType: 'datetime' },
   { key: 'updated_at', label: 'Updated At', dataType: 'datetime' },
+  { key: 'choose_plan', label: 'Choose Plan', dataType: 'checklist' },
 ];
 
 const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> = ({
@@ -53,6 +57,8 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [selectedColumn, setSelectedColumn] = useState<Column | null>(null);
   const [filterValues, setFilterValues] = useState<FilterValues>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [plans, setPlans] = useState<string[]>([]);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -74,6 +80,27 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
     fetchColorPalette();
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      const fetchChecklistData = async () => {
+        try {
+          const planData = await planService.getAllPlans();
+          if (planData) {
+            const formattedPlans = planData.map(p => {
+              const name = p.name || (p as any).plan_name || 'Unknown';
+              const price = Math.floor(Number(p.price || 0));
+              return `${name} ${price}`;
+            });
+            setPlans(formattedPlans);
+          }
+        } catch (err) {
+          console.error('Failed to fetch checklist data:', err);
+        }
+      };
+      fetchChecklistData();
+    }
+  }, [isOpen]);
+
   // Load filters from localStorage when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -92,10 +119,12 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
 
   const handleColumnClick = (column: Column) => {
     setSelectedColumn(column);
+    setSearchTerm('');
   };
 
   const handleBack = () => {
     setSelectedColumn(null);
+    setSearchTerm('');
   };
 
   const handleApply = () => {
@@ -149,6 +178,32 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
         [field]: value
       }
     }));
+  };
+
+  const toggleOption = (columnKey: string, option: string) => {
+    setFilterValues(prev => {
+      const current = prev[columnKey] || { type: 'checklist', selectedOptions: [] };
+      const selectedOptions = current.selectedOptions || [];
+
+      const nextOptions = selectedOptions.includes(option)
+        ? selectedOptions.filter(o => o !== option)
+        : [...selectedOptions, option];
+
+      if (nextOptions.length === 0) {
+        const newFilters = { ...prev };
+        delete newFilters[columnKey];
+        return newFilters;
+      }
+
+      return {
+        ...prev,
+        [columnKey]: {
+          ...current,
+          type: 'checklist',
+          selectedOptions: nextOptions
+        }
+      };
+    });
   };
 
   const getActiveFilterCount = () => {
@@ -237,6 +292,79 @@ const ApplicationVisitFunnelFilter: React.FC<ApplicationVisitFunnelFilterProps> 
                   : 'bg-white border-gray-300 text-gray-900'
                 }`}
             />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedColumn.dataType === 'checklist') {
+      let options: { label: string, value: string }[] = [];
+      if (selectedColumn.key === 'choose_plan') {
+        options = plans.map(p => ({ label: p, value: p }));
+      }
+
+      const filteredOptions = options.filter(opt =>
+        opt.label.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+
+      return (
+        <div className="space-y-4">
+          <div className="relative">
+            <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+            <input
+              type="text"
+              placeholder={`Search ${selectedColumn.label}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`w-full pl-9 pr-3 py-2 rounded-lg border text-sm transition-colors ${
+                isDarkMode
+                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:border-gray-600'
+                  : 'bg-gray-50 border-gray-200 text-gray-900 placeholder-gray-400 focus:border-gray-300'
+              } focus:outline-none focus:ring-1 focus:ring-opacity-50`}
+              style={{
+                '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+              } as React.CSSProperties}
+            />
+          </div>
+
+          <div className="max-h-60 overflow-y-auto space-y-1 pr-2 custom-scrollbar">
+            {filteredOptions.length > 0 ? (
+              filteredOptions.map((option) => {
+                const isSelected = currentValue?.selectedOptions?.includes(option.value) || false;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => toggleOption(selectedColumn.key, option.value)}
+                    className={`w-full flex items-center justify-between p-2 rounded-md text-sm transition-all ${
+                      isSelected
+                        ? isDarkMode
+                          ? 'bg-gray-800 text-white font-medium'
+                          : 'bg-indigo-50 text-indigo-900 font-medium'
+                        : isDarkMode
+                          ? 'text-gray-400 hover:bg-gray-800 hover:text-gray-200'
+                          : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    }`}
+                  >
+                    <span>{option.label}</span>
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                      isSelected
+                        ? 'border-transparent'
+                        : isDarkMode
+                          ? 'border-gray-600'
+                          : 'border-gray-300'
+                    }`}
+                    style={isSelected ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                    >
+                      {isSelected && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
+                    </div>
+                  </button>
+                );
+              })
+            ) : (
+              <div className={`text-center py-4 text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                No options found
+              </div>
+            )}
           </div>
         </div>
       );

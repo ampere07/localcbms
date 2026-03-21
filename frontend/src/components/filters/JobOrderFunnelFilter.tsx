@@ -298,12 +298,7 @@ const JobOrderFunnelFilter: React.FC<JobOrderFunnelFilterProps> = ({
     if (selectedColumn.dataType === 'checklist') {
       let options: { label: string, value: string }[] = [];
       if (selectedColumn.key === 'choosePlan') {
-        options = plans.map(p => {
-          const parts = p.split(' ');
-          const price = parts.pop();
-          const name = parts.join(' ');
-          return { label: p, value: name };
-        });
+        options = plans.map(p => ({ label: p, value: p }));
       } else if (selectedColumn.key === 'barangay') {
         options = barangays.map(b => ({ label: b, value: b }));
       } else if (selectedColumn.key === 'city') {

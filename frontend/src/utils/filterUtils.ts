@@ -18,6 +18,15 @@ export function applyFilters<T extends Record<string, any>>(
       // Handle text filters
       if (filter.type === 'text' && filter.value) {
         if (value === null || value === undefined) return false;
+        
+        // Use exact match for specific fields (like plans) since 'ULTRA' matches 'ULTRA-PLUS 2099' in includes
+        if (['choose_plan', 'desired_plan', 'desiredPlan', 'plan'].includes(key)) {
+          const valStr = String(value).toLowerCase().trim();
+          const filterStr = filter.value.toLowerCase().trim();
+          console.log(`[filterUtils.ts] EXACT PLAN MATCH: key=${key}, row_value='${valStr}', filter_value='${filterStr}', matches=${valStr === filterStr}`);
+          return valStr === filterStr;
+        }
+        
         return String(value).toLowerCase().includes(filter.value.toLowerCase());
       }
 

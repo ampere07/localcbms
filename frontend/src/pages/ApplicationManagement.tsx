@@ -397,7 +397,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
             const normalizedValue = String(appVal || '').toLowerCase().trim();
             const isMatch = typedFilter.selectedOptions.some((opt: string) => {
               const filterVal = String(opt).toLowerCase().trim();
-              if (['status', 'barangay', 'city', 'region', 'terms_agreed'].includes(key)) {
+              if (['status', 'barangay', 'city', 'region', 'terms_agreed', 'desired_plan', 'desiredPlan'].includes(key)) {
                 return normalizedValue === filterVal;
               }
               return normalizedValue.includes(filterVal);

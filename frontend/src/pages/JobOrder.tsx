@@ -612,10 +612,7 @@ const JobOrderPage: React.FC = () => {
             const valStr = String(orderValue || '').toLowerCase();
             match = filter.value.some((v: string) => {
               const filterVal = String(v).toLowerCase();
-              if (['billingStatus', 'onsiteStatus', 'barangay', 'city', 'region'].includes(key)) {
-                return valStr === filterVal;
-              }
-              return valStr.includes(filterVal);
+              return valStr === filterVal;
             });
           }
         } else if (filter.type === 'date') {
