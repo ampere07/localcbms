@@ -452,12 +452,12 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   };
 
   const fetchRelatedData = async () => {
-    if (!billingRecord.applicationId) {
-      console.log('❌ No applicationId found in billingRecord');
+    const accountNo = billingRecord.accountNo || billingRecord.account_no || billingRecord.applicationId;
+    if (!accountNo) {
+      console.log('❌ No account reference found in billingRecord');
       return;
     }
 
-    const accountNo = billingRecord.applicationId;
     console.log('🔍 Fetching related data for account:', accountNo);
 
     // Fetch all related data
@@ -515,7 +515,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
   // Fetch related data when account number changes or refreshKey increments
   useEffect(() => {
     fetchRelatedData();
-  }, [billingRecord.applicationId, refreshKey]);
+  }, [billingRecord.applicationId, billingRecord.accountNo, billingRecord.account_no, refreshKey]);
 
   // Resolve user IDs for Created By / Updated By fields
   useEffect(() => {
