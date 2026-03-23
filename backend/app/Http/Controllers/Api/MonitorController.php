@@ -602,7 +602,7 @@ class MonitorController extends Controller
                         ->leftJoin('support_concern', 'service_orders.concern_id', '=', 'support_concern.id')
                         ->where('service_orders.visit_status', 'In Progress')
                         ->where(function($q) {
-                            $q->where('support_concern.name', 'LIKE', '%Pullout%')
+                            $q->where('support_concern.concern_name', 'LIKE', '%Pullout%')
                               ->orWhere('service_orders.concern_remarks', 'LIKE', '%Pullout%');
                         })
                         ->count(),

@@ -391,6 +391,31 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    if (applicationData && isOpen && plans.length > 0) {
+      const initialPlan = applicationData.desired_plan;
+      if (initialPlan) {
+        const normalize = (s: string) => s.replace(/\.00/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase().replace(/p(\d+)/g, '$1');
+        const initialNormalized = normalize(initialPlan);
+
+        const matchedPlan = plans.find(plan => {
+          const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
+          return normalize(planWithPrice) === initialNormalized || normalize(plan.name) === initialNormalized;
+        });
+
+        if (matchedPlan) {
+          const correctPlanStr = matchedPlan.price ? `${matchedPlan.name} - P${matchedPlan.price}` : matchedPlan.name;
+          setFormData(prev => {
+            if (prev.choosePlan === initialPlan && prev.choosePlan !== correctPlanStr) {
+              return { ...prev, choosePlan: correctPlanStr };
+            }
+            return prev;
+          });
+        }
+      }
+    }
+  }, [plans, applicationData, isOpen]);
+
   const handleInputChange = (field: keyof JOFormData, value: string | number | boolean) => {
     if (field === 'middleInitial' && typeof value === 'string') {
       value = value.replace(/[0-9]/g, '');
@@ -1149,8 +1174,9 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
                   >
                     <option value="">Select Plan</option>
                     {formData.choosePlan && !plans.some(plan => {
+                      const normalize = (s: string) => s.replace(/\.00/g, '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase().replace(/p(\d+)/g, '$1');
                       const planWithPrice = plan.price ? `${plan.name} - P${plan.price}` : plan.name;
-                      return planWithPrice === formData.choosePlan || plan.name === formData.choosePlan;
+                      return normalize(planWithPrice) === normalize(formData.choosePlan) || normalize(plan.name) === normalize(formData.choosePlan);
                     }) && (
                         <option value={formData.choosePlan}>{formData.choosePlan}</option>
                       )}

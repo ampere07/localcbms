@@ -22,85 +22,107 @@ const formatDate = (val: any) => {
 
 export const relatedDataColumns = {
   invoices: [
-    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
-    { key: 'id', label: 'ID' },
-    { key: 'account_no', label: 'Account No' },
+    { key: 'status', label: 'Invoice Status', render: (val: any) => val || '-' },
     {
       key: 'invoice_date',
       label: 'Invoice Date',
       render: (val: any) => formatDate(val)
     },
-    { key: 'invoice_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'others_and_basic_charges', label: 'Basic Charges', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'total_amount', label: 'Total Amt', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'received_payment', label: 'Paid', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     {
       key: 'due_date',
       label: 'Due Date',
       render: (val: any) => formatDate(val)
     },
-    { key: 'payment_portal_log_ref', label: 'Portal Ref', render: (val: any) => val || '-' },
-    { key: 'transaction_id', label: 'Trans ID', render: (val: any) => val || '-' },
-    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'rebate', label: 'Rebate', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'total_amount', label: 'Total Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'received_payment', label: 'Received Payment', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'account_no', label: 'Account No' },
+    { key: 'invoice_no', label: 'Invoice No', render: (val: any) => val || '-' },
+    { key: 'full_name', label: 'Full Name', render: (val: any) => val || '-' },
+    { key: 'contact_number', label: 'Contact Number', render: (val: any) => val || '-' },
+    { key: 'email_address', label: 'Email Address', render: (val: any) => val || '-' },
+    { key: 'address', label: 'Address', render: (val: any) => val || '-' },
+    { key: 'plan', label: 'Plan', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'invoice_balance', label: 'Invoice Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'staggered', label: 'Staggered', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
-    { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' }
+    { key: 'service_charge', label: 'Service Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'rebate', label: 'Rebates', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    {
+      key: 'date_processed',
+      label: 'Date Processed',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'processed_by', label: 'Processed By', render: (val: any) => val || '-' },
+    { key: 'payment_method', label: 'Payment Method', render: (val: any) => val || '-' },
+    { key: 'reference_no', label: 'Reference No', render: (val: any) => val || '-' },
+    { key: 'or_no', label: 'OR No', render: (val: any) => val || '-' },
+    { key: 'updated_by', label: 'Modified By', render: (val: any) => val || '-' },
+    {
+      key: 'updated_at',
+      label: 'Modified Date',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'transaction_id', label: 'Transaction ID', render: (val: any) => val || '-' },
+    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+    { key: 'city', label: 'City', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   paymentPortalLogs: [
     { key: 'status', label: 'Status', render: (val: any) => val || '-' },
-    { key: 'id', label: 'ID' },
-    { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
-    { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
-    { key: 'total_amount', label: 'Total Amt', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'account_balance_before', label: 'Bal Before', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     {
       key: 'date_time',
       label: 'Date Time',
       render: (val: any) => formatDate(val)
     },
+    { key: 'reference_no', label: 'Reference No', render: (val: any) => val || '-' },
+    { key: 'total_amount', label: 'Total Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'transaction_status', label: 'Transaction Status', render: (val: any) => val || '-' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    { key: 'contact_no', label: 'Contact No', render: (val: any) => val || '-' },
+    { key: 'account_balance', label: 'Account Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'checkout_id', label: 'Checkout ID', render: (val: any) => val || '-' },
-    { key: 'transaction_status', label: 'Trans Status', render: (val: any) => val || '-' },
-    { key: 'ewallet_type', label: 'E-wallet', render: (val: any) => val || '-' },
-    { key: 'payment_channel', label: 'Channel', render: (val: any) => val || '-' },
-    { key: 'type', label: 'Type', render: (val: any) => val || '-' },
-    { key: 'payment_url', label: 'Payment URL', render: (val: any) => val ? 'View' : '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) }
+    { key: 'plan', label: 'Plan', render: (val: any) => val || '-' },
+    { key: 'ewallet_type', label: 'Ewallet Type', render: (val: any) => val || '-' },
+    { key: 'payment_method', label: 'Payment Method', render: (val: any) => val || '-' },
+    { key: 'payment_channel', label: 'Payment Channel', render: (val: any) => val || '-' },
+    { key: 'name', label: 'Name', render: (val: any) => val || '-' },
+    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+    { key: 'city', label: 'City', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   transactions: [
+    {
+      key: 'date_processed',
+      label: 'Date Processed',
+      render: (val: any) => formatDate(val)
+    },
     { key: 'status', label: 'Status', render: (val: any) => val || '-' },
-    { key: 'id', label: 'ID' },
+    { key: 'received_payment', label: 'Received Payment', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'or_no', label: 'OR No', render: (val: any) => val || '-' },
+    { key: 'processed_by_user', label: 'Processed By', render: (val: any) => val || '-' },
+    { key: 'reference_no', label: 'Reference No', render: (val: any) => val || '-' },
+    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
+    { key: 'id', label: 'Transaction ID' },
     { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
-    { key: 'transaction_type', label: 'Trans Type', render: (val: any) => val || '-' },
-    { key: 'received_payment', label: 'Received', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'account_balance_before', label: 'Bal Before', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'full_name', label: 'Full Name', render: (val: any) => val || '-' },
+    { key: 'contact_no', label: 'Contact No', render: (val: any) => val || '-' },
+    { key: 'payment_method', label: 'Payment Method', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Modified By', render: (val: any) => val || '-' },
+    {
+      key: 'updated_at',
+      label: 'Modified Date',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'transaction_type', label: 'Transaction Type', render: (val: any) => val || '-' },
     {
       key: 'payment_date',
       label: 'Payment Date',
       render: (val: any) => formatDate(val)
     },
-    {
-      key: 'date_processed',
-      label: 'Processed Date',
-      render: (val: any) => formatDate(val)
-    },
-    { key: 'processed_by_user', label: 'Processed By', render: (val: any) => val || '-' },
-    { key: 'payment_method', label: 'Method', render: (val: any) => val || '-' },
-    { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
-    { key: 'or_no', label: 'OR No', render: (val: any) => val || '-' },
-    { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'image_url', label: 'Image URL', render: (val: any) => val ? 'View' : '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
-    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' },
-    { key: 'approved_by', label: 'Approved By', render: (val: any) => val || '-' }
+    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+    { key: 'city', label: 'City', render: (val: any) => val || '-' },
+    { key: 'account_balance_before', label: 'Account Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` }
   ] as TableColumn[],
 
   staggered: [
@@ -314,35 +336,52 @@ export const relatedDataColumns = {
   ] as TableColumn[],
 
   statementOfAccounts: [
-    { key: 'id', label: 'ID' },
-    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
     {
       key: 'statement_date',
       label: 'Statement Date',
       render: (val: any) => formatDate(val)
     },
-    { key: 'balance_from_previous_bill', label: 'Bal Prev', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'payment_received_previous', label: 'Pay Prev', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'remaining_balance_previous', label: 'Rem Bal', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'monthly_service_fee', label: 'MSF', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'others_and_basic_charges', label: 'Basic Charges', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'vat', label: 'VAT', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     {
       key: 'due_date',
       label: 'Due Date',
       render: (val: any) => formatDate(val)
     },
-    { key: 'amount_due', label: 'Amt Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'total_amount_due', label: 'Total Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'print_link', label: 'Print Link', render: (val: any) => val ? 'View' : '-' },
-    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'rebate', label: 'Rebate', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'balance_from_previous_bill', label: 'Balance From Previous Bill', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'amount_due', label: 'Amount Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'total_amount_due', label: 'Total Amount Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'statement_no', label: 'Statement No', render: (val: any) => val || '-' },
+    { key: 'full_name', label: 'Full Name', render: (val: any) => val || '-' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    {
+      key: 'date_installed',
+      label: 'Date Installed',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'email_address', label: 'Email Address', render: (val: any) => val || '-' },
+    { key: 'plan', label: 'Plan', render: (val: any) => val || '-' },
+    { key: 'payment_received_previous', label: 'Payment Received From Previous Bill', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'remaining_balance_previous', label: 'Remaining Balance From Previous Bill', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'monthly_service_fee', label: 'Monthly Service Fee', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'vat', label: 'VAT', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'address', label: 'Address', render: (val: any) => val || '-' },
     { key: 'staggered', label: 'Staggered', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
-    { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' }
+    { key: 'service_charge', label: 'Service Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'discounts', label: 'Discounts', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'rebate', label: 'Rebates', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    {
+      key: 'disconnection_date',
+      label: 'Disconnection Date',
+      render: (val: any) => formatDate(val)
+    },
+    {
+      key: 'updated_at',
+      label: 'Modified Date',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'print_link', label: 'Print Link', render: (val: any) => val ? 'View' : '-' },
+    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+    { key: 'city', label: 'City', render: (val: any) => val || '-' },
+    { key: 'region', label: 'Region', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   inventoryLogs: [

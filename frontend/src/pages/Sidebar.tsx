@@ -97,7 +97,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   }, []);
 
   const menuItems: MenuItem[] = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['admin-only'] },
+    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, allowedRoles: ['administrator', 'superadmin'] },
     { id: 'live-monitor', label: 'Monitoring', icon: Activity, allowedRoles: ['superadmin'] },
     {
       id: 'billing',

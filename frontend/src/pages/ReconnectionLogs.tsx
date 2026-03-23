@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import ReconnectionLogsDetails from '../components/ReconnectionLogsDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useReconnectionStore } from '../store/reconnectionStore';
+import { userService } from '../services/userService';
 
 interface ReconnectionLogRecord {
   id: string;
@@ -47,6 +48,7 @@ const ReconnectionLogs: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<ReconnectionLogRecord | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [usersMap, setUsersMap] = useState<Record<string, string>>({});
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -62,6 +64,27 @@ const ReconnectionLogs: React.FC = () => {
       }
     };
     fetchColorPalette();
+  }, []);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const response = await userService.getAllUsers();
+        if (response.success && response.data) {
+          const map: Record<string, string> = {};
+          response.data.forEach((user: any) => {
+            const firstName = (user.first_name || '').trim();
+            const lastName = (user.last_name || '').trim();
+            const fullName = `${firstName} ${lastName}`.trim();
+            map[user.id.toString()] = fullName || user.username || user.email_address || user.email || 'Unknown User';
+          });
+          setUsersMap(map);
+        }
+      } catch (err) {
+        console.error('Failed to fetch users:', err);
+      }
+    };
+    fetchUsers();
   }, []);
 
   useEffect(() => {
@@ -265,8 +288,15 @@ const ReconnectionLogs: React.FC = () => {
         return record.balance ? `₱ ${record.balance.toFixed(2)}` : '-';
       case 'reconnectionDate':
         return formatDate(record.reconnectionDate);
-      case 'reconnectedBy':
-        return record.reconnectedBy || '-';
+      case 'reconnectedBy': {
+        const val = record.reconnectedBy;
+        if (!val) return '-';
+        const strVal = String(val);
+        if (/^\d+$/.test(strVal)) {
+          return usersMap[strVal] || strVal;
+        }
+        return strVal;
+      }
       case 'reason':
         return record.reason || '-';
       case 'appliedDate':

@@ -390,7 +390,10 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
           else if (typedFilter.type === 'checklist' && typedFilter.selectedOptions && typedFilter.selectedOptions.length > 0) {
             let appVal = (application as any)[key];
             if (key === 'status') {
-              const status = String(appVal || '').toLowerCase();
+              let status = String(appVal || '').toLowerCase();
+              if (!appVal || String(appVal).trim() === '') {
+                status = 'empty';
+              }
               appVal = status === 'schedule' ? 'scheduled' : status;
             }
 
@@ -450,14 +453,18 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
       { name: 'Duplicate', value: 'duplicate' },
       { name: 'Cancelled', value: 'cancelled' },
       { name: 'Confirmed', value: 'confirmed' },
-      { name: 'Pending', value: 'pending' }
+      { name: 'Pending', value: 'pending' },
+      { name: 'Empty', value: 'empty' }
     ];
 
     const counts: Record<string, number> = {};
     statuses.forEach(s => counts[s.value] = 0);
 
     globalFilteredApplications.forEach(app => {
-      const status = (app.status || '').toLowerCase();
+      let status = (app.status || '').toLowerCase();
+      if (!app.status || String(app.status).trim() === '') {
+        status = 'empty';
+      }
       const normalizedStatus = status === 'schedule' ? 'scheduled' : status;
       if (counts[normalizedStatus] !== undefined) {
         counts[normalizedStatus]++;
@@ -469,7 +476,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
         id: `status:${s.value}`,
         name: s.name,
         count: counts[s.value] || 0
-      })),
+      })).filter(s => s.count > 0),
       total: globalFilteredApplications.length
     };
   }, [globalFilteredApplications]);
@@ -480,7 +487,10 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
 
       if (selectedLocation.startsWith('status:')) {
         const statusValue = selectedLocation.substring(7);
-        const appStatus = (application.status || '').toLowerCase();
+        let appStatus = (application.status || '').toLowerCase();
+        if (!application.status || String(application.status).trim() === '') {
+          appStatus = 'empty';
+        }
         const normalizedAppStatus = appStatus === 'schedule' ? 'scheduled' : appStatus;
         return normalizedAppStatus === statusValue;
       }
@@ -848,7 +858,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
 
   const renderCellDisplay = (application: Application, columnKey: string) => {
     if (columnKey === 'status') {
-      const status = application.status || '-';
+      const status = (!application.status || String(application.status).trim() === '') ? 'Empty' : application.status;
       return (
         <span className={`text-xs px-2 py-1 font-bold uppercase ${status.toLowerCase() === 'schedule' ? 'text-green-400' :
           status.toLowerCase() === 'no facility' ? 'text-red-400' :
@@ -859,7 +869,8 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                     status.toLowerCase() === 'completed' ? 'text-green-400' :
                       status.toLowerCase() === 'confirmed' ? 'text-green-400' :
                         status.toLowerCase() === 'pending' ? 'text-orange-400' :
-                          'text-gray-400'
+                          status.toLowerCase() === 'empty' ? 'text-gray-500' :
+                            'text-gray-400'
           }`}>
           {status}
         </span>
@@ -986,6 +997,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                 case 'cancelled': return 'text-red-600';
                 case 'confirmed': return 'text-green-500';
                 case 'pending': return 'text-orange-500';
+                case 'empty': return 'text-gray-500';
                 default: return 'text-gray-500';
               }
             };
@@ -1135,6 +1147,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                     case 'cancelled': return 'text-red-600';
                     case 'confirmed': return 'text-green-500';
                     case 'pending': return 'text-orange-500';
+                    case 'empty': return 'text-gray-500';
                     default: return 'text-gray-500';
                   }
                 };
@@ -1537,21 +1550,25 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                             </div>
                           </div>
                           <div className="flex flex-col items-end space-y-1 ml-4 flex-shrink-0">
-                            {application.status && (
-                              <div className={`text-xs px-2 py-1 font-bold uppercase ${application.status.toLowerCase() === 'schedule' ? 'text-green-400' :
-                                application.status.toLowerCase() === 'no facility' ? 'text-red-400' :
-                                  application.status.toLowerCase() === 'cancelled' ? 'text-red-500' :
-                                    application.status.toLowerCase() === 'no slot' ? 'text-purple-400' :
-                                      application.status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
-                                        application.status.toLowerCase() === 'in progress' ? 'text-blue-400' :
-                                          application.status.toLowerCase() === 'completed' ? 'text-green-400' :
-                                            application.status.toLowerCase() === 'confirmed' ? 'text-green-400' :
-                                              application.status.toLowerCase() === 'pending' ? 'text-orange-400' :
-                                                'text-gray-400'
-                                }`}>
-                                {application.status}
-                              </div>
-                            )}
+                            {(() => {
+                              const status = (!application.status || String(application.status).trim() === '') ? 'Empty' : application.status;
+                              return (
+                                <div className={`text-xs px-2 py-1 font-bold uppercase ${status.toLowerCase() === 'schedule' ? 'text-green-400' :
+                                  status.toLowerCase() === 'no facility' ? 'text-red-400' :
+                                    status.toLowerCase() === 'cancelled' ? 'text-red-500' :
+                                      status.toLowerCase() === 'no slot' ? 'text-purple-400' :
+                                        status.toLowerCase() === 'duplicate' ? 'text-pink-400' :
+                                          status.toLowerCase() === 'in progress' ? 'text-blue-400' :
+                                            status.toLowerCase() === 'completed' ? 'text-green-400' :
+                                              status.toLowerCase() === 'confirmed' ? 'text-green-400' :
+                                                status.toLowerCase() === 'pending' ? 'text-orange-400' :
+                                                  status.toLowerCase() === 'empty' ? 'text-gray-500' :
+                                                    'text-gray-400'
+                                  }`}>
+                                  {status}
+                                </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>
@@ -1764,6 +1781,7 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                 case 'cancelled': return 'text-red-600';
                 case 'confirmed': return 'text-green-500';
                 case 'pending': return 'text-orange-500';
+                case 'empty': return 'text-gray-500';
                 default: return 'text-gray-500';
               }
             };

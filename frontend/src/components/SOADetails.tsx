@@ -4,6 +4,7 @@ import { planService, Plan } from '../services/planService';
 import { getCustomerDetail, CustomerDetailData } from '../services/customerDetailService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { BillingDetailRecord } from '../types/billing';
+import apiClient from '../config/api';
 
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
@@ -21,6 +22,11 @@ const formatDate = (dateString: string | null | undefined): string => {
   } catch (e) {
     return dateString;
   }
+};
+
+const isGoogleDriveLink = (url: string | null | undefined): boolean => {
+  if (!url) return false;
+  return url.includes('drive.google.com') || url.includes('docs.google.com');
 };
 
 const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): BillingDetailRecord => {
@@ -130,6 +136,11 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
   const [selectedCustomerForOverlay, setSelectedCustomerForOverlay] = useState<BillingDetailRecord | null>(null);
   const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
 
+  // PDF generation states
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [currentPrintLink, setCurrentPrintLink] = useState<string | undefined>(soaRecord.printLink);
+
   const hasActiveOverlay = selectedPlanForOverlay || selectedCustomerForOverlay || loadingPlanOverlay || loadingCustomerOverlay;
 
   useEffect(() => {
@@ -185,9 +196,37 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
     startWidthRef.current = detailsWidth;
   };
 
-  const handleOpenGDrive = () => {
-    if (soaRecord.printLink) {
-      window.open(soaRecord.printLink, '_blank', 'noopener,noreferrer');
+  const handleOpenGDrive = async () => {
+    const linkToCheck = currentPrintLink || soaRecord.printLink;
+
+    // If already a Google Drive link, just open it
+    if (isGoogleDriveLink(linkToCheck)) {
+      window.open(linkToCheck, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    // Otherwise, generate a new PDF
+    try {
+      setIsGeneratingPdf(true);
+      setPdfError(null);
+
+      const response = await apiClient.post<{ success: boolean; print_link?: string; message?: string; error?: string }>(
+        `/soa/${soaRecord.id}/generate-pdf`
+      );
+
+      if (response.data.success && response.data.print_link) {
+        setCurrentPrintLink(response.data.print_link);
+        setIsGeneratingPdf(false);
+        // Open the newly generated PDF in a new tab
+        window.open(response.data.print_link, '_blank', 'noopener,noreferrer');
+      } else {
+        setIsGeneratingPdf(false);
+        setPdfError(response.data.message || 'Failed to generate PDF');
+      }
+    } catch (err: any) {
+      console.error('Error generating SOA PDF:', err);
+      setIsGeneratingPdf(false);
+      setPdfError(err?.response?.data?.message || err?.message || 'Failed to generate PDF. Please try again.');
     }
   };
 
@@ -224,14 +263,14 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
         <div className="flex items-center space-x-2 flex-shrink-0">
           <button
             onClick={handleOpenGDrive}
-            disabled={!soaRecord.printLink}
+            disabled={isGeneratingPdf}
             className={`p-2 rounded transition-colors ${isDarkMode
               ? 'text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed'
               : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed'
               }`}
-            title={soaRecord.printLink ? 'Open SOA in Google Drive' : 'No Google Drive link available'}
+            title={isGoogleDriveLink(currentPrintLink || soaRecord.printLink) ? 'Open SOA in Google Drive' : 'Generate SOA PDF & Open in Google Drive'}
           >
-            <ExternalLink size={18} />
+            {isGeneratingPdf ? <Loader size={18} className="animate-spin" /> : <ExternalLink size={18} />}
           </button>
           <button
             onClick={onClose}
@@ -485,6 +524,52 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
               </div>
             </React.Suspense>
           )}
+        </div>
+      )}
+
+      {/* PDF Generation Loading Modal */}
+      {isGeneratingPdf && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+          <div className={`rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center ${
+            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+          }`}>
+            <div className="flex justify-center mb-4">
+              <Loader className="w-10 h-10 animate-spin" style={{ color: colorPalette?.primary || '#7c3aed' }} />
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Generating PDF</h3>
+            <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              Creating SOA PDF and uploading to Google Drive...
+            </p>
+            <p className={`text-xs mt-2 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+              This may take a few moments
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* PDF Error Modal */}
+      {pdfError && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-50">
+          <div className={`rounded-xl shadow-2xl p-8 max-w-sm w-full mx-4 text-center ${
+            isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+          }`}>
+            <div className="flex justify-center mb-4">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <X className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">PDF Generation Failed</h3>
+            <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+              {pdfError}
+            </p>
+            <button
+              onClick={() => setPdfError(null)}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white transition-colors"
+              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 
