@@ -67,6 +67,10 @@ class ServiceOrderController extends Controller
                 $query .= " WHERE " . implode(' AND ', $whereClauses);
             }
 
+            // Fetch total count for pagination
+            $countQuery = str_replace("SELECT *", "SELECT COUNT(*) as total", $query);
+            $totalCount = DB::selectOne($countQuery, $params)->total;
+
             $query .= " ORDER BY created_at DESC";
 
             // Add pagination with +1 for hasMore check
@@ -112,6 +116,7 @@ class ServiceOrderController extends Controller
                     'pagination' => [
                         'current_page' => (int)$page,
                         'per_page' => (int)$limit,
+                        'total_count' => (int)$totalCount,
                         'has_more' => $hasMore
                     ]
                 ]);
@@ -201,6 +206,7 @@ class ServiceOrderController extends Controller
                 'pagination' => [
                     'current_page' => (int)$page,
                     'per_page' => (int)$limit,
+                    'total_count' => (int)$totalCount,
                     'has_more' => $hasMore
                 ]
             ]);

@@ -532,7 +532,8 @@ const JobOrderPage: React.FC = () => {
         }
       } catch (err) { }
     }
-    await fetchUpdates(email);
+    setCurrentPage(1);
+    await refreshJobOrders(email);
     setIsRefreshing(false);
   };
 
@@ -2080,9 +2081,11 @@ const JobOrderPage: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
-                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
-                  style={{
-                    backgroundColor: isRefreshing ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                  title="Refresh Records"
+                  className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
                   }}
                   onMouseEnter={(e) => {
                     if (!isRefreshing && colorPalette?.accent) {
@@ -2094,7 +2097,6 @@ const JobOrderPage: React.FC = () => {
                       e.currentTarget.style.backgroundColor = colorPalette.primary;
                     }
                   }}
-                  aria-label="Refresh"
                 >
                   <RefreshCw className={`h-5 w-5 ${isRefreshing ? 'animate-spin' : ''}`} />
                 </button>

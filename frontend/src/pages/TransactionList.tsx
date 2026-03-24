@@ -1234,9 +1234,11 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
-              style={{
-                backgroundColor: loading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+              title="Refresh Records"
+              className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+              style={{ 
+                backgroundColor: colorPalette?.primary || '#7c3aed',
+                color: isDarkMode ? '#111827' : '#ffffff'
               }}
               onMouseEnter={(e) => {
                 if (!loading && colorPalette?.accent) {

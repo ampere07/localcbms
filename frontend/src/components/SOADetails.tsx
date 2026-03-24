@@ -6,6 +6,7 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import { BillingDetailRecord } from '../types/billing';
 import apiClient from '../config/api';
 
+import { useSOAStore } from '../store/soaStore';
 const PlanListDetails = React.lazy(() => import('./PlanListDetails'));
 const CustomerDetails = React.lazy(() => import('./CustomerDetails'));
 const NotFoundModal = React.lazy(() => import('../modals/NotFoundModal'));
@@ -140,6 +141,15 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [currentPrintLink, setCurrentPrintLink] = useState<string | undefined>(soaRecord.printLink);
+  const { refreshSingleRecord } = useSOAStore();
+
+  useEffect(() => {
+    setCurrentPrintLink(soaRecord.printLink);
+    setPdfError(null);
+    setSelectedPlanForOverlay(null);
+    setSelectedCustomerForOverlay(null);
+    setNotFoundMessage(null);
+  }, [soaRecord.id, soaRecord.printLink]);
 
   const hasActiveOverlay = selectedPlanForOverlay || selectedCustomerForOverlay || loadingPlanOverlay || loadingCustomerOverlay;
 
@@ -217,6 +227,12 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
       if (response.data.success && response.data.print_link) {
         setCurrentPrintLink(response.data.print_link);
         setIsGeneratingPdf(false);
+        // Silently refresh the record in the store to update the list view
+        try {
+          await refreshSingleRecord(soaRecord.id);
+        } catch (refreshErr) {
+          console.error('Failed to refresh single record after PDF generation:', refreshErr);
+        }
         // Open the newly generated PDF in a new tab
         window.open(response.data.print_link, '_blank', 'noopener,noreferrer');
       } else {

@@ -50,6 +50,7 @@ export interface ServiceOrder {
     referredBy?: string;
     status?: string;
     routerModel?: string;
+    createdAt?: string;
     oldLcp?: string;
     oldNap?: string;
     oldPort?: string;
@@ -117,6 +118,7 @@ export const transformServiceOrder = (order: ServiceOrderData): ServiceOrder => 
         image2Url: order.image2_url || '',
         image3Url: order.image3_url || '',
         rawUpdatedAt: order.updated_at || '',
+        createdAt: order.created_at || '',
         referredBy: (order as any).referred_by || '',
         status: (order as any).status || '',
         routerModel: (order as any).router_model || '',
@@ -200,7 +202,7 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
                 }
             }
 
-            const CHUNK_SIZE = 2000;
+            const CHUNK_SIZE = 1000;
             // If forced but silent, we use a map to merge with current orders to avoid "blank" states
             const ordersMap = new Map();
             if (!(force && !silent)) {
@@ -221,6 +223,11 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
                 newTransformed.forEach((o: ServiceOrder) => ordersMap.set(o.id, o));
 
                 const mergedOrders = Array.from(ordersMap.values()).sort((a: any, b: any) => {
+                    const dateA = a.createdAt || a.timestamp;
+                    const dateB = b.createdAt || b.timestamp;
+                    const timeA = dateA ? new Date(dateA).getTime() : 0;
+                    const timeB = dateB ? new Date(dateB).getTime() : 0;
+                    if (timeA !== timeB) return timeB - timeA;
                     const idA = parseInt(a.id) || 0;
                     const idB = parseInt(b.id) || 0;
                     return idB - idA;
@@ -247,6 +254,11 @@ export const useServiceOrderStore = create<ServiceOrderState>((set, get) => ({
                             chunkTransformed.forEach((o: ServiceOrder) => ordersMap.set(o.id, o));
                             
                             const updatedMerged = Array.from(ordersMap.values()).sort((a: any, b: any) => {
+                                const dateA = a.createdAt || a.timestamp;
+                                const dateB = b.createdAt || b.timestamp;
+                                const timeA = dateA ? new Date(dateA).getTime() : 0;
+                                const timeB = dateB ? new Date(dateB).getTime() : 0;
+                                if (timeA !== timeB) return timeB - timeA;
                                 const idA = parseInt(a.id) || 0;
                                 const idB = parseInt(b.id) || 0;
                                 return idB - idA;

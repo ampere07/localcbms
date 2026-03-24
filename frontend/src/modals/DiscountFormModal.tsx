@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ChevronDown, Minus, Plus } from 'lucide-react';
-import LoadingModal from '../components/LoadingModal';
+import { X, ChevronDown, Minus, Plus, Loader2 } from 'lucide-react';
 import * as discountService from '../services/discountService';
 import { userService } from '../services/userService';
 import { useBillingStore } from '../store/billingStore';
@@ -11,6 +10,15 @@ interface DiscountFormModalProps {
   onClose: () => void;
   onSave: (formData: DiscountFormData) => void;
   customerData?: any;
+}
+
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
 interface DiscountFormData {
@@ -56,6 +64,13 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
   const [isAccountDropdownOpen, setIsAccountDropdownOpen] = useState(false);
   const [accountSearchQuery, setAccountSearchQuery] = useState('');
   const accountDropdownRef = useRef<HTMLDivElement>(null);
+
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
 
 
   // Close dropdown when clicking outside
@@ -215,7 +230,12 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
     if (!isValid) {
       console.log('Discount form validation failed. Errors:', errors);
-      alert('Please fill in all required fields before saving.');
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields before saving.'
+      });
       return;
     }
 
@@ -224,7 +244,14 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
     try {
       console.log('Creating discount with data:', formData);
 
-      setLoadingPercentage(20);
+      const progressInterval = setInterval(() => {
+        setLoadingPercentage(prev => {
+          if (prev >= 99) return 99;
+          if (prev >= 90) return prev + 1;
+          if (prev >= 70) return prev + 2;
+          return prev + 5;
+        });
+      }, 300);
 
       const payload: discountService.DiscountData = {
         account_no: formData.accountNo!,
@@ -237,18 +264,31 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
         remarks: formData.remarks || ''
       };
 
-      setLoadingPercentage(50);
       const result = await discountService.create(payload);
 
+      clearInterval(progressInterval);
       setLoadingPercentage(100);
       await new Promise(resolve => setTimeout(resolve, 500));
 
-      alert('Discount created successfully!');
-      onSave(formData);
-      onClose();
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Discount created successfully!',
+        onConfirm: () => {
+          onSave(formData);
+          onClose();
+          setModal(prev => ({ ...prev, isOpen: false }));
+        }
+      });
     } catch (error) {
       console.error('Error creating discount:', error);
-      alert(`Failed to save discount: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Failed to save discount',
+        message: `Failed to save discount: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
     } finally {
       setLoading(false);
       setLoadingPercentage(0);
@@ -310,11 +350,21 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
 
   return (
     <>
-      <LoadingModal
-        isOpen={loading}
-        message="Saving discount..."
-        percentage={loadingPercentage}
-      />
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50">
         <div className={`h-full w-full max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out translate-x-0 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
@@ -589,7 +639,7 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
                   style={{ WebkitAppearance: 'none', MozAppearance: 'none', appearance: 'none' }}
                 >
                   <option value="" className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>Select Approver</option>
-                  {users.map((user) => (
+                  {users.filter(user => user.role_id === 1 || user.role_id === 7).map((user) => (
                     <option key={user.id} value={user.id} className={isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}>
                       {user.email_address || user.username}
                     </option>
@@ -618,6 +668,88 @@ const DiscountFormModal: React.FC<DiscountFormModalProps> = ({
           </div>
         </div>
       </div>
+
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[11000]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronsLeft, ChevronsRight, X, Menu, Globe, Calendar } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, X, Menu, Globe, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useDCNoticeContext } from '../contexts/DCNoticeContext';
 import pusher from '../services/pusherService';
@@ -15,6 +15,7 @@ const DCNoticePage: React.FC = () => {
   const [dcNoticeDateFrom, setDcNoticeDateFrom] = useState<string>('');
   const [dcNoticeDateTo, setDcNoticeDateTo] = useState<string>('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
 
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -364,35 +365,6 @@ const DCNoticePage: React.FC = () => {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {/* All Level */}
-          <button
-            onClick={() => setSelectedDate('All')}
-            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-              } ${selectedDate === 'All'
-                ? ''
-                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}
-            style={selectedDate === 'All' ? {
-              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-              color: colorPalette?.primary || '#7c3aed'
-            } : {}}
-          >
-            <div className="flex items-center">
-              <span>All Records</span>
-            </div>
-            <span
-              className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
-                ? 'text-white'
-                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
-                }`}
-              style={selectedDate === 'All' ? {
-                backgroundColor: colorPalette?.primary || '#7c3aed'
-              } : {}}
-            >
-              {dateItems.all}
-            </span>
-          </button>
-
           {/* Date Range Filter Section */}
           <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
             <div className="flex items-center justify-between">
@@ -442,41 +414,95 @@ const DCNoticePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Date Levels */}
-          {dateItems.dates.map((item, index) => (
-            <button
-              key={index}
-              onClick={() => setSelectedDate(item.date)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                } ${selectedDate === item.date
-                  ? ''
-                  : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+          {/* All Level */}
+          <button
+            onClick={() => setSelectedDate('All')}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedDate === 'All'
+                ? ''
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedDate === 'All' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#7c3aed'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedDate === 'All'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
                 }`}
-              style={selectedDate === item.date ? {
-                backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                color: colorPalette?.primary || '#7c3aed'
+              style={selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
+              {dateItems.all}
+            </span>
+          </button>
+
+          {/* DC Notice Month Dropdown */}
+          <div className={`p-0 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'}`}>
+            <button
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+            >
               <div className="flex items-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mr-2">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                </svg>
-                <span>{item.date}</span>
+                <span className="font-medium">DC Notice Month</span>
               </div>
-              <span
-                className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${selectedDate === item.date
-                  ? 'text-white'
-                  : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
-                  }`}
-                style={selectedDate === item.date ? {
-                  backgroundColor: colorPalette?.primary || '#7c3aed'
-                } : {}}
-              >
-                {item.count}
-              </span>
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                    }`}
+                >
+                  {dateItems.dates.length}
+                </span>
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </div>
             </button>
-          ))}
+
+            {isDateDropdownOpen && (
+              <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50 shadow-inner'}`}>
+                {dateItems.dates.map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedDate(item.date)}
+                    className={`w-full flex items-center justify-between px-6 py-2.5 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      } ${selectedDate === item.date
+                        ? ''
+                        : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}
+                    style={selectedDate === item.date ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                      color: colorPalette?.primary || '#7c3aed',
+                      fontWeight: 500
+                    } : {}}
+                  >
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-3 opacity-60" />
+                      <span className="truncate">{item.date}</span>
+                    </div>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedDate === item.date
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-500'
+                        }`}
+                      style={selectedDate === item.date ? {
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      } : {}}
+                    >
+                      {item.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -531,9 +557,11 @@ const DCNoticePage: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
-                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
-                  style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                  title="Refresh Records"
+                  className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -546,7 +574,7 @@ const DCNoticePage: React.FC = () => {
                     }
                   }}
                 >
-                  {isLoading ? 'Loading...' : 'Refresh'}
+                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>
@@ -740,32 +768,51 @@ const DCNoticePage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Date Categories */}
-              {dateItems.dates.map((item, index) => (
+              {/* Mobile DC Notice Month Dropdown */}
+              <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
                 <button
-                  key={index}
-                  onClick={() => {
-                    setSelectedDate(item.date);
-                    setMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
-                  style={selectedDate === item.date ? {
-                    backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                    color: colorPalette?.primary || '#7c3aed',
-                    fontWeight: 500
-                  } : {
-                    color: isDarkMode ? '#d1d5db' : '#374151'
-                  }}
+                  onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                    }`}
                 >
                   <div className="flex items-center">
                     <Calendar className="h-4 w-4 mr-2" />
-                    <span>{item.date}</span>
+                    <span className="font-medium">DC Notice Month</span>
                   </div>
-                  <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
-                    {item.count}
-                  </span>
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
-              ))}
+
+                {isDateDropdownOpen && (
+                  <div className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50'}>
+                    {dateItems.dates.map((item, index) => (
+                      <button
+                        key={index}
+                        onClick={() => {
+                          setSelectedDate(item.date);
+                          setMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between px-6 py-3 text-sm transition-colors border-b last:border-0 ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'
+                          }`}
+                        style={selectedDate === item.date ? {
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                          color: colorPalette?.primary || '#7c3aed',
+                          fontWeight: 500
+                        } : {
+                          color: isDarkMode ? '#9ca3af' : '#4b5563'
+                        }}
+                      >
+                        <div className="flex items-center">
+                          <Calendar className="h-4 w-4 mr-2 opacity-60" />
+                          <span>{item.date}</span>
+                        </div>
+                        <span className="px-2 py-1 rounded-full text-[10px] bg-gray-700 text-gray-300">
+                          {item.count}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

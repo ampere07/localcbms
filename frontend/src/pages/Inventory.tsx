@@ -684,7 +684,6 @@ const Inventory: React.FC = () => {
           <InventoryDetails
             item={selectedItem}
             inventoryLogs={[]}
-            borrowedLogs={[]}
             jobOrders={[]}
             serviceOrders={[]}
             defectiveLogs={[]}

@@ -10,7 +10,7 @@ interface JobOrderState {
     hasMore: boolean;
     currentPage: number;
     lastUpdated: Date | null;
- 
+
     fetchJobOrders: (page?: number, limit?: number, search?: string, assignedEmail?: string, silent?: boolean) => Promise<void>;
     refreshJobOrders: (assignedEmail?: string) => Promise<void>;
     silentRefresh: (assignedEmail?: string) => Promise<void>;
@@ -26,61 +26,116 @@ export const useJobOrderStore = create<JobOrderState>((set, get) => ({
     currentPage: 1,
     lastUpdated: null,
 
-    fetchJobOrders: async (page = 1, limit = 50, search = '', assignedEmail?: string, silent = false) => {
-        const { jobOrders } = get();
+    fetchJobOrders: async (page = 1, limit = 1000, search = '', assignedEmail?: string, silent = false) => {
+        const { jobOrders, isLoading, totalCount } = get();
 
-        // Only show loading if not silent OR if we have no data
-        if (page === 1 && (!silent || jobOrders.length === 0)) {
+        // If already loading and it's the first page, ignore to prevent duplicates
+        if (isLoading && page === 1) return;
+
+        const isInitialFetch = jobOrders.length === 0 || page === 1;
+
+        // Only show loading spinner if it's the first fetch and not silent
+        if (!silent || isInitialFetch) {
             set({ isLoading: true, error: null });
         }
 
         try {
-            // Fetch full data directly to avoid showing incomplete data first
+            const CHUNK_SIZE = limit || 1000;
+            const ordersMap = new Map();
+            
+            // If it's a fresh fetch (page 1), we start with an empty map unless silent
+            if (page === 1 && !silent) {
+                // Fresh start
+            } else {
+                jobOrders.forEach(jo => ordersMap.set(jo.id, jo));
+            }
 
-            // Fetch full data for consistency (always runs)
-            const fullResponse = await getJobOrders(false, page, limit, search, assignedEmail);
+            let currentFetchPage = page;
+            console.log(`[JobOrderStore] Fetching Batch 1... Page: ${currentFetchPage}, Limit: ${CHUNK_SIZE}`);
 
-            if (fullResponse.success && fullResponse.jobOrders) {
-                const fullJOs = fullResponse.jobOrders;
-                set((state) => {
-                    const currentMap = new Map();
-                    // If not page 1, we preserve existing orders for infinite scroll
-                    if (page !== 1) {
-                        state.jobOrders.forEach(jo => currentMap.set(jo.id, jo));
+            const firstResult = await getJobOrders(false, currentFetchPage, CHUNK_SIZE, search, assignedEmail);
+
+            if (firstResult && firstResult.success && Array.isArray(firstResult.jobOrders)) {
+                const dbTotal = (firstResult.pagination as any)?.total_count || (firstResult.pagination as any)?.total || firstResult.jobOrders.length;
+                
+                firstResult.jobOrders.forEach(jo => ordersMap.set(jo.id, jo));
+
+                const sortFn = (a: JobOrder, b: JobOrder) => {
+                    const timeA = new Date(a.Timestamp || a.timestamp || a.created_at || a.Timestamp || 0).getTime();
+                    const timeB = new Date(b.Timestamp || b.timestamp || b.created_at || b.Timestamp || 0).getTime();
+                    if (timeA !== timeB) return timeB - timeA;
+
+                    // Fallback to ID sorting if timestamps are same
+                    const idA = parseInt(String(a.id)) || 0;
+                    const idB = parseInt(String(b.id)) || 0;
+                    return idB - idA;
+                };
+
+                const mergedOrders = Array.from(ordersMap.values()).sort(sortFn);
+
+                set({
+                    jobOrders: mergedOrders,
+                    totalCount: dbTotal,
+                    lastUpdated: new Date(),
+                    error: null,
+                    isLoading: false,
+                    hasMore: firstResult.pagination?.has_more ?? (mergedOrders.length < dbTotal),
+                    currentPage: currentFetchPage
+                });
+
+                // Progressive Loading: Continue fetching remaining chunks if this was the initial request
+                if (page === 1) {
+                    let hasMoreChunks = firstResult.pagination?.has_more ?? (mergedOrders.length < dbTotal);
+                    currentFetchPage++;
+
+                    while (hasMoreChunks) {
+                        try {
+                            const result = await getJobOrders(false, currentFetchPage, CHUNK_SIZE, search, assignedEmail);
+
+                            if (result && result.success && Array.isArray(result.jobOrders) && result.jobOrders.length > 0) {
+                                result.jobOrders.forEach(jo => ordersMap.set(jo.id, jo));
+                                
+                                const updatedMerged = Array.from(ordersMap.values()).sort(sortFn);
+                                const currentTotal = (result.pagination as any)?.total_count || (result.pagination as any)?.total || dbTotal;
+                                
+                                set({
+                                    jobOrders: updatedMerged,
+                                    totalCount: currentTotal,
+                                    hasMore: result.pagination?.has_more ?? (updatedMerged.length < currentTotal),
+                                    currentPage: currentFetchPage
+                                });
+
+                                hasMoreChunks = result.pagination?.has_more ?? (updatedMerged.length < currentTotal);
+                                currentFetchPage++;
+                            } else {
+                                hasMoreChunks = false;
+                            }
+                        } catch (chunkErr) {
+                            console.error(`[JobOrderStore] Error fetching JobOrder chunk:`, chunkErr);
+                            hasMoreChunks = false;
+                        }
                     }
-                    fullJOs.forEach(jo => currentMap.set(jo.id, jo));
-
-                    return {
-                        jobOrders: Array.from(currentMap.values()).sort((a: JobOrder, b: JobOrder) => {
-                            const timeA = new Date(a.Timestamp || a.timestamp || 0).getTime();
-                            const timeB = new Date(b.Timestamp || b.timestamp || 0).getTime();
-                            if (timeA !== timeB) return timeB - timeA;
-                            
-                            const idA = parseInt(String(a.id)) || 0;
-                            const idB = parseInt(String(b.id)) || 0;
-                            return idB - idA;
-                        }),
-                        totalCount: (fullResponse.pagination as any)?.total_count || (page === 1 ? fullJOs.length : state.totalCount),
-                        hasMore: fullResponse.pagination?.has_more ?? false,
-                        currentPage: page,
-                        lastUpdated: new Date(),
-                        isLoading: false
-                    };
+                }
+            } else {
+                set({ 
+                    isLoading: false, 
+                    error: firstResult.message || 'Failed to fetch job orders' 
                 });
             }
         } catch (err: any) {
-            console.error('[jobOrderStore] Fetch failed:', err);
+            console.error('[JobOrderStore] Fetch failed:', err);
             set({ error: err.message || 'Failed to fetch job orders', isLoading: false });
+        } finally {
+            set({ isLoading: false });
         }
     },
 
     refreshJobOrders: async (assignedEmail?: string) => {
-        set({ jobOrders: [], currentPage: 1, hasMore: true });
-        await get().fetchJobOrders(1, 10000, '', assignedEmail, false);
+        await get().fetchJobOrders(1, 1000, '', assignedEmail, false);
     },
 
     silentRefresh: async (assignedEmail?: string) => {
-        await get().fetchJobOrders(1, 10000, '', assignedEmail, true);
+        await get().fetchJobOrders(1, 1000, '', assignedEmail, true);
     },
 
     fetchUpdates: async (assignedEmail?: string) => {
@@ -104,29 +159,28 @@ export const useJobOrderStore = create<JobOrderState>((set, get) => ({
                 set((state) => {
                     const currentMap = new Map();
                     state.jobOrders.forEach(jo => currentMap.set(jo.id, jo));
-                    
+
                     // Merge updates
                     updatedJOs.forEach(jo => {
                         const existing = currentMap.get(jo.id);
                         if (existing) {
-                            // Merge fields to be safe, though item should be complete
                             currentMap.set(jo.id, { ...existing, ...jo });
                         } else {
                             currentMap.set(jo.id, jo);
                         }
                     });
 
-                    return {
-                        jobOrders: Array.from(currentMap.values()).sort((a: JobOrder, b: JobOrder) => {
-                            const timeA = new Date(a.Timestamp || a.timestamp || 0).getTime();
-                            const timeB = new Date(b.Timestamp || b.timestamp || 0).getTime();
-                            if (timeA !== timeB) return timeB - timeA;
+                    const sortFn = (a: JobOrder, b: JobOrder) => {
+                        const timeA = new Date(a.Timestamp || a.timestamp || a.created_at || a.Timestamp || 0).getTime();
+                        const timeB = new Date(b.Timestamp || b.timestamp || b.created_at || b.Timestamp || 0).getTime();
+                        if (timeA !== timeB) return timeB - timeA;
+                        const idA = parseInt(String(a.id)) || 0;
+                        const idB = parseInt(String(b.id)) || 0;
+                        return idB - idA;
+                    };
 
-                            const idA = parseInt(String(a.id)) || 0;
-                            const idB = parseInt(String(b.id)) || 0;
-                            return idB - idA;
-                        }),
-                        // If we have total_count in pagination, use it, otherwise estimate
+                    return {
+                        jobOrders: Array.from(currentMap.values()).sort(sortFn),
                         totalCount: (response.pagination as any)?.total_count || 
                                    (state.totalCount + updatedJOs.filter(jo => !state.jobOrders.find(o => o.id === jo.id)).length),
                         lastUpdated: new Date()

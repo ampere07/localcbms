@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Receipt, Search, ChevronRight, Tag, ChevronDown, Menu, X, ChevronsLeft, ChevronsRight, Globe, Calendar } from 'lucide-react';
+import { Receipt, Search, ChevronRight, Tag, ChevronDown, Menu, X, ChevronsLeft, ChevronsRight, Globe, Calendar, RefreshCw, Plus } from 'lucide-react';
 import DiscountDetails from '../components/DiscountDetails';
 import DiscountFormModal from '../modals/DiscountFormModal';
 import * as discountService from '../services/discountService';
 import barangayService from '../services/barangayService';
+import { getRegions, Region } from '../services/regionService';
+import { getCities, City } from '../services/cityService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
  
 interface DiscountRecord {
@@ -96,20 +98,7 @@ const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
   }
 };
 
-const getCities = async () => {
-  return [
-    { id: 1, name: 'Quezon City' },
-    { id: 2, name: 'Manila' },
-    { id: 3, name: 'Makati' }
-  ];
-};
 
-const getRegions = async () => {
-  return [
-    { id: 1, name: 'Metro Manila' },
-    { id: 2, name: 'Calabarzon' }
-  ];
-};
 
 const Discounts: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -117,8 +106,8 @@ const Discounts: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedDiscount, setSelectedDiscount] = useState<DiscountRecord | null>(null);
   const [discountRecords, setDiscountRecords] = useState<DiscountRecord[]>([]);
-  const [cities, setCities] = useState<any[]>([]);
-  const [regions, setRegions] = useState<any[]>([]);
+  const [cities, setCities] = useState<City[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [sidebarWidth, setSidebarWidth] = useState<number>(256);
@@ -420,30 +409,6 @@ const Discounts: React.FC = () => {
             <h2 className={`text-lg font-semibold ${
               isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>Discounts</h2>
-            <div>
-              <button 
-                className="flex items-center space-x-1 text-white px-3 py-1 rounded text-sm transition-colors"
-                onClick={handleOpenDiscountFormModal}
-                style={{
-                  backgroundColor: colorPalette?.primary || '#7c3aed'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  } else {
-                    e.currentTarget.style.backgroundColor = '#7c3aed';
-                  }
-                }}
-              >
-                <span className="font-bold">+</span>
-                <span>Add</span>
-              </button>
-            </div>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
@@ -505,7 +470,7 @@ const Discounts: React.FC = () => {
                 : isDarkMode ? 'text-gray-300' : 'text-gray-700'
               }`}
             style={selectedLocation === 'all' ? {
-              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
               color: colorPalette?.primary || '#7c3aed'
             } : {}}
           >
@@ -513,9 +478,9 @@ const Discounts: React.FC = () => {
               <span>All Discounts</span>
             </div>
             <span
-              className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === 'all'
+              className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
                 ? 'text-white'
-                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                 }`}
               style={selectedLocation === 'all' ? {
                 backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -530,16 +495,14 @@ const Discounts: React.FC = () => {
             <div key={region.id}>
               <button
                 onClick={() => setSelectedLocation(region.id)}
-                className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${
-                  isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
-                } ${
-                  selectedLocation === region.id
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                  } ${selectedLocation === region.id
                     ? ''
                     : isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}
+                  }`}
                 style={selectedLocation === region.id ? {
                   backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
-                  color: colorPalette?.primary || '#fb923c'
+                  color: colorPalette?.primary || '#7c3aed'
                 } : {}}
               >
                 <div className="flex items-center flex-1">
@@ -558,9 +521,9 @@ const Discounts: React.FC = () => {
                 </div>
                 {region.count > 0 && (
                   <span
-                    className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === region.id
+                    className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
                       ? 'text-white'
-                      : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-500'
+                      : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
                       }`}
                     style={selectedLocation === region.id ? {
                       backgroundColor: colorPalette?.primary || '#7c3aed'
@@ -582,7 +545,7 @@ const Discounts: React.FC = () => {
                         : isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}
                     style={selectedLocation === city.id ? {
-                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(124, 58, 237, 0.1)',
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
                       color: colorPalette?.primary || '#7c3aed'
                     } : {}}
                   >
@@ -667,26 +630,98 @@ const Discounts: React.FC = () => {
         isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
         <div className="flex flex-col h-full">
-          {/* Mobile Header */}
-          <div className={`md:hidden flex items-center justify-between p-4 border-b ${
-            isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-            <div className="flex items-center">
-              <button 
+          {/* Header with Search (Replicated from Invoice.tsx pattern) */}
+          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            <div className="flex items-center space-x-3">
+              <button
                 onClick={() => setMobileMenuOpen(true)}
-                className={`p-2 -ml-2 mr-2 rounded-md ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'}`}
+                className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
               >
-                <Menu className="h-6 w-6" />
+                <Menu className="h-5 w-5" />
               </button>
-              <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Discounts</h2>
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  placeholder="Search Discount records..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none focus:ring-1 focus:border ${isDarkMode
+                    ? 'bg-gray-800 text-white border border-gray-700'
+                    : 'bg-white text-gray-900 border border-gray-300'
+                    }`}
+                  style={{
+                    '--tw-ring-color': colorPalette?.primary || '#7c3aed'
+                  } as React.CSSProperties}
+                  onFocus={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.borderColor = colorPalette.primary;
+                    }
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  }}
+                />
+                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                  }`} />
+                {searchQuery && (
+                  <button
+                    onClick={() => setSearchQuery('')}
+                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={handleOpenDiscountFormModal}
+                  title="Add Discount"
+                  className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm`}
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  <Plus className="h-5 w-5" />
+                </button>
+                <button
+                  onClick={handleRefresh}
+                  disabled={isLoading}
+                  title="Refresh Records"
+                  className={`p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50`}
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isLoading && colorPalette?.accent) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isLoading && colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                </button>
+              </div>
             </div>
-            <button 
-              onClick={handleOpenDiscountFormModal}
-              className="p-2 rounded-md text-white flex items-center justify-center w-8 h-8"
-              style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-            >
-              <span className="font-bold">+</span>
-            </button>
           </div>
 
           <div className="flex-1 overflow-hidden">
@@ -800,7 +835,15 @@ const Discounts: React.FC = () => {
                   <Tag className="h-4 w-4 mr-2" />
                   <span>All Discounts</span>
                 </div>
-                <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                <span
+                  className={`px-2 py-1 rounded-full text-xs ${selectedLocation === 'all'
+                    ? 'text-white'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                    }`}
+                  style={selectedLocation === 'all' ? {
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
+                  } : {}}
+                >
                   {locationItems.total}
                 </span>
               </button>
@@ -864,7 +907,7 @@ const Discounts: React.FC = () => {
                     }}
                     className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === region.id ? '' : 'text-gray-300'}`}
                     style={selectedLocation === region.id ? {
-                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(124, 58, 237, 0.2)',
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
                       color: colorPalette?.primary || '#7c3aed',
                       fontWeight: 500
                     } : {}}
@@ -884,7 +927,14 @@ const Discounts: React.FC = () => {
                       <span>{region.name}</span>
                     </div>
                     {region.count > 0 && (
-                      <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">
+                      <span className={`px-2 py-1 rounded-full text-xs ${selectedLocation === region.id
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                        }`}
+                        style={selectedLocation === region.id ? {
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        } : {}}
+                      >
                         {region.count}
                       </span>
                     )}
@@ -900,7 +950,7 @@ const Discounts: React.FC = () => {
                         }}
                         className={`w-full flex items-center justify-between pl-10 pr-4 py-2 text-sm transition-colors ${selectedLocation === city.id ? '' : 'text-gray-400'}`}
                         style={selectedLocation === city.id ? {
-                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(124, 58, 237, 0.1)',
+                          backgroundColor: colorPalette?.primary ? `${colorPalette.primary}22` : 'rgba(249, 115, 22, 0.1)',
                           color: colorPalette?.primary || '#7c3aed'
                         } : {}}
                       >

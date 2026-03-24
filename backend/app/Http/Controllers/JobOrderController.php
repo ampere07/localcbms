@@ -83,6 +83,9 @@ class JobOrderController extends Controller
                 });
             }
 
+            // Fetch total count for pagination awareness on frontend
+            $totalCount = $query->count();
+
             // Fetch one extra record to check if there are more pages
             $jobOrders = $query->skip(($page - 1) * $limit)
                 ->take($limit + 1)
@@ -127,6 +130,7 @@ class JobOrderController extends Controller
                     'pagination' => [
                         'current_page' => (int) $page,
                         'per_page' => (int) $limit,
+                        'total_count' => (int) $totalCount,
                         'has_more' => $hasMore
                     ]
                 ]);
@@ -218,6 +222,7 @@ class JobOrderController extends Controller
                 'pagination' => [
                     'current_page' => (int) $page,
                     'per_page' => (int) $limit,
+                    'total_count' => (int) $totalCount,
                     'has_more' => $hasMore
                 ]
             ]);

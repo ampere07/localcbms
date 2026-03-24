@@ -1876,6 +1876,16 @@ Route::prefix('usage-types')->group(function () {
     Route::delete('/{id}', [\App\Http\Controllers\Api\UsageTypeApiController::class , 'destroy']);
 });
 
+// Payment Method Management Routes - Using payment_methods table
+Route::prefix('payment-methods')->group(function () {
+    Route::get('/', [\App\Http\Controllers\Api\PaymentMethodApiController::class , 'index']);
+    Route::post('/', [\App\Http\Controllers\Api\PaymentMethodApiController::class , 'store']);
+    Route::get('/statistics', [\App\Http\Controllers\Api\PaymentMethodApiController::class , 'getStatistics']);
+    Route::get('/{id}', [\App\Http\Controllers\Api\PaymentMethodApiController::class , 'show']);
+    Route::put('/{id}', [\App\Http\Controllers\Api\PaymentMethodApiController::class , 'update']);
+    Route::delete('/{id}', [\App\Http\Controllers\Api\PaymentMethodApiController::class , 'destroy']);
+});
+
 // Work Order Category Management Routes
 Route::prefix('work-categories')->group(function () {
     Route::get('/', [\App\Http\Controllers\Api\WorkOrderCategoryApiController::class , 'index']);

@@ -244,13 +244,17 @@ const SORequestFormModal: React.FC<SORequestFormModalProps> = ({
           setModal({ ...modal, isOpen: false });
         }
       });
-    } catch (error) {
-      console.error('Error creating SO request:', error);
+    } catch (error: any) {
+      const backendMessage = error.response?.data?.message || error.response?.data?.error;
+      const errorDetails = error.response?.data?.errors ? JSON.stringify(error.response.data.errors) : '';
+      
+      console.error('Error creating SO request:', error, error.response?.data);
+      
       setModal({
         isOpen: true,
         type: 'error',
         title: 'Failed to Save',
-        message: `Failed to save SO request: ${error instanceof Error ? error.message : 'Unknown error'}`
+        message: backendMessage ? `${backendMessage} ${errorDetails}`.trim() : `Failed to save SO request: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
     } finally {
       setLoading(false);

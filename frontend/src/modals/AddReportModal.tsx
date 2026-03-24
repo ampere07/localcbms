@@ -41,6 +41,13 @@ const REPORT_SCHEDULES = [
 
 const DATE_RANGES = []; // Removed dropdown options
 
+const QUICK_RANGES = [
+    { label: 'Everyday', days: 1 },
+    { label: 'Weekly', days: 7 },
+    { label: 'Monthly', days: 30 },
+    { label: 'Quarterly', days: 90 },
+];
+
 // ─── Component ────────────────────────────────────────────────────────────────
 
 const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSaved }) => {
@@ -108,6 +115,23 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
     const handleChange = (field: string, value: string) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
+    };
+
+    const handleRangeSelect = (days: number) => {
+        const to = new Date();
+        const from = new Date();
+        from.setDate(to.getDate() - (days - 1));
+
+        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+
+        setFormData(prev => ({
+            ...prev,
+            date_from: formatDate(from),
+            date_to: formatDate(to)
+        }));
+        
+        if (errors.date_from) setErrors(prev => ({ ...prev, date_from: '' }));
+        if (errors.date_to) setErrors(prev => ({ ...prev, date_to: '' }));
     };
 
     // ── Validation ─────────────────────────────────────────────────────────────
@@ -321,35 +345,26 @@ const AddReportModal: React.FC<AddReportModalProps> = ({ isOpen, onClose, onSave
                             {errors.report_schedule && <p className="mt-1 text-xs text-red-400">{errors.report_schedule}</p>}
                         </div>
 
-                        {/* Date Range Selection */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={labelCls}>
-                                    Date From <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.date_from}
-                                    onChange={e => handleChange('date_from', e.target.value)}
-                                    className={inputCls('date_from')}
-                                    style={isDarkMode ? { colorScheme: 'dark' } : {}}
-                                />
-                                {errors.date_from && <p className="mt-1 text-xs text-red-400">{errors.date_from}</p>}
-                            </div>
-                            <div>
-                                <label className={labelCls}>
-                                    Date To <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="date"
-                                    value={formData.date_to}
-                                    onChange={e => handleChange('date_to', e.target.value)}
-                                    className={inputCls('date_to')}
-                                    style={isDarkMode ? { colorScheme: 'dark' } : {}}
-                                />
-                                {errors.date_to && <p className="mt-1 text-xs text-red-400">{errors.date_to}</p>}
-                            </div>
+                        {/* Quick Range */}
+                        <div>
+                            <label className={labelCls}>
+                                Quick Date Range
+                            </label>
+                            <select
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val) handleRangeSelect(parseInt(val));
+                                }}
+                                className={inputCls('quick_range')}
+                            >
+                                <option value="">Select a range preset…</option>
+                                {QUICK_RANGES.map(r => (
+                                    <option key={r.label} value={r.days}>{r.label}</option>
+                                ))}
+                            </select>
                         </div>
+
+
 
                         {/* Day */}
                         <div>

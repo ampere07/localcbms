@@ -498,6 +498,11 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
     });
 
     filtered.sort((a, b) => {
+      const dateA = a.created_at || a.timestamp;
+      const dateB = b.created_at || b.timestamp;
+      const timeA = dateA ? new Date(dateA).getTime() : 0;
+      const timeB = dateB ? new Date(dateB).getTime() : 0;
+      if (timeA !== timeB) return timeB - timeA;
       const idA = parseInt(a.id) || 0;
       const idB = parseInt(b.id) || 0;
       return idB - idA;
@@ -1393,13 +1398,13 @@ const ApplicationManagement: React.FC<ApplicationManagementProps> = ({ onNavigat
                   )}
                 </div>
                 <button
-                  onClick={() => {
-                    handleRefresh();
-                  }}
+                  onClick={handleRefresh}
                   disabled={isLoading}
-                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
-                  style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                  title="Refresh Records"
+                  className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {

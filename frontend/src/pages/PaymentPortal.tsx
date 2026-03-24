@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText, Filter, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Globe, Search, ChevronDown, ChevronRight, Menu, X, FileText, Filter, ChevronsLeft, ChevronsRight, RefreshCw } from 'lucide-react';
 import PaymentPortalDetails from '../components/PaymentPortalDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { usePaymentPortalStore } from '../store/paymentPortalStore';
@@ -966,6 +966,28 @@ const PaymentPortal: React.FC = () => {
                   }`}
               >
                 <Filter className="h-5 w-5" />
+              </button>
+              <button
+                onClick={refreshPaymentPortalRecords}
+                disabled={loading}
+                title="Refresh Records"
+                className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                style={{ 
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
+                  color: isDarkMode ? '#111827' : '#ffffff'
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading && colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading && colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>

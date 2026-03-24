@@ -61,6 +61,7 @@ interface SOAState {
     silentRefresh: () => Promise<void>;
     refreshSOARecords: () => Promise<void>;
     pollLatestUpdates: () => Promise<void>;
+    refreshSingleRecord: (id: string) => Promise<void>;
 }
 
 const transform = (record: SOARecord): SOARecordUI => {
@@ -261,6 +262,21 @@ export const useSOAStore = create<SOAState>((set, get) => ({
             }
         } catch (err) {
             console.error('[SOA Store] Poll failed:', err);
+        }
+    },
+
+    refreshSingleRecord: async (id: string) => {
+        try {
+            const record = await soaService.getStatementById(parseInt(id));
+            if (record) {
+                const transformed = transform(record);
+                const { soaRecords } = get();
+                const updatedRecords = soaRecords.map(r => r.id === id ? transformed : r);
+                set({ soaRecords: updatedRecords });
+                console.log(`[SOA Store] Refreshed single record: ${id}`);
+            }
+        } catch (err) {
+            console.error(`[SOA Store] Failed to refresh record ${id}:`, err);
         }
     }
 }));

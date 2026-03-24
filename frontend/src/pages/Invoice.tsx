@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, ArrowUp, ArrowDown, Columns3, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter } from 'lucide-react';
+import { Search, X, ArrowUp, ArrowDown, Columns3, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter, RefreshCw } from 'lucide-react';
 import InvoiceDetails from '../components/InvoiceDetails';
 
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -1380,9 +1380,11 @@ const Invoice: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
-                style={{
-                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                title="Refresh Records"
+                className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                style={{ 
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
+                  color: isDarkMode ? '#111827' : '#ffffff'
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading && colorPalette?.accent) {
@@ -1395,7 +1397,7 @@ const Invoice: React.FC = () => {
                   }
                 }}
               >
-                {isLoading ? 'Loading...' : 'Refresh'}
+                 <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
@@ -1748,40 +1750,6 @@ const Invoice: React.FC = () => {
           </div>
         )}
 
-        {selectedRecord && userRole !== 'customer' && (
-          <div className="flex-shrink-0 overflow-hidden">
-            <InvoiceDetails
-              invoiceRecord={selectedRecord as any}
-              onViewCustomer={handleViewCustomer}
-              onClose={handleCloseDetails}
-            />
-          </div>
-        )}
-
-        {(selectedCustomer || isLoadingDetails) && (
-          <div className="flex-shrink-0 overflow-hidden">
-            {isLoadingDetails ? (
-              <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
-                ? 'bg-gray-900 text-white border-white border-opacity-30'
-                : 'bg-white text-gray-900 border-gray-300'
-                }`}>
-                <div className="text-center">
-                  <div
-                    className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
-                    style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
-                  ></div>
-                  <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
-                </div>
-              </div>
-            ) : selectedCustomer ? (
-              <BillingDetails
-                billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
-                onlineStatusRecords={[]}
-                onClose={() => setSelectedCustomer(null)}
-              />
-            ) : null}
-          </div>
-        )}
 
         {showPaymentVerifyModal && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -2006,6 +1974,42 @@ const Invoice: React.FC = () => {
           currentFilters={activeFilters}
         />
       </div>
+
+      {selectedRecord && userRole !== 'customer' && (
+        <div className="flex-shrink-0 overflow-hidden h-full">
+          <InvoiceDetails
+            key={selectedRecord.id}
+            invoiceRecord={selectedRecord as any}
+            onViewCustomer={handleViewCustomer}
+            onClose={handleCloseDetails}
+          />
+        </div>
+      )}
+
+      {(selectedCustomer || isLoadingDetails) && (
+        <div className="flex-shrink-0 overflow-hidden h-full">
+          {isLoadingDetails ? (
+            <div className={`w-[600px] h-full flex items-center justify-center border-l ${isDarkMode
+              ? 'bg-gray-900 text-white border-white border-opacity-30'
+              : 'bg-white text-gray-900 border-gray-300'
+              }`}>
+              <div className="text-center">
+                <div
+                  className="animate-spin rounded-full h-12 w-12 border-b-2 mx-auto mb-4"
+                  style={{ borderBottomColor: colorPalette?.primary || '#7c3aed' }}
+                ></div>
+                <p className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Loading details...</p>
+              </div>
+            </div>
+          ) : selectedCustomer ? (
+            <BillingDetails
+              billingRecord={convertCustomerDataToBillingDetail(selectedCustomer)}
+              onlineStatusRecords={[]}
+              onClose={() => setSelectedCustomer(null)}
+            />
+          ) : null}
+        </div>
+      )}
     </div>
   );
 };

@@ -41,12 +41,27 @@ export const DCNoticeProvider: React.FC<DCNoticeProviderProps> = ({ children }) 
         }
 
         try {
-            // PHASE 1: Fast load - Get basic data INSTANTLY (Fetch all records with high limit)
-            const fastResponse = await dcNoticeService.getAll(true, 1, 10000);
+            // Silent refresh (polling/background): Skip fast mode, fetch full data directly
+            // to avoid flickering where account_no/full_name disappear then reappear
+            if (silent && dcNoticeRecords.length > 0) {
+                const fullResponse = await dcNoticeService.getAll(false, 1, 0);
+
+                if (fullResponse.success) {
+                    let fullRecords = fullResponse.data || [];
+                    fullRecords.sort((a, b) => b.id - a.id);
+                    setDCNoticeRecords(fullRecords);
+                    setLastUpdated(new Date());
+                    setError(null);
+                }
+                return;
+            }
+
+            // Initial load: Two-phase approach for fast first paint
+            // PHASE 1: Fast load - Get basic data INSTANTLY
+            const fastResponse = await dcNoticeService.getAll(true, 1, 0);
 
             if (fastResponse.success) {
                 let records = fastResponse.data || [];
-                // Sort by ID descending by default if not sorted from backend
                 records.sort((a, b) => b.id - a.id);
 
                 setDCNoticeRecords(records);
@@ -56,7 +71,7 @@ export const DCNoticeProvider: React.FC<DCNoticeProviderProps> = ({ children }) 
                 // PHASE 2: Load full data in background
                 setTimeout(async () => {
                     try {
-                        const fullResponse = await dcNoticeService.getAll(false, 1, 10000);
+                        const fullResponse = await dcNoticeService.getAll(false, 1, 0);
 
                         if (fullResponse.success) {
                             let fullRecords = fullResponse.data || [];
@@ -70,7 +85,6 @@ export const DCNoticeProvider: React.FC<DCNoticeProviderProps> = ({ children }) 
                 }, 100);
             } else {
                 setError('Failed to load DC Notice records');
-                // Don't clear data on error if we have it
                 if (dcNoticeRecords.length === 0) {
                     setDCNoticeRecords([]);
                 }
@@ -79,7 +93,6 @@ export const DCNoticeProvider: React.FC<DCNoticeProviderProps> = ({ children }) 
             console.error('Failed to fetch DC Notice records:', err);
             if (!silent) {
                 setError('Failed to load DC Notice records. Please try again.');
-                // Don't clear data on error if we have it
                 if (dcNoticeRecords.length === 0) {
                     setDCNoticeRecords([]);
                 }

@@ -28,7 +28,8 @@ class ServiceOrderApiController extends Controller
 
             // Base query on service_orders
             $query = DB::table('service_orders as so')
-                ->select('so.*', 'so.id as ticket_id');
+                ->select('so.*', 'so.id as ticket_id')
+                ->orderBy('so.created_at', 'desc');
 
             // Apply filters
             if ($request->has('assigned_email')) {
@@ -201,37 +202,7 @@ class ServiceOrderApiController extends Controller
                 'proof_image_url' => 'nullable|string|max:255'
             ]);
 
-            // Enforce limit: 5 tickets per day per account, with 1 hour interval
-            $today = Carbon::today();
-            $todayCount = DB::table('service_orders')
-                ->where('account_no', $validated['account_no'])
-                ->whereDate('created_at', $today)
-                ->count();
-
-            if ($todayCount >= 5) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Daily limit of 5 tickets reached. Please try again tomorrow.'
-                ], 422);
-            }
-
-            // Check 1 hour cooldown since last submission
-            $lastTicket = DB::table('service_orders')
-                ->where('account_no', $validated['account_no'])
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($lastTicket && $lastTicket->created_at) {
-                $lastCreated = Carbon::parse($lastTicket->created_at);
-                $minutesSinceLast = $lastCreated->diffInMinutes(now());
-                if ($minutesSinceLast < 60) {
-                    $remaining = 60 - $minutesSinceLast;
-                    return response()->json([
-                        'success' => false,
-                        'message' => "Please wait {$remaining} minute(s) before submitting another ticket."
-                    ], 422);
-                }
-            }
+            // Rate limit and cooldown logic has been removed as per request to allow unlimited ticket submissions.
 
             $ticketId = $this->generateTicketId();
             Log::info('Generated ticket_id: ' . $ticketId);

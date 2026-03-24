@@ -485,7 +485,7 @@ const Reports: React.FC = () => {
                                                                 ? 'hover:bg-gray-800 border-gray-700 text-gray-300'
                                                                 : 'hover:bg-gray-100 border-gray-300 text-gray-700'
                                                                 }`}
-                                                            title="Download CSV from Google Drive"
+                                                            title="Download PDF from Google Drive"
                                                         >
                                                             <DownloadCloud size={14} style={{ color: primary }} />
                                                             <span className="text-xs">Download</span>

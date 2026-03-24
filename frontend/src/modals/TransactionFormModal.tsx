@@ -5,6 +5,7 @@ import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/i
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { userService } from '../services/userService';
 import { User } from '../types/api';
+import { paymentMethodService, PaymentMethod } from '../services/paymentMethodService';
 
 interface ModalConfig {
   isOpen: boolean;
@@ -48,6 +49,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [processors, setProcessors] = useState<User[]>([]);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
   const getCurrentDateTime = () => {
     const now = new Date();
@@ -138,6 +140,23 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
 
     if (isOpen) {
       fetchProcessors();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    const fetchPaymentMethods = async () => {
+      try {
+        const response = await paymentMethodService.getAll();
+        if (response.success && response.data) {
+          setPaymentMethods(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch payment methods:', error);
+      }
+    };
+
+    if (isOpen) {
+      fetchPaymentMethods();
     }
   }, [isOpen]);
 
@@ -633,11 +652,11 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
                   }`}
               >
                 <option value="">Select Payment Method</option>
-                <option value="Cash">Cash</option>
-                <option value="GCash">GCash</option>
-                <option value="PayMaya">PayMaya</option>
-                <option value="Bank Transfer">Bank Transfer</option>
-                <option value="Check">Check</option>
+                {paymentMethods.map((method) => (
+                  <option key={method.id} value={method.payment_method}>
+                    {method.payment_method}
+                  </option>
+                ))}
               </select>
               <ChevronDown className="absolute right-3 top-2.5 text-gray-400" size={20} />
             </div>

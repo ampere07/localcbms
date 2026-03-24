@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, ArrowUp, ArrowDown, Columns3, X, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter } from 'lucide-react';
+import { Search, ArrowUp, ArrowDown, Columns3, X, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter, RefreshCw } from 'lucide-react';
 import SOADetails from '../components/SOADetails';
 import '../services/soaService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -216,7 +216,11 @@ const SOA: React.FC = () => {
   const sidebarStartXRef = useRef<number>(0);
   const sidebarStartWidthRef = useRef<number>(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [selectedRecord, setSelectedRecord] = useState<SOARecordUI | null>(null);
+  const [selectedRecordId, setSelectedRecordId] = useState<string | null>(null);
+  const selectedRecord = useMemo(() => {
+    if (!selectedRecordId) return null;
+    return soaRecords.find(r => r.id === selectedRecordId) || null;
+  }, [soaRecords, selectedRecordId]);
   // Removed local soaRecords, isLoading, error state
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [userRole, setUserRole] = useState<string>('');
@@ -658,7 +662,7 @@ const SOA: React.FC = () => {
 
   const handleRowClick = (record: SOARecordUI) => {
     if (userRole !== 'customer') {
-      setSelectedRecord(record);
+      setSelectedRecordId(record.id);
       setSelectedCustomer(null); // Clear customer view when switching records
     }
   };
@@ -678,7 +682,7 @@ const SOA: React.FC = () => {
   };
 
   const handleCloseDetails = () => {
-    setSelectedRecord(null);
+    setSelectedRecordId(null);
   };
 
   const handleRefresh = async () => {
@@ -1413,9 +1417,11 @@ const SOA: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
-                style={{
-                  backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                title="Refresh Records"
+                className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                style={{ 
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
+                  color: isDarkMode ? '#111827' : '#ffffff'
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading && colorPalette?.accent) {
@@ -1428,7 +1434,7 @@ const SOA: React.FC = () => {
                   }
                 }}
               >
-                {isLoading ? 'Loading...' : 'Refresh'}
+                <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>

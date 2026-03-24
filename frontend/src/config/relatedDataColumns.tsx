@@ -175,57 +175,84 @@ export const relatedDataColumns = {
   ] as TableColumn[],
 
   serviceOrders: [
-    { key: 'status', label: 'Status', render: (val: any) => val || '-' },
-    { key: 'id', label: 'ID' },
-    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
-    { key: 'invoice_id', label: 'Invoice ID', render: (val: any) => val || '-' },
-    { key: 'ticket_id', label: 'Ticket ID', render: (val: any) => val || '-' },
+    {
+      key: 'updated_at',
+      label: 'Modified Date',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'concern', label: 'Concern', render: (val: any) => val || '-' },
+    { key: 'concern_remarks', label: 'Concern Remarks', render: (val: any) => val || '-' },
+    { key: 'support_status', label: 'Support Status', render: (val: any) => val || '-' },
+    { key: 'visit_status', label: 'Visit Status', render: (val: any) => val || '-' },
+    { key: 'requested_by', label: 'Requested By', render: (val: any) => val || '-' },
+    { key: 'assigned_email', label: 'Assigned Email', render: (val: any) => val || '-' },
     {
       key: 'timestamp',
       label: 'Timestamp',
       render: (val: any) => formatDate(val)
     },
-    { key: 'support_status', label: 'Support Status', render: (val: any) => val || '-' },
-    { key: 'concern', label: 'Concern', render: (val: any) => val || '-' },
-    { key: 'concern_remarks', label: 'Concern Remarks', render: (val: any) => val || '-' },
-    { key: 'priority_level', label: 'Priority', render: (val: any) => val || '-' },
-    { key: 'requested_by', label: 'Requested By', render: (val: any) => val || '-' },
-    { key: 'assigned_email', label: 'Assigned To', render: (val: any) => val || '-' },
-    { key: 'visit_status', label: 'Visit Status', render: (val: any) => val || '-' },
+    { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
+    {
+      key: 'date_installed',
+      label: 'Date Installed',
+      render: (val: any) => formatDate(val)
+    },
+    { key: 'full_name', label: 'Full Name', render: (val: any) => val || '-' },
+    { key: 'contact_number', label: 'Contact Number', render: (val: any) => val || '-' },
+    { key: 'email_address', label: 'Email Address', render: (val: any) => val || '-' },
+    { key: 'address', label: 'Address', render: (val: any) => val || '-' },
+    { key: 'plan', label: 'Plan', render: (val: any) => val || '-' },
+    { key: 'provider', label: 'Provider', render: (val: any) => val || '-' },
+    { key: 'username', label: 'Username', render: (val: any) => val || '-' },
+    { key: 'connection_type', label: 'Connection Type', render: (val: any) => val || '-' },
+    { key: 'old_router_modem_sn', label: 'Router/Modem SN', render: (val: any) => val || '-' },
+    { key: 'old_lcp', label: 'LCP', render: (val: any) => val || '-' },
+    { key: 'old_nap', label: 'NAP', render: (val: any) => val || '-' },
+    { key: 'old_port', label: 'Port', render: (val: any) => val || '-' },
+    { key: 'old_vlan', label: 'VLAN', render: (val: any) => val || '-' },
     { key: 'visit_by_user', label: 'Visit By', render: (val: any) => val || '-' },
     { key: 'visit_with', label: 'Visit With', render: (val: any) => val || '-' },
     { key: 'visit_with_other', label: 'Visit With Other', render: (val: any) => val || '-' },
     { key: 'visit_remarks', label: 'Visit Remarks', render: (val: any) => val || '-' },
-    { key: 'repair_category', label: 'Repair Cat', render: (val: any) => val || '-' },
-    { key: 'support_remarks', label: 'Support Remarks', render: (val: any) => val || '-' },
-    { key: 'service_charge', label: 'Svc Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
-    { key: 'client_signature_url', label: 'Signature', render: (val: any) => val ? 'View' : '-' },
-    { key: 'image1_url', label: 'Img 1', render: (val: any) => val ? 'View' : '-' },
-    { key: 'image2_url', label: 'Img 2', render: (val: any) => val ? 'View' : '-' },
-    { key: 'image3_url', label: 'Img 3', render: (val: any) => val ? 'View' : '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
-    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' },
-    { key: 'old_lcp', label: 'Old LCP', render: (val: any) => val || '-' },
-    { key: 'old_nap', label: 'Old NAP', render: (val: any) => val || '-' },
-    { key: 'old_port', label: 'Old Port', render: (val: any) => val || '-' },
-    { key: 'old_router_modem_sn', label: 'Old SN', render: (val: any) => val || '-' },
-    { key: 'old_vlan', label: 'Old VLAN', render: (val: any) => val || '-' },
-    { key: 'new_router_modem_sn', label: 'New SN', render: (val: any) => val || '-' },
+    { key: 'updated_by_user', label: 'Modified By', render: (val: any) => val || '-' },
+    { key: 'start_time', label: 'Start Time', render: (val: any) => val || '-' },
+    { key: 'end_time', label: 'End Time', render: (val: any) => val || '-' },
+    {
+      key: 'duration',
+      label: 'Duration',
+      render: (_val: any, row: any) => {
+        if (!row.start_time || !row.end_time) return '-';
+        try {
+          // Assuming format is time string like "HH:mm:ss" or full date string
+          const start = new Date(row.start_time.includes(':') && !row.start_time.includes('-') ? `1970-01-01T${row.start_time}` : row.start_time);
+          const end = new Date(row.end_time.includes(':') && !row.end_time.includes('-') ? `1970-01-01T${row.end_time}` : row.end_time);
+          if (isNaN(start.getTime()) || isNaN(end.getTime())) return '-';
+          const diffMs = end.getTime() - start.getTime();
+          const diffHrs = Math.floor(diffMs / 3600000);
+          const diffMins = Math.floor((diffMs % 3600000) / 60000);
+          return `${diffHrs}h ${diffMins}m`;
+        } catch (e) {
+          return '-';
+        }
+      }
+    },
+    { key: 'repair_category', label: 'Repair Category', render: (val: any) => val || '-' },
+    { key: 'new_router_modem_sn', label: 'New Router/Modem SN', render: (val: any) => val || '-' },
     { key: 'new_lcp', label: 'New LCP', render: (val: any) => val || '-' },
     { key: 'new_nap', label: 'New NAP', render: (val: any) => val || '-' },
     { key: 'new_port', label: 'New Port', render: (val: any) => val || '-' },
     { key: 'new_vlan', label: 'New VLAN', render: (val: any) => val || '-' },
     { key: 'router_model', label: 'Router Model', render: (val: any) => val || '-' },
-    { key: 'new_lcpnap', label: 'New LCPNAP', render: (val: any) => val || '-' },
-    { key: 'old_lcpnap', label: 'Old LCPNAP', render: (val: any) => val || '-' },
-    { key: 'old_plan', label: 'Old Plan', render: (val: any) => val || '-' },
+    { key: 'client_signature_url', label: 'Client Signature', render: (val: any) => val ? 'View' : '-' },
     { key: 'new_plan', label: 'New Plan', render: (val: any) => val || '-' },
-    { key: 'referred_by', label: 'Referred By', render: (val: any) => val || '-' }
+    { key: 'support_remarks', label: 'Support Remarks', render: (val: any) => val || '-' },
+    { key: 'service_charge', label: 'Service Charge', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
+    { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
+    { key: 'city', label: 'City', render: (val: any) => val || '-' },
   ] as TableColumn[],
 
   reconnectionLogs: [
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
     { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
@@ -233,19 +260,18 @@ export const relatedDataColumns = {
     { key: 'plan_id', label: 'Plan ID', render: (val: any) => val || '-' },
     { key: 'reconnection_fee', label: 'Fee', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
     { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   disconnectedLogs: [
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
     { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
     { key: 'username', label: 'Username', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
     { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }

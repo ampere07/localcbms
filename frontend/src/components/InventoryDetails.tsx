@@ -33,14 +33,6 @@ interface InventoryLog {
   log_type?: string;
 }
 
-interface BorrowedLog {
-  id: string;
-  date: string;
-  borrowedBy: string;
-  quantity: number;
-  returnDate?: string;
-  status: string;
-}
 
 interface JobOrder {
   id: string;
@@ -72,7 +64,6 @@ interface DefectiveLog {
 interface InventoryDetailsProps {
   item: InventoryItem;
   inventoryLogs?: InventoryLog[];
-  borrowedLogs?: BorrowedLog[];
   jobOrders?: JobOrder[];
   serviceOrders?: ServiceOrder[];
   defectiveLogs?: DefectiveLog[];
@@ -97,7 +88,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
       log_type: 'Stock In'
     }
   ],
-  borrowedLogs = [],
   jobOrders = [],
   serviceOrders = [],
   defectiveLogs = [],
@@ -112,7 +102,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     inventoryLogs: true,
-    borrowedLogs: true,
     jobOrders: true,
     serviceOrders: true,
     defectiveLogs: true
@@ -129,14 +118,12 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
 
   // Related data counts
   const [inventoryLogsCount, setInventoryLogsCount] = useState(inventoryLogs.length);
-  const [borrowedLogsCount, setBorrowedLogsCount] = useState(borrowedLogs.length);
   const [jobOrdersCount, setJobOrdersCount] = useState(jobOrders.length);
   const [serviceOrdersCount, setServiceOrdersCount] = useState(serviceOrders.length);
   const [defectiveLogsCount, setDefectiveLogsCount] = useState(defectiveLogs.length);
 
   // Related data
   const [inventoryLogsData, setInventoryLogsData] = useState<any[]>(inventoryLogs);
-  const [borrowedLogsData, setBorrowedLogsData] = useState<any[]>(borrowedLogs);
   const [jobOrdersData, setJobOrdersData] = useState<any[]>(jobOrders);
   const [serviceOrdersData, setServiceOrdersData] = useState<any[]>(serviceOrders);
   const [defectiveLogsData, setDefectiveLogsData] = useState<any[]>(defectiveLogs);
@@ -183,7 +170,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
     // Fetch all related data
     const fetchPromises = [
       { key: 'inventoryLogs', fn: relatedDataService.getRelatedInventoryLogs, setState: setInventoryLogsData, setCount: setInventoryLogsCount },
-      { key: 'borrowedLogs', fn: relatedDataService.getRelatedBorrowedLogs, setState: setBorrowedLogsData, setCount: setBorrowedLogsCount },
       { key: 'defectiveLogs', fn: relatedDataService.getRelatedDefectiveLogs, setState: setDefectiveLogsData, setCount: setDefectiveLogsCount },
       { key: 'jobOrders', fn: relatedDataService.getRelatedJobOrdersByItem, setState: setJobOrdersData, setCount: setJobOrdersCount },
       { key: 'serviceOrders', fn: relatedDataService.getRelatedServiceOrdersByItem, setState: setServiceOrdersData, setCount: setServiceOrdersCount }
@@ -343,7 +329,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
               <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
                 }`}>
                 {expandedModalSection === 'inventoryLogs' && 'All Related Inventory Logs'}
-                {expandedModalSection === 'borrowedLogs' && 'All Related Borrowed Logs'}
                 {expandedModalSection === 'jobOrders' && 'All Related Job Orders'}
                 {expandedModalSection === 'serviceOrders' && 'All Related Service Orders'}
                 {expandedModalSection === 'defectiveLogs' && 'All Related Defective Logs'}
@@ -353,7 +338,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
                 : 'bg-gray-300 text-gray-900'
                 }`}>
                 {expandedModalSection === 'inventoryLogs' && inventoryLogsCount}
-                {expandedModalSection === 'borrowedLogs' && borrowedLogsCount}
                 {expandedModalSection === 'jobOrders' && jobOrdersCount}
                 {expandedModalSection === 'serviceOrders' && serviceOrdersCount}
                 {expandedModalSection === 'defectiveLogs' && defectiveLogsCount} items
@@ -374,14 +358,12 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
             <RelatedDataTable
               data={
                 expandedModalSection === 'inventoryLogs' ? inventoryLogsData :
-                  expandedModalSection === 'borrowedLogs' ? borrowedLogsData :
                     expandedModalSection === 'jobOrders' ? jobOrdersData :
                       expandedModalSection === 'serviceOrders' ? serviceOrdersData :
                         defectiveLogsData
               }
               columns={
                 expandedModalSection === 'inventoryLogs' ? relatedDataColumns.inventoryLogs :
-                  expandedModalSection === 'borrowedLogs' ? relatedDataColumns.borrowedLogs :
                     expandedModalSection === 'jobOrders' ? relatedDataColumns.jobOrders :
                       expandedModalSection === 'serviceOrders' ? relatedDataColumns.serviceOrders :
                         relatedDataColumns.defectiveLogs
@@ -421,15 +403,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
           {item.category || 'EVENT'} | {item.item_name} | ID: {item.item_id}
         </h1>
         <div className="flex items-center space-x-2 flex-shrink-0">
-          <button
-            onClick={() => { }} // Handle wrench click if needed
-            className={`p-2 rounded transition-colors ${isDarkMode
-              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-              }`}
-          >
-            <Wrench size={18} />
-          </button>
           <button
             onClick={handleEdit}
             className={`p-2 rounded transition-colors ${isDarkMode
@@ -562,35 +535,6 @@ const InventoryDetails: React.FC<InventoryDetailsProps> = ({
             )}
           </div>
 
-          {/* Related Borrowed Logs */}
-          <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-            <div className={`w-full px-6 py-4 flex items-center justify-between ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'}`}>
-              <div className="flex items-center space-x-2">
-                <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Related Borrowed Logs</span>
-                <span className={`text-xs px-2 py-1 rounded ${isDarkMode ? 'bg-gray-600 text-white' : 'bg-gray-300 text-gray-900'}`}>{borrowedLogsCount}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={(e) => { e.stopPropagation(); handleExpandModalOpen('borrowedLogs'); }}
-                  className={`text-sm transition-colors hover:underline ${isDarkMode ? 'text-gray-400 hover:text-gray-300' : 'text-gray-600 hover:text-gray-500'}`}
-                >
-                  Expand
-                </button>
-                <div className="flex items-center">
-                  <ChevronDown size={20} className={isDarkMode ? 'text-gray-400' : 'text-gray-600'} />
-                </div>
-              </div>
-            </div>
-            {expandedSections.borrowedLogs && (
-              <div className="px-6 pb-4">
-                <RelatedDataTable
-                  data={borrowedLogsData.slice(0, 5)}
-                  columns={relatedDataColumns.borrowedLogs}
-                  isDarkMode={isDarkMode}
-                />
-              </div>
-            )}
-          </div>
 
           {/* Related Job Orders */}
           <div className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>

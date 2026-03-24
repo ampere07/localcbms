@@ -88,6 +88,7 @@ export const allColumns: Column[] = [
   { key: 'techCreatedBy', label: 'Technical Details Created By', dataType: 'bigint' },
   { key: 'techUpdatedAt', label: 'Technical Details Updated At', dataType: 'datetime' },
   { key: 'techUpdatedBy', label: 'Technical Details Updated By', dataType: 'varchar' },
+  { key: 'onlineStatus', label: 'Online Status', dataType: 'checklist' },
 ];
 
 const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
@@ -116,6 +117,7 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
   const [usageTypes, setUsageTypes] = useState<string[]>([]);
   const [connectionTypes, setConnectionTypes] = useState<string[]>([]);
   const [usernameStatuses, setUsernameStatuses] = useState<string[]>([]);
+  const [sessionStatuses, setSessionStatuses] = useState<string[]>([]);
   const [groupNames, setGroupNames] = useState<string[]>([]);
   const [billingStatuses, setBillingStatuses] = useState<{ id: number, name: string }[]>([]);
 
@@ -172,6 +174,7 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
                 usage_types: string[],
                 connection_types: string[],
                 username_statuses: string[],
+                session_statuses: string[],
                 group_names: string[],
                 billing_statuses: { id: number, name: string }[]
               }
@@ -193,19 +196,20 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
             setRegions(locRes.data.data.regions);
           }
 
-          if (custRes.data.success) {
-            setLcpNames(custRes.data.data.lcp_names);
-            setNapNames(custRes.data.data.nap_names);
-            setPorts(custRes.data.data.ports);
-            setVlans(custRes.data.data.vlans);
-            setLcpnaps(custRes.data.data.lcpnaps);
-            setRouterModels(custRes.data.data.router_models);
-            setUsageTypes(custRes.data.data.usage_types);
-            setConnectionTypes(custRes.data.data.connection_types);
-            setUsernameStatuses(custRes.data.data.username_statuses);
-            setGroupNames(custRes.data.data.group_names);
-            setBillingStatuses(custRes.data.data.billing_statuses);
-          }
+            if (custRes.data.success) {
+              setLcpNames(custRes.data.data.lcp_names);
+              setNapNames(custRes.data.data.nap_names);
+              setPorts(custRes.data.data.ports);
+              setVlans(custRes.data.data.vlans);
+              setLcpnaps(custRes.data.data.lcpnaps);
+              setRouterModels(custRes.data.data.router_models);
+              setUsageTypes(custRes.data.data.usage_types);
+              setConnectionTypes(custRes.data.data.connection_types);
+              setUsernameStatuses(custRes.data.data.username_statuses);
+              setSessionStatuses(custRes.data.data.session_statuses);
+              setGroupNames(custRes.data.data.group_names);
+              setBillingStatuses(custRes.data.data.billing_statuses);
+            }
         } catch (err) {
           console.error('Failed to fetch checklist data:', err);
         }
@@ -366,6 +370,8 @@ const CustomerFunnelFilter: React.FC<CustomerFunnelFilterProps> = ({
         options = usernameStatuses.map(o => ({ label: o, value: o }));
       } else if (selectedColumn.key === 'groupName') {
         options = groupNames.map(o => ({ label: o, value: o }));
+      } else if (selectedColumn.key === 'onlineStatus') {
+        options = sessionStatuses.map(o => ({ label: o, value: o }));
       } else if (selectedColumn.key === 'housingStatus') {
         options = [
           { label: 'Renter', value: 'renter' },

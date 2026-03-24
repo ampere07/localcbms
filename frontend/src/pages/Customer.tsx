@@ -1811,24 +1811,25 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading || isSilentRefreshing}
-                  className={`px-4 py-2 rounded text-sm transition-colors disabled:opacity-50 flex items-center relative ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'}`}
-                  title="Refresh"
-                  style={{
-                    color: colorPalette?.primary || '#7c3aed',
+                  title="Refresh Records"
+                  className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50 relative"
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && !isSilentRefreshing && colorPalette?.accent) {
-                      e.currentTarget.style.color = colorPalette.accent;
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!isLoading && !isSilentRefreshing && colorPalette?.primary) {
-                      e.currentTarget.style.color = colorPalette.primary;
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
                     }
                   }}
                 >
                   {hasNewData && (
-                    <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
+                    <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-red-500 border-2 border-white dark:border-gray-900 z-10 shadow-sm animate-pulse"></span>
                   )}
                   <RefreshCw className={`h-5 w-5 ${isLoading || isSilentRefreshing ? 'animate-spin' : ''}`} />
                 </button>

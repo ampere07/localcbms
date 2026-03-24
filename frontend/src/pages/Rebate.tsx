@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ChevronsLeft, ChevronsRight, X } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, X, RefreshCw } from 'lucide-react';
 import RebateFormModal from '../modals/RebateFormModal';
 import RebateDetails from '../components/RebateDetails';
 import apiClient from '../config/api';
@@ -590,9 +590,11 @@ const Rebate: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
-                  className="text-white px-4 py-2 rounded text-sm transition-colors disabled:bg-gray-600"
-                  style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                  title="Refresh Records"
+                  className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                  style={{ 
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {
@@ -605,7 +607,7 @@ const Rebate: React.FC = () => {
                     }
                   }}
                 >
-                  {isLoading ? 'Loading...' : 'Refresh'}
+                  <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
                 </button>
               </div>
             </div>

@@ -10,6 +10,7 @@ interface ApplicationResponse {
   pagination?: {
     current_page: number;
     per_page: number;
+    total_count?: number;
     has_more: boolean;
   };
 }
@@ -22,6 +23,7 @@ interface ApiResponse<T> {
   pagination?: {
     current_page: number;
     per_page: number;
+    total_count?: number;
     has_more: boolean;
   };
 }

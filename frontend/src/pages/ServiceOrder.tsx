@@ -86,7 +86,7 @@ const ServiceOrderPage: React.FC = () => {
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedServiceOrder, setSelectedServiceOrder] = useState<ServiceOrder | null>(null);
-  const { serviceOrders, isLoading, error, fetchServiceOrders, refreshServiceOrders, silentRefresh, hasMore, fetchUpdates } = useServiceOrderStore();
+  const { serviceOrders, isLoading, error, silentRefresh, hasMore, fetchUpdates, fetchServiceOrders } = useServiceOrderStore();
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [cities, setCities] = useState<City[]>([]);
   const [regions, setRegions] = useState<Region[]>([]);
@@ -370,7 +370,8 @@ const ServiceOrderPage: React.FC = () => {
   }, [serviceOrders]);
 
   const handleRefresh = async () => {
-    await fetchUpdates();
+    setCurrentPage(1);
+    await fetchServiceOrders(true);
   };
 
   const toggleLocationExpansion = (e: React.MouseEvent, locationId: string) => {
@@ -389,12 +390,12 @@ const ServiceOrderPage: React.FC = () => {
   const getVal = (item: ServiceOrder, key: string): any => {
     switch (key) {
       case 'id': return item.id;
-      case 'ticketId': return item.ticketId;
-      case 'accountNumber': return item.accountNumber;
+      case 'ticketId': return item.ticketId ?? (item as any).ticket_id ?? '';
+      case 'accountNumber': return item.accountNumber ?? (item as any).account_no ?? '';
       case 'fullName': return item.fullName;
       case 'contactNumber': return item.contactNumber;
       case 'emailAddress': return item.emailAddress;
-      case 'fullAddress': return item.fullAddress;
+      case 'fullAddress': return item.fullAddress ?? (item as any).full_address ?? '';
       case 'plan': return item.plan;
       case 'lcp': return item.lcp;
       case 'nap': return item.nap;
@@ -406,34 +407,27 @@ const ServiceOrderPage: React.FC = () => {
       case 'newPort': return item.newPort;
       case 'newVlan': return item.newVlan;
       case 'newLcpnap': return item.newLcpnap;
-      case 'supportStatus': return item.supportStatus;
+      case 'supportStatus': return item.supportStatus ?? (item as any).support_status ?? '';
       case 'visitStatus': return item.visitStatus;
       case 'timestamp': return item.timestamp;
       case 'dateInstalled': return item.dateInstalled;
-      case 'modifiedBy': return item.modifiedBy;
-      case 'modifiedDate': return item.modifiedDate;
+      case 'modifiedBy': return item.modifiedBy ?? (item as any).updated_by_user ?? '';
+      case 'modifiedDate': return item.modifiedDate ?? (item as any).updated_at ?? '';
       case 'assignedEmail': return item.assignedEmail;
       case 'requestedBy': return item.requestedBy;
       case 'serviceCharge': return item.serviceCharge;
       case 'routerModel': return item.routerModel;
-      case 'routerModemSN': return item.routerModemSN;
+      case 'routerModemSN': return item.routerModemSN ?? (item as any).router_modem_sn ?? '';
       case 'referredBy': return item.referredBy;
       case 'status': return item.status;
       case 'billingDay': return item.billingDay ?? (item as any).billing_day ?? '';
       case 'repairCategory': return item.repairCategory ?? (item as any).repair_category ?? '';
-      case 'supportStatus': return item.supportStatus ?? (item as any).support_status ?? '';
       case 'visitRemarks': return item.visitRemarks ?? (item as any).visit_remarks ?? '';
       case 'supportRemarks': return item.supportRemarks ?? (item as any).support_remarks ?? '';
       case 'priorityLevel': return item.priorityLevel ?? (item as any).priority_level ?? '';
       case 'newRouterSn': return item.newRouterSn ?? (item as any).new_router_sn ?? '';
       case 'newPlan': return item.newPlan ?? (item as any).new_plan ?? '';
-      case 'ticketId': return item.ticketId ?? (item as any).ticket_id ?? '';
-      case 'accountNumber': return item.accountNumber ?? (item as any).account_no ?? '';
       case 'contactAddress': return item.contactAddress ?? (item as any).contact_address ?? '';
-      case 'fullAddress': return item.fullAddress ?? (item as any).full_address ?? '';
-      case 'routerModemSN': return item.routerModemSN ?? (item as any).router_modem_sn ?? '';
-      case 'modifiedBy': return item.modifiedBy ?? (item as any).updated_by_user ?? '';
-      case 'modifiedDate': return item.modifiedDate ?? (item as any).updated_at ?? '';
       case 'startTime': return item.start_time;
       case 'endTime': return item.end_time;
       case 'duration': return calculateDuration(item.start_time, item.end_time);
@@ -667,8 +661,20 @@ const ServiceOrderPage: React.FC = () => {
     });
 
     filtered.sort((a, b) => {
-      const idA = parseInt(a.id) || 0;
-      const idB = parseInt(b.id) || 0;
+      // 1. Precise database timestamp (createdAt)
+      const dateA = a.createdAt || a.timestamp || '';
+      const dateB = b.createdAt || b.timestamp || '';
+      
+      const timeA = dateA ? new Date(dateA).getTime() : 0;
+      const timeB = dateB ? new Date(dateB).getTime() : 0;
+      
+      if (!isNaN(timeA) && !isNaN(timeB) && timeA !== timeB) {
+        return timeB - timeA;
+      }
+      
+      // 2. Fallback to ID comparison (numeric logic to ensure latest ID is first)
+      const idA = parseInt(String(a.id).replace(/\D/g, '')) || 0;
+      const idB = parseInt(String(b.id).replace(/\D/g, '')) || 0;
       return idB - idA;
     });
 
@@ -1746,9 +1752,11 @@ const ServiceOrderPage: React.FC = () => {
                 <button
                   onClick={handleRefresh}
                   disabled={isLoading}
-                  className="text-white px-3 py-2 rounded text-sm flex items-center transition-colors disabled:bg-gray-600"
+                  title="Refresh Records"
+                  className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
                   style={{
-                    backgroundColor: isLoading ? '#4b5563' : (colorPalette?.primary || '#7c3aed')
+                    backgroundColor: colorPalette?.primary || '#7c3aed',
+                    color: isDarkMode ? '#111827' : '#ffffff'
                   }}
                   onMouseEnter={(e) => {
                     if (!isLoading && colorPalette?.accent) {

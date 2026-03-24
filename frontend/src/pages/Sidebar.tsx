@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, Building2, Shield, FileCheck, Wrench, Map, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, UserCheck, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle, RefreshCw } from 'lucide-react';
+import { LayoutDashboard, Users, FileText, LogOut, ChevronRight, User, FileCheck, Wrench, MapPinned, MapPin, Package, CreditCard, List, Router, DollarSign, Receipt, FileBarChart, Clock, Calendar, AlertTriangle, Tag, MessageSquare, Settings, Network, Activity, AlertCircle, RefreshCw } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface SidebarProps {
@@ -125,7 +125,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     { id: 'work-order', label: 'Work Order', icon: Wrench, allowedRoles: ['administrator', 'agent', 'Osp'] },
     { id: 'lcp-nap-location', label: 'LCP/NAP Location', icon: MapPinned, allowedRoles: ['administrator', 'technician', 'Osp'] },
     { id: 'sms-blast', label: 'SMS Blast', icon: MessageSquare, allowedRoles: ['administrator'] },
-    { id: 'reports', label: 'Reports', icon: FileBarChart, allowedRoles: ['administrator', 'superadmin'] },
+    { id: 'reports', label: 'Reports', icon: FileBarChart, allowedRoles: ['superadmin'] },
     {
       id: 'inventory-group',
       label: 'Inventory',
@@ -140,23 +140,24 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       id: 'technical',
       label: 'Configurations',
       icon: Network,
-      allowedRoles: ['administrator', 'technician', 'Osp'],
+      allowedRoles: ['superadmin'],
       children: [
-        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['administrator'] },
-        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['administrator'] },
-        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['administrator'] },
-        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['administrator'] },
-        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['administrator'] },
-        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['administrator'] },
-        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['administrator'] },
-        { id: 'work-category', label: 'Work Category', icon: Wrench, allowedRoles: ['administrator'] },
-        { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['administrator'] },
+        { id: 'promo-list', label: 'Promo', icon: Tag, allowedRoles: ['superadmin'] },
+        { id: 'plan-list', label: 'Plan', icon: List, allowedRoles: ['superadmin'] },
+        { id: 'location-list', label: 'Location', icon: MapPin, allowedRoles: ['superadmin'] },
+        { id: 'status-remarks-list', label: 'Status Remarks', icon: List, allowedRoles: ['superadmin'] },
+        { id: 'lcp', label: 'LCP', icon: Network, allowedRoles: ['superadmin'] },
+        { id: 'nap', label: 'NAP', icon: Network, allowedRoles: ['superadmin'] },
+        { id: 'usage-type', label: 'Usage Type', icon: Activity, allowedRoles: ['superadmin'] },
+        { id: 'payment-method', label: 'Payment Method', icon: CreditCard, allowedRoles: ['superadmin'] },
+        { id: 'work-category', label: 'Work Category', icon: Wrench, allowedRoles: ['superadmin'] },
+        { id: 'radius-config', label: 'Radius Config', icon: MapPin, allowedRoles: ['superadmin'] },
         { id: 'smart-olt', label: 'SmartOLT Config', icon: Network, allowedRoles: ['superadmin'] },
         { id: 'sms-config', label: 'SMS Config', icon: MessageSquare, allowedRoles: ['superadmin'] },
-        { id: 'sms-template', label: 'SMS Template', icon: MessageSquare, allowedRoles: ['administrator'] },
-        { id: 'email-templates', label: 'Email Templates', icon: FileText, allowedRoles: ['administrator'] },
+        { id: 'sms-template', label: 'SMS Template', icon: MessageSquare, allowedRoles: ['superadmin'] },
+        { id: 'email-templates', label: 'Email Templates', icon: FileText, allowedRoles: ['superadmin'] },
         { id: 'pppoe-setup', label: 'PPPoE Setup', icon: Router, allowedRoles: ['superadmin'] },
-        { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['administrator'] },
+        { id: 'concern-config', label: 'Concern Config', icon: AlertCircle, allowedRoles: ['superadmin'] },
         { id: 'billing-config', label: 'Billing Configurations', icon: Receipt, allowedRoles: ['superadmin'] }
       ]
     },
@@ -252,7 +253,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.id);
     const isChildActive = hasChildren && item.children!.some(child => activeSection === child.id);
-    const isActive = activeSection === item.id || (level === 0 && isChildActive);
     const isCurrentItemActive = activeSection === item.id;
     const IconComponent = item.icon;
 
@@ -263,6 +263,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
             if (hasChildren) {
               toggleExpanded(item.id);
             } else {
+              // If selecting an item at level 0 (not in a dropdown), or a child item, 
+              // we can close other dropdowns if it's a top-level item.
+              if (level === 0) {
+                setExpandedItems([]);
+              }
               onSectionChange(item.id);
             }
           }}
