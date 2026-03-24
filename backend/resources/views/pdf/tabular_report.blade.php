@@ -106,7 +106,7 @@
 </head>
 <body>
     <div class="header">
-        <h1>ATSS FIBER</h1>
+        <h1>SYNC</h1>
         <p>{{ $reportType }} Report - Tabular Data</p>
         <div class="report-meta">
             Generated: {{ $generatedAt }}<br>
