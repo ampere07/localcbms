@@ -110,7 +110,12 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'boxReadingImage',
     'routerReadingImage',
     'portLabelImage',
-    'houseFrontPicture'
+    'houseFrontPicture',
+    'proofOfBilling',
+    'governmentValidId',
+    'secondGovernmentValidId',
+    'documentAttachment',
+    'otherIspBill'
   ];
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
@@ -1449,7 +1454,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
         );
 
       case 'houseFrontPicture':
-        const houseFrontImg = jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture;
+        const houseFrontImg = jobOrder.house_front_picture_url || jobOrder.House_Front_Picture_URL || jobOrder.house_front_picture || jobOrder.House_Front_Picture || applicationData?.house_front_picture_url;
         if (!houseFrontImg) return null;
         return (
           <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
@@ -1466,6 +1471,96 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                   <ExternalLink size={16} />
                 </button>
               )}
+            </div>
+          </div>
+        );
+      
+      case 'proofOfBilling':
+        const proofOfBilling = applicationData?.proof_of_billing_url;
+        if (!proofOfBilling) return null;
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Proof of Billing</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">{proofOfBilling}</span>
+              <button
+                className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                onClick={() => window.open(proofOfBilling)}
+              >
+                <ExternalLink size={16} />
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'governmentValidId':
+        const govId = applicationData?.government_valid_id_url;
+        if (!govId) return null;
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Government ID</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">{govId}</span>
+              <button
+                className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                onClick={() => window.open(govId)}
+              >
+                <ExternalLink size={16} />
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'secondGovernmentValidId':
+        const secondGovId = applicationData?.secondary_government_valid_id_url;
+        if (!secondGovId) return null;
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Second Government ID</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">{secondGovId}</span>
+              <button
+                className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                onClick={() => window.open(secondGovId)}
+              >
+                <ExternalLink size={16} />
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'documentAttachment':
+        const docAttach = applicationData?.document_attachment_url;
+        if (!docAttach) return null;
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Document Attachment</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">{docAttach}</span>
+              <button
+                className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                onClick={() => window.open(docAttach)}
+              >
+                <ExternalLink size={16} />
+              </button>
+            </div>
+          </div>
+        );
+
+      case 'otherIspBill':
+        const ispBill = applicationData?.other_isp_bill_url;
+        if (!ispBill) return null;
+        return (
+          <div className={`flex border-b py-2 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Other ISP Bill</div>
+            <div className={`flex-1 flex items-center justify-between min-w-0 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+              <span className="truncate mr-2">{ispBill}</span>
+              <button
+                className={`flex-shrink-0 ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}`}
+                onClick={() => window.open(ispBill)}
+              >
+                <ExternalLink size={16} />
+              </button>
             </div>
           </div>
         );

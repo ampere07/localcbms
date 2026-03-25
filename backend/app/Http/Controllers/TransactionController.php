@@ -80,6 +80,7 @@ class TransactionController extends Controller
                 'date_processed' => 'nullable|date',
                 'processed_by_user_id' => 'nullable|exists:users,id',
                 'processed_by_user' => 'nullable|string|max:255',
+                'created_by_user' => 'nullable|string|max:255',
                 'payment_method' => 'required|string|max:255',
                 'reference_no' => 'required|string|max:255',
                 'or_no' => 'required|string|max:255',
@@ -100,7 +101,7 @@ class TransactionController extends Controller
                 ?\Carbon\Carbon::parse($validated['date_processed'])->format('Y-m-d H:i:s')
                 : now()->format('Y-m-d H:i:s');
             $validated['status'] = $validated['status'] ?? 'Pending';
-            $validated['created_by_user'] = Auth::check() ?Auth::user()->email_address : 'unknown';
+            $validated['created_by_user'] = $validated['created_by_user'] ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
             $validated['updated_by_user'] = Auth::check() ?Auth::user()->email_address : 'unknown';
 
             // If processed_by_user is not provided in request, default to authenticated user
@@ -309,7 +310,7 @@ class TransactionController extends Controller
 
             $transaction->status = 'Done';
             $transaction->date_processed = $currentTime;
-            $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
+            $transaction->updated_by_user = $request->input('updated_by_user') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
             $transaction->approved_by = $request->input('approved_by') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
             $transaction->account_balance_before = $currentBalance;
             $transaction->save();
@@ -490,7 +491,7 @@ class TransactionController extends Controller
             $transaction->date_processed = null;
             $transaction->approved_by = null;
             $transaction->account_balance_before = null;
-            $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
+            $transaction->updated_by_user = $request->input('updated_by_user') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
             $transaction->save();
 
             DB::commit();
@@ -782,7 +783,7 @@ class TransactionController extends Controller
 
                     $transaction->status = 'Done';
                     $transaction->date_processed = $currentTime;
-                    $transaction->updated_by_user = Auth::check() ?Auth::user()->email_address : 'unknown';
+                    $transaction->updated_by_user = $request->input('updated_by_user') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
                     $transaction->approved_by = $request->input('approved_by') ?? (Auth::check() ?Auth::user()->email_address : 'unknown');
                     $transaction->account_balance_before = $currentBalance;
                     $transaction->save();

@@ -29,6 +29,7 @@ interface CreateTransactionPayload {
   remarks?: string;
   status: string;
   image_url?: string;
+  created_by_user?: string;
 }
 
 interface CreateTransactionResponse {
@@ -42,7 +43,8 @@ export const transactionService = {
   approveTransaction: async (transactionId: string, approvedBy?: string): Promise<ApproveTransactionResponse> => {
     try {
       const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/approve`, {
-        approved_by: approvedBy
+        approved_by: approvedBy,
+        updated_by_user: approvedBy
       });
       return {
         success: true,
@@ -61,7 +63,8 @@ export const transactionService = {
   revertTransaction: async (transactionId: string, revertedBy?: string): Promise<ApproveTransactionResponse> => {
     try {
       const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/revert`, {
-        reverted_by: revertedBy
+        reverted_by: revertedBy,
+        updated_by_user: revertedBy
       });
       return {
         success: true,
@@ -177,7 +180,8 @@ export const transactionService = {
 
       const response = await apiClient.post<ApiResponse>('/transactions/batch-approve', {
         transaction_ids: transactionIds,
-        approved_by: approvedBy
+        approved_by: approvedBy,
+        updated_by_user: approvedBy
       });
 
       console.log('Batch approve response:', response.data);
@@ -199,8 +203,20 @@ export const transactionService = {
 
   updateStatus: async (transactionId: string, status: string): Promise<ApiResponse> => {
     try {
+      let currentUserEmail = '';
+      try {
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          const parsed = JSON.parse(authData);
+          currentUserEmail = parsed.email_address || parsed.email || parsed.user?.email_address || parsed.user?.email || '';
+        }
+      } catch (e) {
+        console.error('Error getting current user email:', e);
+      }
+
       const response = await apiClient.post<ApiResponse>(`/transactions/${transactionId}/status`, {
-        status
+        status,
+        updated_by_user: currentUserEmail
       });
       return response.data;
     } catch (error: any) {

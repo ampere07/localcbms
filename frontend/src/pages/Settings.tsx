@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Palette, Sun, Moon, Plus, Image, Loader2, CheckCircle, XCircle } from 'lucide-react';
+import { Palette, Plus, Image, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import AddColorPaletteModal from '../modals/AddColorPaletteModal';
 import { settingsImageSizeService, ImageSize } from '../services/settingsImageSizeService';
 import { settingsColorPaletteService, ColorPalette as DbColorPalette } from '../services/settingsColorPaletteService';
@@ -29,7 +29,6 @@ const Settings: React.FC = () => {
   const [userRoleName, setUserRoleName] = useState<string>('');
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isTogglingDarkMode, setIsTogglingDarkMode] = useState<boolean>(false);
   const [loadingMessage, setLoadingMessage] = useState<string>('');
   const [showSuccess, setShowSuccess] = useState<boolean>(false);
   const [successMessage, setSuccessMessage] = useState<string>('');
@@ -159,72 +158,6 @@ const Settings: React.FC = () => {
     }
   };
 
-  const handleThemeToggle = async () => {
-    const newTheme = !isDarkMode;
-    const darkmodeValue = newTheme ? 'active' : 'inactive';
-
-    console.log('Toggle dark mode started', { newTheme, darkmodeValue });
-    setIsTogglingDarkMode(true);
-
-    try {
-      const authData = localStorage.getItem('authData');
-      console.log('Auth data:', authData);
-
-      if (authData) {
-        const userData = JSON.parse(authData);
-        console.log('Parsed user data:', userData);
-
-        // User ID is at root level, not under user property
-        const userId = userData.id;
-        console.log('User ID:', userId);
-
-        if (userId) {
-          console.log('Making API call with:', { userId, darkmodeValue });
-
-          const response = await userSettingsService.updateDarkMode(userId, darkmodeValue);
-          console.log('API response:', response);
-
-          setIsDarkMode(newTheme);
-          localStorage.setItem('theme', newTheme ? 'dark' : 'light');
-
-          if (newTheme) {
-            document.documentElement.classList.add('dark');
-          } else {
-            document.documentElement.classList.remove('dark');
-          }
-
-          setIsTogglingDarkMode(false);
-          setSuccessMessage('Theme updated successfully');
-          setShowSuccess(true);
-
-          setTimeout(() => {
-            setShowSuccess(false);
-          }, 1500);
-        } else {
-          console.error('No user ID found');
-          throw new Error('User ID not found');
-        }
-      } else {
-        console.error('No auth data found');
-        throw new Error('Not authenticated');
-      }
-    } catch (error) {
-      console.error('Failed to update dark mode:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown error',
-        response: (error as any)?.response?.data,
-        status: (error as any)?.response?.status
-      });
-
-      setIsTogglingDarkMode(false);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to update theme preference');
-      setShowError(true);
-
-      setTimeout(() => {
-        setShowError(false);
-      }, 3000);
-    }
-  };
 
   const handlePaletteStatusChange = async (id: number, status: 'active' | 'inactive') => {
     setIsLoading(true);
@@ -559,49 +492,6 @@ const Settings: React.FC = () => {
           </div>
         )}
 
-        <div className={`pb-6 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-300'
-          }`}>
-          <div className="mb-4">
-            <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>
-              Theme Mode
-            </h3>
-          </div>
-
-          <div className={`flex items-center justify-between p-6 rounded border ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-300'
-            }`}>
-            <div>
-              <p className={`font-medium mb-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>
-                {isDarkMode ? 'Dark Mode' : 'Light Mode'}
-              </p>
-              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                }`}>
-                Switch between light and dark theme
-              </p>
-            </div>
-
-            <button
-              onClick={handleThemeToggle}
-              disabled={isTogglingDarkMode}
-              className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{
-                backgroundColor: isDarkMode ? (colorPalette?.primary || '#7c3aed') : '#4b5563'
-              }}
-            >
-              <span
-                className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${isDarkMode ? 'translate-x-7' : 'translate-x-1'
-                  }`}
-              >
-                {isDarkMode ? (
-                  <Moon className="h-4 w-4 m-1" style={{ color: colorPalette?.primary || '#7c3aed' }} />
-                ) : (
-                  <Sun className="h-4 w-4 text-gray-600 m-1" />
-                )}
-              </span>
-            </button>
-          </div>
-        </div>
 
         {(userRoleId === 7 || userRoleName.toLowerCase() === 'superadmin') && (
           <div className="pt-6">
@@ -821,14 +711,6 @@ const Settings: React.FC = () => {
         </div>
       )}
 
-      {isTogglingDarkMode && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 animate-spin" style={{ color: colorPalette?.primary || '#7c3aed' }} />
-            <p className="text-white font-medium">Updating theme preference...</p>
-          </div>
-        </div>
-      )}
 
       {showSuccess && (
         <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">

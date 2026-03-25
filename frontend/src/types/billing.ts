@@ -61,6 +61,12 @@ export interface BillingRecord {
   techCreatedBy?: string;
   techUpdatedAt?: string;
   techUpdatedBy?: string;
+  proofOfBillingUrl?: string;
+  governmentValidIdUrl?: string;
+  secondGovernmentValidIdUrl?: string;
+  documentAttachmentUrl?: string;
+  otherIspBillUrl?: string;
+  accountNoCustomer?: string;
 }
 
 export interface BillingDetailRecord extends BillingRecord {

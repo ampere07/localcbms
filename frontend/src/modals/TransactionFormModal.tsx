@@ -62,7 +62,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        userEmail = userData.email || userData.email_address || '';
+        userEmail = userData.email_address || userData.email || '';
       } catch (e) {
         console.error('Error parsing auth data:', e);
       }
@@ -180,7 +180,7 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
       if (authData) {
         try {
           const userData = JSON.parse(authData);
-          const userEmail = userData.email || userData.email_address || '';
+          const userEmail = userData.email_address || userData.email || '';
           if (userEmail) {
             setFormData(prev => ({ ...prev, processedBy: userEmail }));
           }
@@ -372,7 +372,8 @@ const TransactionFormModal: React.FC<TransactionFormModalProps> = ({
         or_no: formData.orNo,
         remarks: formData.remarks || '',
         status: 'Pending',
-        image_url: imageUrl
+        image_url: imageUrl,
+        created_by_user: formData.processedBy
       };
 
       setUploadProgress(80);

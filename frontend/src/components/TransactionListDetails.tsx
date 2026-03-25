@@ -271,7 +271,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         const authData = localStorage.getItem('authData');
         if (authData) {
           const parsed = JSON.parse(authData);
-          currentUserEmail = parsed.email || parsed.user?.email || '';
+          currentUserEmail = parsed.email_address || parsed.email || parsed.user?.email_address || parsed.user?.email || '';
         }
       } catch (err) {
         console.error('Error getting current user email:', err);
@@ -329,7 +329,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
         const authData = localStorage.getItem('authData');
         if (authData) {
           const parsed = JSON.parse(authData);
-          currentUserEmail = parsed.email || parsed.user?.email || '';
+          currentUserEmail = parsed.email_address || parsed.email || parsed.user?.email_address || parsed.user?.email || '';
         }
       } catch (err) {
         console.error('Error getting current user email:', err);

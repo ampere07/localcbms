@@ -520,6 +520,7 @@ class LcpNapLocationController extends Controller
                 ->leftJoin('online_status as os', 'td.account_id', '=', 'os.account_id')
                 ->where('td.lcpnap', '=', $lcpnap->lcpnap_name)
                 ->select(
+                    'ba.id',
                     'ba.account_no',
                     \DB::raw("TRIM(CONCAT_WS(' ', c.first_name, c.middle_initial, c.last_name)) as full_name"),
                     'td.port',

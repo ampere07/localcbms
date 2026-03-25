@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings, Circle, CircleArrowRight } from 'lucide-react';
+import React, { useState, useEffect, useRef, Suspense } from 'react';
+import { ChevronDown, ChevronRight, Plus, Trash2, Wrench, Edit, ChevronLeft, ChevronRight as ChevronRightNav, Maximize2, X, ExternalLink, Settings, Circle, CircleArrowRight, Loader2 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -21,9 +21,11 @@ import InvoiceDetails from './InvoiceDetails';
 import ServiceOrderDetails from './ServiceOrderDetails';
 import PaymentPortalDetails from './PaymentPortalDetails';
 import TransactionListDetails from './TransactionListDetails';
-import LcpNapLocationDetails from './LcpNapLocationDetails';
 import * as lcpnapService from '../services/lcpnapService';
 import { transformServiceOrder } from '../store/serviceOrderStore';
+
+// Break circular dependency with lazy loading
+const LcpNapLocationDetails = React.lazy(() => import('./LcpNapLocationDetails'));
 
 // Fix Leaflet default icon issue
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -340,7 +342,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       'region',
       'referredBy',
       'addressCoordinates',
-      'houseFrontPicture'
+      'houseFrontPicture',
+      'accountNoCustomer',
+      'proofOfBillingUrl',
+      'governmentValidIdUrl',
+      'secondGovernmentValidIdUrl',
+      'documentAttachmentUrl',
+      'otherIspBillUrl'
     ],
     technicalDetails: [
       'usageType',
@@ -639,7 +647,13 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       billingAccountCreatedBy: 'Created By',
       billingAccountCreatedAt: 'Created At',
       billingAccountUpdatedBy: 'Updated By',
-      billingAccountUpdatedAt: 'Updated At'
+      billingAccountUpdatedAt: 'Updated At',
+      accountNoCustomer: 'Customer Account No',
+      proofOfBillingUrl: 'Proof of Billing',
+      governmentValidIdUrl: 'Government ID',
+      secondGovernmentValidIdUrl: 'Second Government ID',
+      documentAttachmentUrl: 'Document Attachment',
+      otherIspBillUrl: 'Other ISP Bill'
     };
     return labels[fieldKey] || fieldKey;
   };
@@ -790,6 +804,72 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }
           >
             <span className="text-sm truncate max-w-xs">{billingRecord.houseFrontPicture}</span>
+            <ExternalLink size={14} />
+          </button>
+        </div>
+      ) : null,
+      accountNoCustomer: () => billingRecord.accountNoCustomer ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Customer Account No</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{billingRecord.accountNoCustomer}</span>
+        </div>
+      ) : null,
+      proofOfBillingUrl: () => billingRecord.proofOfBillingUrl ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Proof of Billing</span>
+          <button
+            onClick={() => window.open(billingRecord.proofOfBillingUrl, '_blank')}
+            className={isDarkMode ? 'text-blue-400 hover:text-blue-300 flex items-center space-x-1' : 'text-blue-600 hover:text-blue-700 flex items-center space-x-1'}
+          >
+            <span className="text-sm truncate max-w-xs">View Document</span>
+            <ExternalLink size={14} />
+          </button>
+        </div>
+      ) : null,
+      governmentValidIdUrl: () => billingRecord.governmentValidIdUrl ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Government ID</span>
+          <button
+            onClick={() => window.open(billingRecord.governmentValidIdUrl, '_blank')}
+            className={isDarkMode ? 'text-blue-400 hover:text-blue-300 flex items-center space-x-1' : 'text-blue-600 hover:text-blue-700 flex items-center space-x-1'}
+          >
+            <span className="text-sm truncate max-w-xs">View Document</span>
+            <ExternalLink size={14} />
+          </button>
+        </div>
+      ) : null,
+      secondGovernmentValidIdUrl: () => billingRecord.secondGovernmentValidIdUrl ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Second Government ID</span>
+          <button
+            onClick={() => window.open(billingRecord.secondGovernmentValidIdUrl, '_blank')}
+            className={isDarkMode ? 'text-blue-400 hover:text-blue-300 flex items-center space-x-1' : 'text-blue-600 hover:text-blue-700 flex items-center space-x-1'}
+          >
+            <span className="text-sm truncate max-w-xs">View Document</span>
+            <ExternalLink size={14} />
+          </button>
+        </div>
+      ) : null,
+      documentAttachmentUrl: () => billingRecord.documentAttachmentUrl ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Document Attachment</span>
+          <button
+            onClick={() => window.open(billingRecord.documentAttachmentUrl, '_blank')}
+            className={isDarkMode ? 'text-blue-400 hover:text-blue-300 flex items-center space-x-1' : 'text-blue-600 hover:text-blue-700 flex items-center space-x-1'}
+          >
+            <span className="text-sm truncate max-w-xs">View Document</span>
+            <ExternalLink size={14} />
+          </button>
+        </div>
+      ) : null,
+      otherIspBillUrl: () => billingRecord.otherIspBillUrl ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Other ISP Bill</span>
+          <button
+            onClick={() => window.open(billingRecord.otherIspBillUrl, '_blank')}
+            className={isDarkMode ? 'text-blue-400 hover:text-blue-300 flex items-center space-x-1' : 'text-blue-600 hover:text-blue-700 flex items-center space-x-1'}
+          >
+            <span className="text-sm truncate max-w-xs">View Document</span>
             <ExternalLink size={14} />
           </button>
         </div>
@@ -1232,11 +1312,22 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
   if (selectedLcpNapLocation) {
     return (
-      <LcpNapLocationDetails
-        location={selectedLcpNapLocation}
-        onClose={() => setSelectedLcpNapLocation(null)}
-        externalWidth={detailsWidth}
-      />
+      <div className="h-full w-full">
+        <Suspense fallback={
+          <div className={`h-full w-full flex items-center justify-center ${isDarkMode ? 'bg-gray-950' : 'bg-white'}`}>
+            <Loader2 
+              className="animate-spin h-8 w-8" 
+              style={{ color: colorPalette?.primary || '#f97316' }}
+            />
+          </div>
+        }>
+          <LcpNapLocationDetails
+            location={selectedLcpNapLocation}
+            onClose={() => setSelectedLcpNapLocation(null)}
+            externalWidth={detailsWidth}
+          />
+        </Suspense>
+      </div>
     );
   }
 

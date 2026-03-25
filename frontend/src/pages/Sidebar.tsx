@@ -184,7 +184,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
         { id: 'system-logs', label: 'System Logs', icon: FileText, allowedRoles: ['superadmin'] }
       ]
     },
-    { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['administrator', 'technician'] },
+    { id: 'settings', label: 'Settings', icon: Settings, allowedRoles: ['superadmin'] },
   ];
 
 

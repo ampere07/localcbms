@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, CreateUserRequest, Organization, Role } from '../types/api';
-import { userService, organizationService, roleService } from '../services/userService';
+import { User, CreateUserRequest, Role } from '../types/api';
+import { userService, roleService } from '../services/userService';
 import Breadcrumb from '../pages/Breadcrumb';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { Eye, EyeOff } from 'lucide-react';
@@ -11,7 +11,7 @@ interface AddNewUserFormProps {
 }
 
 const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated }) => {
-  const [formData, setFormData] = useState<CreateUserRequest>({
+  const initialFormData: CreateUserRequest = {
     first_name: '',
     middle_initial: '',
     last_name: '',
@@ -19,12 +19,12 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
     email_address: '',
     contact_number: '',
     password: '',
-    organization_id: undefined,
     role_id: undefined
-  });
+  };
+
+  const [formData, setFormData] = useState<CreateUserRequest>(initialFormData);
 
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -63,20 +63,9 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
   }, []);
 
   useEffect(() => {
-    loadOrganizations();
     loadRoles();
   }, []);
 
-  const loadOrganizations = async () => {
-    try {
-      const response = await organizationService.getAllOrganizations();
-      if (response.success && response.data) {
-        setOrganizations(response.data);
-      }
-    } catch (error) {
-      console.error('Failed to load organizations:', error);
-    }
-  };
 
   const loadRoles = async () => {
     try {
@@ -94,7 +83,7 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
 
     if (name === 'confirmPassword') {
       setConfirmPassword(value);
-    } else if (name === 'organization_id' || name === 'role_id') {
+    } else if (name === 'role_id') {
       const numericValue = value && value !== '' ? parseInt(value, 10) : undefined;
       setFormData(prev => ({
         ...prev,
@@ -194,9 +183,6 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
         dataToSend.contact_number = formData.contact_number.trim();
       }
 
-      if (formData.organization_id && formData.organization_id > 0) {
-        dataToSend.organization_id = formData.organization_id;
-      }
 
       if (formData.role_id && formData.role_id > 0) {
         dataToSend.role_id = formData.role_id;
@@ -206,6 +192,8 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
 
       if (response.success && response.data) {
         onUserCreated(response.data);
+        setFormData(initialFormData);
+        setConfirmPassword('');
         onCancel();
       } else {
         setErrors({ general: response.message || 'Failed to create user' });
@@ -400,30 +388,6 @@ const AddNewUserForm: React.FC<AddNewUserFormProps> = ({ onCancel, onUserCreated
                 )}
               </div>
 
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Organization
-                </label>
-                <select
-                  name="organization_id"
-                  value={formData.organization_id || ''}
-                  onChange={handleInputChange}
-                  className={`w-full px-4 py-3 rounded border focus:outline-none ${isDarkMode
-                    ? 'bg-gray-900 border-gray-700 text-white focus:border-gray-400'
-                    : 'bg-white border-gray-300 text-gray-900 focus:border-gray-500'
-                    } ${errors.organization_id ? 'border-red-600' : ''}`}
-                >
-                  <option value="">No Organization (Optional)</option>
-                  {organizations.map(org => (
-                    <option key={org.id} value={org.id}>
-                      {org.organization_name}
-                    </option>
-                  ))}
-                </select>
-                {errors.organization_id && (
-                  <p className={`text-sm mt-1 ${isDarkMode ? 'text-red-400' : 'text-red-600'}`}>{errors.organization_id}</p>
-                )}
-              </div>
 
               <div>
                 <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>

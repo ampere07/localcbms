@@ -270,7 +270,7 @@ const UserManagement: React.FC = () => {
                       </span>
                     </div>
                     <p className={`text-xs truncate ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                      @{user.username} • {user.email_address}
+                      {user.username} • {user.email_address}
                     </p>
                   </div>
                 </div>
@@ -284,7 +284,7 @@ const UserManagement: React.FC = () => {
 
       {/* User Details View (Right Side / Mobile Detail) */}
       {(selectedUser || mobileView === 'details') && (
-        <div className={`flex flex-col border-l ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${mobileView === 'details' ? 'fixed inset-0 z-50' : 'hidden md:flex w-[450px]'}`}>
+        <div className={`flex flex-col border-l ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'} ${mobileView === 'details' ? 'fixed inset-0 z-50' : 'hidden md:flex min-w-[800px] w-auto max-w-[80%] overflow-hidden'}`}>
           {selectedUser ? (
             <UserDetails
               user={selectedUser}

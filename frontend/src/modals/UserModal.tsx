@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2, Eye, EyeOff } from 'lucide-react';
-import { User, CreateUserRequest, UpdateUserRequest, Organization, Role } from '../types/api';
-import { userService, organizationService, roleService } from '../services/userService';
+import { User, CreateUserRequest, UpdateUserRequest, Role } from '../types/api';
+import { userService, roleService } from '../services/userService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface UserModalProps {
@@ -16,7 +16,6 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [loading, setLoading] = useState(false);
-  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   
@@ -24,7 +23,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
 
-  const [formData, setFormData] = useState<CreateUserRequest & { salutation?: string }>({
+  const [formData, setFormData] = useState<CreateUserRequest>({
     first_name: '',
     middle_initial: '',
     last_name: '',
@@ -32,9 +31,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
     email_address: '',
     contact_number: '',
     password: '',
-    organization_id: undefined,
     role_id: undefined,
-    salutation: ''
   });
 
   useEffect(() => {
@@ -49,11 +46,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
 
     const loadData = async () => {
       try {
-        const [orgsRes, rolesRes] = await Promise.all([
-          organizationService.getAllOrganizations(),
-          roleService.getAllRoles()
-        ]);
-        if (orgsRes.success) setOrganizations(orgsRes.data || []);
+        const rolesRes = await roleService.getAllRoles();
         if (rolesRes.success) setRoles(rolesRes.data || []);
       } catch (err) {
         console.error('Failed to load modal data:', err);
@@ -73,9 +66,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
           email_address: user.email_address || '',
           contact_number: user.contact_number || '',
           password: '',
-          organization_id: user.organization_id ?? undefined,
           role_id: user.role_id ?? undefined,
-          salutation: user.salutation || ''
         });
         setConfirmPassword('');
       } else {
@@ -87,9 +78,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
           email_address: '',
           contact_number: '',
           password: '',
-          organization_id: undefined,
           role_id: undefined,
-          salutation: ''
         });
         setConfirmPassword('');
       }
@@ -101,7 +90,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    if (name === 'organization_id' || name === 'role_id') {
+    if (name === 'role_id') {
       const val = value ? parseInt(value) : undefined;
       setFormData(prev => ({ ...prev, [name]: val }));
     } else {
@@ -148,14 +137,12 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
       let response;
       if (isEditMode && user) {
         const updateData: UpdateUserRequest = {
-          salutation: formData.salutation,
           first_name: formData.first_name,
           middle_initial: formData.middle_initial,
           last_name: formData.last_name,
           username: formData.username,
           email_address: formData.email_address,
           contact_number: formData.contact_number,
-          organization_id: formData.organization_id,
           role_id: formData.role_id,
         };
         if (formData.password) updateData.password = formData.password;
@@ -166,6 +153,17 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
 
       if (response.success && response.data) {
         onSave(response.data);
+        setFormData({
+          first_name: '',
+          middle_initial: '',
+          last_name: '',
+          username: '',
+          email_address: '',
+          contact_number: '',
+          password: '',
+          role_id: undefined,
+        });
+        setConfirmPassword('');
         onClose();
       } else {
         setErrors({ general: response.message || 'Action failed' });
@@ -204,58 +202,40 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className={labelClass}>Salutation</label>
-              <select name="salutation" value={formData.salutation} onChange={handleInputChange} className={inputClass}>
-                <option value="">None</option>
-                <option value="Mr">Mr</option>
-                <option value="Ms">Ms</option>
-                <option value="Mrs">Mrs</option>
-                <option value="Dr">Dr</option>
-              </select>
-            </div>
-
             <div>
               <label className={labelClass}>First Name*</label>
-              <input name="first_name" value={formData.first_name} onChange={handleInputChange} className={`${inputClass} ${errors.first_name ? 'border-red-500' : ''}`} />
+              <input name="first_name" value={formData.first_name} onChange={handleInputChange} className={`${inputClass} ${errors.first_name ? 'border-red-500' : ''}`} placeholder="Enter first name" />
               {errors.first_name && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.first_name}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Last Name*</label>
-              <input name="last_name" value={formData.last_name} onChange={handleInputChange} className={`${inputClass} ${errors.last_name ? 'border-red-500' : ''}`} />
+              <input name="last_name" value={formData.last_name} onChange={handleInputChange} className={`${inputClass} ${errors.last_name ? 'border-red-500' : ''}`} placeholder="Enter last name" />
               {errors.last_name && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.last_name}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Middle Initial</label>
-              <input name="middle_initial" value={formData.middle_initial} onChange={handleInputChange} maxLength={1} className={inputClass} />
+              <input name="middle_initial" value={formData.middle_initial} onChange={handleInputChange} maxLength={1} className={inputClass} placeholder="M (Optional)" />
             </div>
 
             <div>
               <label className={labelClass}>Username*</label>
-              <input name="username" value={formData.username} onChange={handleInputChange} className={`${inputClass} ${errors.username ? 'border-red-500' : ''}`} />
+              <input name="username" value={formData.username} onChange={handleInputChange} className={`${inputClass} ${errors.username ? 'border-red-500' : ''}`} placeholder="Enter username" />
               {errors.username && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.username}</p>}
             </div>
 
             <div className="col-span-2">
               <label className={labelClass}>Email Address*</label>
-              <input type="email" name="email_address" value={formData.email_address} onChange={handleInputChange} className={`${inputClass} ${errors.email_address ? 'border-red-500' : ''}`} />
+              <input type="email" name="email_address" value={formData.email_address} onChange={handleInputChange} className={`${inputClass} ${errors.email_address ? 'border-red-500' : ''}`} placeholder="example@email.com" />
               {errors.email_address && <p className="text-red-500 text-[10px] mt-1 font-medium">{errors.email_address}</p>}
             </div>
 
             <div>
               <label className={labelClass}>Contact Number</label>
-              <input name="contact_number" value={formData.contact_number} onChange={handleInputChange} className={inputClass} />
+              <input name="contact_number" value={formData.contact_number} onChange={handleInputChange} className={inputClass} placeholder="Enter contact number" />
             </div>
 
-            <div>
-              <label className={labelClass}>Organization</label>
-              <select name="organization_id" value={formData.organization_id || ''} onChange={handleInputChange} className={inputClass}>
-                <option value="">None</option>
-                {organizations.map(org => <option key={org.id} value={org.id}>{org.organization_name}</option>)}
-              </select>
-            </div>
 
             <div className="col-span-2">
               <label className={labelClass}>Role*</label>
@@ -296,6 +276,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
                       if (errors.confirmPassword) setErrors(prev => ({ ...prev, confirmPassword: '' }));
                     }}
                     className={`${inputClass} ${errors.confirmPassword ? 'border-red-500' : ''}`}
+                    placeholder="Repeat password"
                   />
                   <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-2.5 text-gray-500">
                     {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}

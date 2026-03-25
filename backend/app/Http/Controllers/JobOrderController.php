@@ -836,6 +836,11 @@ class JobOrderController extends Controller
                     'referred_by' => $application->referred_by,
                     'desired_plan' => $application->desired_plan,
                     'house_front_picture_url' => $jobOrder->house_front_picture_url,
+                    'proof_of_billing_url' => $application->proof_of_billing_url,
+                    'government_valid_id_url' => $application->government_valid_id_url,
+                    'second_government_valid_id_url' => $application->secondary_government_valid_id_url,
+                    'document_attachment_url' => $application->document_attachment_url,
+                    'other_isp_bill_url' => $application->other_isp_bill_url,
                     'created_by' => $defaultUserId,
                     'updated_by' => $defaultUserId,
                 ]);
@@ -858,6 +863,9 @@ class JobOrderController extends Controller
             \Log::info('Generated account number', [
                 'generated_account_no' => $accountNumber
             ]);
+            
+            // Sync generated account number to customer
+            $customer->update(['account_no' => $accountNumber]);
 
             $installationFee = $jobOrder->installation_fee ?? 0;
             

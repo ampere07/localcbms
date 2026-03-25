@@ -161,14 +161,14 @@ const LiveMonitor: React.FC = () => {
         return {
           i: id,
           x: (i * 4) % 12,
-          y: Math.floor(i / 3) * 6,
+          y: Math.floor(i / 3) * (config.h || 6),
           w: config.w || 4,
-          h: 6, // default height
+          h: config.h || 6,
           minW: 2,
           minH: 3
         };
       });
-      initialLayouts = { lg: defaultLayout, md: defaultLayout, sm: defaultLayout };
+      initialLayouts = { lg: defaultLayout, md: defaultLayout, sm: defaultLayout, xs: defaultLayout, xxs: defaultLayout };
     }
 
     // Ensure all visible widgets are in the layout (fixes resizing issue on font change if missing)
@@ -187,7 +187,7 @@ const LiveMonitor: React.FC = () => {
                 x: 0,
                 y: Infinity,
                 w: config.w || 4,
-                h: 6,
+                h: config.h || 6,
                 minW: 2,
                 minH: 3
               }
@@ -284,90 +284,55 @@ const LiveMonitor: React.FC = () => {
   };
 
   const ensureWidgetInLayout = (widgetId: string) => {
+    const config = WIDGETS[widgetId];
+    if (!config) return;
+
     setLayouts((prevLayouts: any) => {
-      // If layouts structure is invalid or doesn't have breakpoints, just return
-      if (!prevLayouts || typeof prevLayouts !== 'object') return prevLayouts;
+      const newLayouts = { ...(prevLayouts || {}) };
+      const breakpoints = ['lg', 'md', 'sm', 'xs', 'xxs'];
+      const columnCounts = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
 
-      const newLayouts = { ...prevLayouts };
-      const config = WIDGETS[widgetId];
-      if (!config) return prevLayouts;
+      let updated = false;
 
-      // We need to ensure the widget is in ALL active layouts (lg, md, sm, etc.)
-      Object.keys(newLayouts).forEach(breakpoint => {
-        const layout = newLayouts[breakpoint];
-        if (Array.isArray(layout) && !layout.find((item: any) => item.i === widgetId)) {
-          const cols = breakpoint === 'lg' ? 12 : breakpoint === 'md' ? 10 : breakpoint === 'sm' ? 6 : breakpoint === 'xs' ? 4 : 2;
-          const w = config.w || 4;
-          const h = 6;
+      breakpoints.forEach(bp => {
+        if (!newLayouts[bp]) {
+          newLayouts[bp] = [];
+          updated = true;
+        }
+        
+        const currentLayout = newLayouts[bp];
+        if (Array.isArray(currentLayout) && !currentLayout.find((item: any) => item.i === widgetId)) {
+          const cols = (columnCounts as any)[bp];
+          const w = Math.min(config.w || 4, cols);
+          const h = config.h || 6;
 
-          // Create a 2D grid representation to find the first available spot
-          const grid: { [y: number]: boolean[] } = {};
+          // Simple approach: put at bottom
           let maxY = 0;
-
-          layout.forEach((item: any) => {
-            const itemY = item.y || 0;
-            const itemX = item.x || 0;
-            const itemW = item.w || 1;
-            const itemH = item.h || 1;
-
-            for (let y = itemY; y < itemY + itemH; y++) {
-              if (!grid[y]) grid[y] = Array(cols).fill(false);
-              for (let x = itemX; x < itemX + itemW; x++) {
-                if (x < cols) grid[y][x] = true;
-              }
-            }
-            if (itemY + itemH > maxY) maxY = itemY + itemH;
+          currentLayout.forEach((item: any) => {
+            if ((item.y + item.h) > maxY) maxY = item.y + item.h;
           });
 
-          let newX = 0;
-          let newY = maxY;
-
-          for (let y = 0; y <= maxY; y++) {
-            let foundInRow = false;
-            for (let x = 0; x <= cols - w; x++) {
-              // Check if space (x, y) to (x+w, y+h) is free
-              let isFree = true;
-              for (let checkY = y; checkY < y + h; checkY++) {
-                if (grid[checkY]) {
-                  for (let checkX = x; checkX < x + w; checkX++) {
-                    if (grid[checkY][checkX]) {
-                      isFree = false;
-                      break;
-                    }
-                  }
-                }
-                if (!isFree) break;
-              }
-
-              if (isFree) {
-                newX = x;
-                newY = y;
-                foundInRow = true;
-                break;
-              }
-            }
-            if (foundInRow) break;
-          }
-
-          // Add to layout at calculated position
-          newLayouts[breakpoint] = [
-            ...layout,
+          newLayouts[bp] = [
+            ...currentLayout,
             {
               i: widgetId,
-              x: newX,
-              y: newY,
+              x: 0, // Default to start of row
+              y: maxY, 
               w: w,
               h: h,
               minW: 2,
               minH: 3
             }
           ];
+          updated = true;
         }
       });
 
-      // Save to local storage to persist the new addition
-      localStorage.setItem('dashboard_layouts', JSON.stringify(newLayouts));
-      return newLayouts;
+      if (updated) {
+        localStorage.setItem('dashboard_layouts', JSON.stringify(newLayouts));
+        return newLayouts;
+      }
+      return prevLayouts;
     });
   };
 
@@ -377,6 +342,12 @@ const LiveMonitor: React.FC = () => {
       ensureWidgetInLayout(id);
     }
     updateWidgetState(id, { visible: !isVisible });
+
+    // Force a re-layout/resize after the widget is added to the DOM
+    // This solves the 'autoresize' issue where charts don't fill their container initially
+    setTimeout(() => {
+      window.dispatchEvent(new Event('resize'));
+    }, 150);
   };
 
   const generateChartData = (widgetData: WidgetData[], widgetId: string, viewType: string) => {
@@ -1130,7 +1101,21 @@ const LiveMonitor: React.FC = () => {
                   onClick={() => {
                     const ids = Object.keys(WIDGETS);
                     ids.forEach(id => ensureWidgetInLayout(id));
-                    ids.forEach(id => updateWidgetState(id, { visible: true }));
+                    
+                    setWidgetStates(prev => {
+                      const nextStates = { ...prev };
+                      ids.forEach(id => {
+                        nextStates[id] = { ...nextStates[id], visible: true };
+                        localStorage.setItem(`widget_state_${id}`, JSON.stringify(nextStates[id]));
+                      });
+                      return nextStates;
+                    });
+
+                    // Trigger resize to fix all layouts
+                    setTimeout(() => {
+                      window.dispatchEvent(new Event('resize'));
+                      fetchAllWidgets();
+                    }, 200);
                   }}
                   className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
                 >
@@ -1138,7 +1123,17 @@ const LiveMonitor: React.FC = () => {
                   Show All
                 </button>
                 <button
-                  onClick={() => Object.keys(WIDGETS).forEach(id => updateWidgetState(id, { visible: false }))}
+                  onClick={() => {
+                    const ids = Object.keys(WIDGETS);
+                    setWidgetStates(prev => {
+                      const nextStates = { ...prev };
+                      ids.forEach(id => {
+                        nextStates[id] = { ...nextStates[id], visible: false };
+                        localStorage.setItem(`widget_state_${id}`, JSON.stringify(nextStates[id]));
+                      });
+                      return nextStates;
+                    });
+                  }}
                   className="text-xs px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-white"
                 >
                   <EyeOff size={12} className="inline mr-1" />

@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Bell, Menu, X } from 'lucide-react';
+import { Bell, Menu, X, Sun, Moon } from 'lucide-react';
 import { io } from 'socket.io-client';
 import { notificationService, type Notification as AppNotification } from '../services/notificationService';
+import { userSettingsService } from '../services/userSettingsService';
 import NotificationToast from '../components/NotificationToast';
 import { formUIService } from '../services/formUIService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -20,6 +21,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [isTogglingDarkMode, setIsTogglingDarkMode] = useState(false);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -355,6 +357,37 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
     }
   };
 
+  const handleThemeToggle = async () => {
+    const newTheme = !isDarkMode;
+    const darkmodeValue = newTheme ? 'active' : 'inactive';
+
+    setIsTogglingDarkMode(true);
+
+    try {
+      const authData = localStorage.getItem('authData');
+      if (authData) {
+        const userData = JSON.parse(authData);
+        const userId = userData.id;
+
+        if (userId) {
+          await userSettingsService.updateDarkMode(userId, darkmodeValue);
+          
+          localStorage.setItem('theme', newTheme ? 'dark' : 'light');
+          if (newTheme) {
+            document.documentElement.classList.add('dark');
+          } else {
+            document.documentElement.classList.remove('dark');
+          }
+          setIsDarkMode(newTheme);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to update dark mode:', error);
+    } finally {
+      setIsTogglingDarkMode(false);
+    }
+  };
+
 
 
   const toggleNotifications = async () => {
@@ -611,7 +644,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
       <div className="flex-1"></div>
 
       <div className="flex items-center space-x-2">
-
+        <button
+          onClick={handleThemeToggle}
+          disabled={isTogglingDarkMode}
+          className={`p-2 rounded-full transition-colors ${
+            isDarkMode 
+              ? 'text-yellow-400 hover:bg-gray-700' 
+              : 'text-gray-600 hover:bg-gray-100'
+          } ${isTogglingDarkMode ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+        </button>
 
         <div className="relative" ref={notificationRef}>
           <button

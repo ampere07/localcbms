@@ -101,7 +101,13 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50, 
         techCreatedAt: item.tech_created_at || '',
         techCreatedBy: item.tech_created_by || '',
         techUpdatedAt: item.tech_updated_at || '',
-        techUpdatedBy: item.tech_updated_by || ''
+        techUpdatedBy: item.tech_updated_by || '',
+        proofOfBillingUrl: item.proof_of_billing_url || '',
+        governmentValidIdUrl: item.government_valid_id_url || '',
+        secondGovernmentValidIdUrl: item.second_government_valid_id_url || '',
+        documentAttachmentUrl: item.document_attachment_url || '',
+        otherIspBillUrl: item.other_isp_bill_url || '',
+        accountNoCustomer: item.Account_No_Customer || ''
       }));
 
       return {
@@ -164,7 +170,13 @@ export const getBillingRecordDetails = async (id: string): Promise<BillingDetail
         barangay: item.Barangay || '',
         city: item.City || '',
         region: item.Region || '',
-        usageType: item.Usage_Type || item.usage_type || ''
+        usageType: item.Usage_Type || item.usage_type || '',
+        proofOfBillingUrl: item.proof_of_billing_url || '',
+        governmentValidIdUrl: item.government_valid_id_url || '',
+        secondGovernmentValidIdUrl: item.second_government_valid_id_url || '',
+        documentAttachmentUrl: item.document_attachment_url || '',
+        otherIspBillUrl: item.other_isp_bill_url || '',
+        accountNoCustomer: item.Account_No_Customer || ''
       };
 
       const detailRecord: BillingDetailRecord = {

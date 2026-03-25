@@ -22,11 +22,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   isDarkMode,
   colorPalette
 }) => {
-  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [detailsWidth, setDetailsWidth] = useState<number>(800);
   const [isResizing, setIsResizing] = useState<boolean>(false);
   const startXRef = useRef<number>(0);
   const startWidthRef = useRef<number>(0);
-  
+
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
@@ -72,7 +72,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return;
       const diff = startXRef.current - e.clientX;
-      const newWidth = Math.max(450, Math.min(1200, startWidthRef.current + diff));
+      const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
       setDetailsWidth(newWidth);
     };
     const handleMouseUp = () => setIsResizing(false);
@@ -153,7 +153,7 @@ const UserDetails: React.FC<UserDetailsProps> = ({
         return (
           <div className={baseFieldClass}>
             <div className={labelClass}>Username:</div>
-            <div className={valueClass}>@{user.username || 'N/A'}</div>
+            <div className={valueClass}>{user.username || 'N/A'}</div>
           </div>
         );
       case 'email':
@@ -217,11 +217,11 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
       <div className="flex-1 overflow-y-auto block h-full flex flex-col">
         <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex items-center">
-            <h2 className={isDarkMode ? 'text-white font-medium' : 'text-gray-900 font-medium'}>{getFullName(user)}</h2>
+          <div className="flex-1 min-w-0 pr-4">
+            <h2 className={`truncate text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{getFullName(user)}</h2>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto">
             <button
               onClick={() => onEdit(user)}
               className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90"
@@ -285,14 +285,14 @@ const UserDetails: React.FC<UserDetailsProps> = ({
                 </div>
               )}
             </div>
-
             <button
               onClick={onClose}
-              className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
+              className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}`}
               aria-label="Close"
             >
               <X size={18} />
             </button>
+
           </div>
         </div>
 
