@@ -68,7 +68,6 @@ export const CHART_COLORS = [
 
 // Widgets that should display currency formatting in tooltips/list
 export const CURRENCY_WIDGETS: string[] = [
-  'expenses_mon',
   'pay_method_mon',
   'invoice_mon_amount',
   'transactions_mon_amount',
@@ -83,7 +82,6 @@ export const DEFAULT_VISIBLE_WIDGETS: string[] = [
   'so_status',
   'queue_jo',
   'queue_so',
-  'expenses_mon',
 ];
 
 // IMPORTANT: keys here are widget IDs used by your UI
@@ -228,15 +226,6 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     filterType: 'year',
   },
 
-  expenses_mon: {
-    title: 'Expenses by Category',
-    api: 'expenses_mon',
-    param: '',
-    w: 4,
-    h: 6,
-    hasFilters: true,
-    filterType: 'date',
-  },
   pay_method_mon: {
     title: 'Payment Methods(Manual Transactions)',
     api: 'pay_method_mon',

@@ -1186,7 +1186,15 @@ const LiveMonitor: React.FC = () => {
             return (
               <div
                 key={id}
-                className={`shadow-lg transition-shadow ${isDraggable ? 'ring-2 ring-opacity-50' : ''}`}
+                data-grid={{
+                  w: config.w,
+                  h: config.h || 6,
+                  x: (i * config.w) % 12,
+                  y: Math.floor(i / Math.max(1, Math.floor(12 / config.w))) * (config.h ? config.h : 6),
+                  minW: 2,
+                  minH: 3
+                }}
+                className={`shadow-lg transition-shadow bg-transparent ${isDraggable ? 'ring-2 ring-opacity-50' : ''}`}
                 style={isDraggable && colorPalette?.primary ? { '--tw-ring-color': colorPalette.primary } as React.CSSProperties : {}}
               >
                 <div className={`h-full w-full rounded-lg border-l-4 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}
@@ -1236,61 +1244,65 @@ const LiveMonitor: React.FC = () => {
                         </button>
                       </div>
 
-                      <button
-                        onClick={() => updateWidgetState(id, { viewType: 'bar' })}
-                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
-                          ? 'text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 hover:bg-gray-700'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        style={widgetStates[id]?.viewType === 'bar' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                        title="Bar Chart"
-                      >
-                        <BarChart3 size={14} />
-                      </button>
+                      {id !== 'team_detailed_queue' && id !== 'agent_detailed_queue' && id !== 'tech_availability' && (
+                        <>
+                          <button
+                            onClick={() => updateWidgetState(id, { viewType: 'bar' })}
+                            className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'bar'
+                              ? 'text-white'
+                              : isDarkMode
+                                ? 'bg-gray-800 hover:bg-gray-700'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
+                            style={widgetStates[id]?.viewType === 'bar' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                            title="Bar Chart"
+                          >
+                            <BarChart3 size={14} />
+                          </button>
 
-                      <button
-                        onClick={() => updateWidgetState(id, { viewType: 'line' })}
-                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
-                          ? 'text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 hover:bg-gray-700'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        style={widgetStates[id]?.viewType === 'line' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                        title="Line Chart"
-                      >
-                        <LineChart size={14} />
-                      </button>
+                          <button
+                            onClick={() => updateWidgetState(id, { viewType: 'line' })}
+                            className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'line'
+                              ? 'text-white'
+                              : isDarkMode
+                                ? 'bg-gray-800 hover:bg-gray-700'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
+                            style={widgetStates[id]?.viewType === 'line' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                            title="Line Chart"
+                          >
+                            <LineChart size={14} />
+                          </button>
 
-                      <button
-                        onClick={() => updateWidgetState(id, { viewType: 'pie' })}
-                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
-                          ? 'text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 hover:bg-gray-700'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        style={widgetStates[id]?.viewType === 'pie' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                        title="Pie Chart"
-                      >
-                        <PieChart size={14} />
-                      </button>
+                          <button
+                            onClick={() => updateWidgetState(id, { viewType: 'pie' })}
+                            className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'pie'
+                              ? 'text-white'
+                              : isDarkMode
+                                ? 'bg-gray-800 hover:bg-gray-700'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
+                            style={widgetStates[id]?.viewType === 'pie' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                            title="Pie Chart"
+                          >
+                            <PieChart size={14} />
+                          </button>
 
-                      <button
-                        onClick={() => updateWidgetState(id, { viewType: 'list' })}
-                        className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
-                          ? 'text-white'
-                          : isDarkMode
-                            ? 'bg-gray-800 hover:bg-gray-700'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                          }`}
-                        style={widgetStates[id]?.viewType === 'list' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
-                        title="List View"
-                      >
-                        <List size={14} />
-                      </button>
+                          <button
+                            onClick={() => updateWidgetState(id, { viewType: 'list' })}
+                            className={`p-1.5 rounded transition-colors ${widgetStates[id]?.viewType === 'list'
+                              ? 'text-white'
+                              : isDarkMode
+                                ? 'bg-gray-800 hover:bg-gray-700'
+                                : 'bg-gray-100 hover:bg-gray-200'
+                              }`}
+                            style={widgetStates[id]?.viewType === 'list' ? { backgroundColor: colorPalette?.primary || '#7c3aed' } : {}}
+                            title="List View"
+                          >
+                            <List size={14} />
+                          </button>
+                        </>
+                      )}
 
                       {(id === 'team_detailed_queue' || id === 'agent_detailed_queue') && (
                         <button
