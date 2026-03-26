@@ -75,6 +75,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     'secondContactNumber',
     'emailAddress',
     'fullAddress',
+    'addressCoordinates',
     'billingStatus',
     'billingDay',
     'choosePlan',
@@ -660,6 +661,7 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
       secondContactNumber: 'Second Contact Number',
       emailAddress: 'Email Address',
       fullAddress: 'Full Address',
+      addressCoordinates: 'Address Coordinates',
       billingStatus: 'Billing Status',
       billingDay: 'Billing Day',
       choosePlan: 'Choose Plan',
@@ -830,6 +832,16 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
           <div className={baseFieldClass}>
             <div className={labelClass}>Full Address:</div>
             <div className={valueClass}>{fullAddr}</div>
+          </div>
+        );
+
+      case 'addressCoordinates':
+        const coordinates = applicationData?.long_lat || jobOrder.address_coordinates || jobOrder.Address_Coordinates;
+        if (!coordinates) return null;
+        return (
+          <div className={baseFieldClass}>
+            <div className={labelClass}>Address Coordinates:</div>
+            <div className={valueClass}>{coordinates}</div>
           </div>
         );
 

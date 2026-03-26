@@ -28,6 +28,7 @@ export interface Application {
   other_isp_bill_url?: string;
   terms_agreed?: boolean;
   status?: string;
+  long_lat?: string;
   created_at?: string;
   updated_at?: string;
   created_by_user_id?: number;

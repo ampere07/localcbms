@@ -49,7 +49,8 @@ class Application extends Model
         'pppoe_username',
         'pppoe_password',
         'created_by_user_id',
-        'updated_by'
+        'updated_by',
+        'long_lat'
     ];
     
     protected $casts = [
