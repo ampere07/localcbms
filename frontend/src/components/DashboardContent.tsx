@@ -161,6 +161,26 @@ const DashboardContent: React.FC = () => {
     </div>
   );
 
+  const getTodayScope = () => {
+    const today = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const month = pad(today.getMonth() + 1);
+    const date = pad(today.getDate());
+    const year = today.getFullYear();
+    return `${month}/${date}/${year} 00:00:00 - ${month}/${date}/${year} 23:59:59`;
+  };
+
+  const getMonthlyScope = () => {
+    const today = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const startMonth = pad(today.getMonth() + 1);
+    const year = today.getFullYear();
+    const end = new Date(year, today.getMonth() + 1, 0);
+    const endMonth = pad(end.getMonth() + 1);
+    const endDate = pad(end.getDate());
+    return `${startMonth}/01/${year} 00:00:00 - ${endMonth}/${endDate}/${year} 23:59:59`;
+  };
+
   return (
     <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'bg-slate-950 text-white' : 'bg-slate-50 text-slate-900'}`}>
       <div className="p-8 max-w-7xl mx-auto space-y-8">
@@ -179,8 +199,11 @@ const DashboardContent: React.FC = () => {
 
         {/* Middle Row: Support Monthly Summary */}
         <div className={`rounded-2xl border p-8 ${isDarkMode ? 'bg-slate-900/40 border-slate-800 backdrop-blur-xl' : 'bg-white border-slate-200 shadow-lg'}`}>
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-bold uppercase tracking-widest text-indigo-500">Support Monthly Summary</h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4 sm:gap-0">
+            <h2 className={`text-xl font-bold uppercase tracking-widest ${isDarkMode ? 'text-slate-100' : 'text-slate-800'}`}>Support Monthly Summary</h2>
+            <div className={`text-xs font-medium ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Scope: {getMonthlyScope()}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12 min-h-[350px]">
@@ -213,7 +236,8 @@ const DashboardContent: React.FC = () => {
 
           {/* Support Status Today */}
           <div className={`rounded-2xl border p-6 transition-transform hover:translate-y-[-4px] duration-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-md'}`}>
-            <h3 className="font-bold uppercase tracking-widest text-xs mb-6 opacity-70">Support Status Today</h3>
+            <h3 className="font-bold uppercase tracking-widest text-xs mb-1 opacity-70">Support Status Today</h3>
+            <p className={`text-[10px] mb-5 tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{getTodayScope()}</p>
             <div className="space-y-2">
               {statusItem("In Progress", counts?.support_status_in_progress, "text-blue-500")}
               {statusItem("For Visit", counts?.support_status_for_visit, "text-indigo-500")}
@@ -224,7 +248,8 @@ const DashboardContent: React.FC = () => {
 
           {/* For Visit Today */}
           <div className={`rounded-2xl border p-6 transition-transform hover:translate-y-[-4px] duration-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-md'}`}>
-            <h3 className="font-bold uppercase tracking-widest text-xs mb-6 opacity-70">For Visit Today</h3>
+            <h3 className="font-bold uppercase tracking-widest text-xs mb-1 opacity-70">For Visit Today</h3>
+            <p className={`text-[10px] mb-5 tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{getTodayScope()}</p>
             <div className="space-y-2">
               {statusItem("In Progress", counts?.visit_status_in_progress, "text-amber-500")}
               {statusItem("Done", counts?.visit_status_done, "text-emerald-500")}
@@ -235,7 +260,8 @@ const DashboardContent: React.FC = () => {
 
           {/* Job Order Onsite Status Today */}
           <div className={`rounded-2xl border p-6 transition-transform hover:translate-y-[-4px] duration-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-md'}`}>
-            <h3 className="font-bold uppercase tracking-widest text-xs mb-6 opacity-70">Job Order Onsite Status</h3>
+            <h3 className="font-bold uppercase tracking-widest text-xs mb-1 opacity-70">Job Order Onsite Status</h3>
+            <p className={`text-[10px] mb-5 tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{getTodayScope()}</p>
             <div className="space-y-2">
               {statusItem("Pending", counts?.jo_status_pending, "text-slate-500")}
               {statusItem("In Progress", counts?.jo_status_in_progress, "text-blue-500")}
@@ -246,7 +272,8 @@ const DashboardContent: React.FC = () => {
 
           {/* Applications Status Today */}
           <div className={`rounded-2xl border p-6 transition-transform hover:translate-y-[-4px] duration-500 ${isDarkMode ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-md'}`}>
-            <h3 className="font-bold uppercase tracking-widest text-xs mb-6 opacity-70">Application Status</h3>
+            <h3 className="font-bold uppercase tracking-widest text-xs mb-1 opacity-70">Application Status</h3>
+            <p className={`text-[10px] mb-5 tracking-wider ${isDarkMode ? 'text-slate-400' : 'text-slate-500'}`}>{getTodayScope()}</p>
             <div className="space-y-1">
               {statusItem("Scheduled", counts?.app_status_scheduled, "text-indigo-500")}
               {statusItem("In Progress", counts?.app_status_in_progress, "text-blue-500")}
