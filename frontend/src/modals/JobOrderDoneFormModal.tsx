@@ -499,7 +499,6 @@ const JobOrderDoneFormModal: React.FC<JobOrderDoneFormModalProps> = ({
 
       if (applicationId) {
         const applicationUpdateData: any = {
-          status: updatedFormData.status,
           first_name: updatedFormData.firstName,
           middle_initial: updatedFormData.middleInitial,
           last_name: updatedFormData.lastName,
