@@ -194,7 +194,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-5">
+        <form autoComplete="off" className="flex-1 overflow-y-auto p-6 space-y-5">
           {errors.general && (
             <div className="p-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded text-sm">
               {errors.general}
@@ -233,7 +233,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
 
             <div>
               <label className={labelClass}>Contact Number</label>
-              <input name="contact_number" value={formData.contact_number} onChange={handleInputChange} className={inputClass} placeholder="Enter contact number" />
+              <input name="contact_number" value={formData.contact_number} onChange={handleInputChange} autoComplete="off" className={inputClass} placeholder="Enter contact number" />
             </div>
 
 
@@ -254,6 +254,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
                   name="password"
                   value={formData.password}
                   onChange={handleInputChange}
+                  autoComplete="new-password"
                   className={`${inputClass} ${errors.password ? 'border-red-500' : ''}`}
                   placeholder={isEditMode ? 'Leave blank to keep current' : 'At least 8 characters'}
                 />
@@ -286,7 +287,7 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
               </div>
             )}
           </div>
-        </div>
+        </form>
 
         {/* Footer */}
         <div className={`px-6 py-4 border-t flex items-center justify-end gap-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>

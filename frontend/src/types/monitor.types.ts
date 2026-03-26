@@ -268,8 +268,8 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     param: '',
     w: 12, // Full width table
     h: 8,
-    hasFilters: false,
-    filterType: 'none',
+    hasFilters: true,
+    filterType: 'toggle_today',
   },
   agent_detailed_queue: {
     title: 'Agent Detailed Queue',
@@ -277,7 +277,7 @@ export const WIDGETS: Record<string, WidgetConfig> = {
     param: '',
     w: 12, // Full width table
     h: 8,
-    hasFilters: false,
-    filterType: 'none',
+    hasFilters: true,
+    filterType: 'toggle_today',
   },
 };

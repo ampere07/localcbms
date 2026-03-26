@@ -63,7 +63,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     port: customerData.technicalDetails?.port || '',
     vlan: customerData.technicalDetails?.vlan || '',
     billingDay: customerData.billingAccount?.billingDay || 0,
-    totalPaid: (customerData as any).total_paid || 0,
+    totalPaid: (customerData as any).totalPaid || (customerData as any).total_paid || 0,
     provider: customerData.groupName || '',
     lcp: customerData.technicalDetails?.lcp || '',
     nap: customerData.technicalDetails?.nap || '',
@@ -89,6 +89,14 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     billingAccountCreatedAt: (customerData.billingAccount as any)?.createdAt || '',
     billingAccountUpdatedBy: (customerData.billingAccount as any)?.updatedBy || '',
     billingAccountUpdatedAt: (customerData.billingAccount as any)?.updatedAt || '',
+    proofOfBillingUrl: customerData.proofOfBillingUrl || '',
+    governmentValidIdUrl: customerData.governmentValidIdUrl || '',
+    secondGovernmentValidIdUrl: customerData.secondGovernmentValidIdUrl || '',
+    documentAttachmentUrl: customerData.documentAttachmentUrl || '',
+    otherIspBillUrl: customerData.otherIspBillUrl || '',
+    accountNoCustomer: customerData.accountNoCustomer || '',
+    customerUpdatedBy: customerData.updatedBy || '',
+    techUpdatedBy: customerData.technicalDetails?.updatedBy || '',
   };
 };
 

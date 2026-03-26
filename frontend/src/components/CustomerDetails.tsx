@@ -348,7 +348,8 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       'governmentValidIdUrl',
       'secondGovernmentValidIdUrl',
       'documentAttachmentUrl',
-      'otherIspBillUrl'
+      'otherIspBillUrl',
+      'customerUpdatedBy'
     ],
     technicalDetails: [
       'usageType',
@@ -364,7 +365,8 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       'lcpnap',
       'vlan',
       'port',
-      'sessionIp'
+      'sessionIp',
+      'techUpdatedBy'
     ],
     billingDetails: [
       'accountNumber',
@@ -394,7 +396,21 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
 
   const [fieldOrder, setFieldOrder] = useState(() => {
     const saved = localStorage.getItem(FIELD_ORDER_KEY);
-    return saved ? JSON.parse(saved) : defaultFieldOrder;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Merge any new fields from defaultFieldOrder that aren't in the saved order
+      const merged: Record<string, string[]> = { ...parsed };
+      for (const section of Object.keys(defaultFieldOrder) as Array<keyof typeof defaultFieldOrder>) {
+        const savedSection = merged[section] || [];
+        const defaults = defaultFieldOrder[section];
+        const missing = defaults.filter((f: string) => !savedSection.includes(f));
+        if (missing.length > 0) {
+          merged[section] = [...savedSection, ...missing];
+        }
+      }
+      return merged;
+    }
+    return defaultFieldOrder;
   });
 
   const [draggedItem, setDraggedItem] = useState<{ section: string; index: number } | null>(null);
@@ -530,7 +546,9 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     const resolveUserIds = async () => {
       const ids = [
         billingRecord.billingAccountCreatedBy,
-        billingRecord.billingAccountUpdatedBy
+        billingRecord.billingAccountUpdatedBy,
+        billingRecord.customerUpdatedBy,
+        billingRecord.techUpdatedBy
       ].filter((v): v is string => !!v && !isNaN(Number(v)));
 
       const uniqueIds = Array.from(new Set(ids));
@@ -551,7 +569,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
     };
 
     resolveUserIds();
-  }, [billingRecord.billingAccountCreatedBy, billingRecord.billingAccountUpdatedBy]);
+  }, [billingRecord.billingAccountCreatedBy, billingRecord.billingAccountUpdatedBy, billingRecord.customerUpdatedBy, billingRecord.techUpdatedBy]);
 
   const toggleColumnVisibility = (column: string) => {
     setColumnVisibility((prev: Record<string, boolean>) => ({
@@ -653,7 +671,9 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       governmentValidIdUrl: 'Government ID',
       secondGovernmentValidIdUrl: 'Second Government ID',
       documentAttachmentUrl: 'Document Attachment',
-      otherIspBillUrl: 'Other ISP Bill'
+      otherIspBillUrl: 'Other ISP Bill',
+      customerUpdatedBy: 'Updated By',
+      techUpdatedBy: 'Updated By'
     };
     return labels[fieldKey] || fieldKey;
   };
@@ -874,6 +894,32 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
           </button>
         </div>
       ) : null,
+      customerUpdatedBy: () => {
+        const raw = billingRecord.customerUpdatedBy;
+        if (!raw) return null;
+        const display = (raw && !isNaN(Number(raw)))
+          ? (userEmailCache[raw] || raw)
+          : raw;
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Updated By</span>
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{display}</span>
+          </div>
+        );
+      },
+      techUpdatedBy: () => {
+        const raw = billingRecord.techUpdatedBy;
+        if (!raw) return null;
+        const display = (raw && !isNaN(Number(raw)))
+          ? (userEmailCache[raw] || raw)
+          : raw;
+        return (
+          <div className="flex justify-between items-center">
+            <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Updated By</span>
+            <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{display}</span>
+          </div>
+        );
+      },
       usageType: () => billingRecord.usageType ? (
         <div className="flex justify-between items-center">
           <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'

@@ -18,6 +18,13 @@ export interface CustomerDetailData {
   referredBy?: string;
   desiredPlan?: string;
   houseFrontPictureUrl?: string;
+  proofOfBillingUrl?: string;
+  governmentValidIdUrl?: string;
+  secondGovernmentValidIdUrl?: string;
+  documentAttachmentUrl?: string;
+  otherIspBillUrl?: string;
+  accountNoCustomer?: string;
+  updatedBy?: string;
   groupId?: number;
   groupName?: string;
 
@@ -47,6 +54,7 @@ export interface CustomerDetailData {
     lcpnap?: string;
     usageTypeId?: number;
     usageType?: string;
+    updatedBy?: string;
   };
 
   createdAt?: string;

@@ -13,6 +13,7 @@ import { settingsColorPaletteService, ColorPalette } from '../services/settingsC
 import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/imageSettingsService';
 import { billingStatusService, BillingStatus } from '../services/billingStatusService';
 import { getUsedPorts } from '../services/portService';
+import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import apiClient from '../config/api';
 
 interface CustomerDetailsEditModalProps {
@@ -65,6 +66,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
+  const [inventoryRouterModels, setInventoryRouterModels] = useState<InventoryItem[]>([]);
+  const [routerModelSearch, setRouterModelSearch] = useState('');
+  const [isRouterModelOpen, setIsRouterModelOpen] = useState(false);
+  const [originalRouterModemSn, setOriginalRouterModemSn] = useState('');
 
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
@@ -218,12 +223,16 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
             const rawPort = recordData.port || recordData.PORT || (parts.length >= 3 ? parts[2] : '');
             if (!rawPort) return '';
             const portNum = String(rawPort).replace(/[^\d]/g, '');
-            return portNum ? `p${portNum.padStart(2, '0')}` : '';
+            return portNum ? `P${portNum.padStart(2, '0')}` : '';
           })(),
           vlan: recordData.vlan || recordData.VLAN || '',
           lcpnap: lcpnapValue,
           usageType: recordData.usageType || recordData.usage_type || ''
         });
+
+        const initialSn = recordData.routerModemSn || recordData.router_modem_sn || recordData.routerModemSN || '';
+        setOriginalRouterModemSn(initialSn);
+        setRouterModelSearch(recordData.routerModel || recordData.router_model || '');
       }
     }
     // Using granular IDs instead of the whole recordData object prevents 
@@ -279,14 +288,19 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
             }
           }
         } else if (editType === 'technical_details') {
-          const [fetchedRouterModels, lcpnapsRes, vlansRes, usageTypesRes] = await Promise.all([
+          const [fetchedRouterModels, lcpnapsRes, vlansRes, usageTypesRes, inventoryRes] = await Promise.all([
             routerModelService.getAllRouterModels(),
             getAllLCPNAPs('', 1, 1000),
             getAllVLANs(),
-            getAllUsageTypes()
+            getAllUsageTypes(),
+            getAllInventoryItems('', 1, 500)
           ]);
 
           setRouterModels(fetchedRouterModels);
+
+          if (inventoryRes.success && Array.isArray(inventoryRes.data)) {
+            setInventoryRouterModels(inventoryRes.data.filter((item: InventoryItem) => item.category_id === 11));
+          }
 
           if (lcpnapsRes.success && Array.isArray(lcpnapsRes.data)) {
             setLcpnaps(lcpnapsRes.data);
@@ -594,8 +608,9 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       return;
     }
 
-    // SmartOLT Validation Logic for Technical Details
-    if (editType === 'technical_details' && formData.connectionType === 'Fiber' && formData.routerModemSn?.trim()) {
+    // SmartOLT Validation Logic for Technical Details (skip if SN hasn't changed)
+    const snChanged = formData.routerModemSn?.trim() !== originalRouterModemSn?.trim();
+    if (editType === 'technical_details' && formData.connectionType === 'Fiber' && formData.routerModemSn?.trim() && snChanged) {
       try {
         console.log('[SMARTOLT VALIDATION] Validating Modem SN:', formData.routerModemSn);
         setLoading(true);
@@ -656,7 +671,13 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         message: 'Please wait while we update the details.'
       });
 
-      await onSave(formData, editType);
+      // Inject logged-in user's email as updatedBy
+      const authData = localStorage.getItem('authData');
+      const parsedUser = authData ? JSON.parse(authData) : null;
+      const updatedBy = parsedUser ? (parsedUser.email_address || parsedUser.email || '') : '';
+      const dataWithUpdatedBy = { ...formData, updatedBy };
+
+      await onSave(dataWithUpdatedBy, editType);
 
       setModal({
         isOpen: true,
@@ -1272,36 +1293,85 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   {errors.connectionType && <p className="text-red-500 text-xs mt-1">{errors.connectionType}</p>}
                 </div>
 
-                <div>
+                <div className="relative">
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
                     Router Model<span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <select
-                      value={formData.routerModel || ''}
-                      onChange={(e) => handleInputChange('routerModel', e.target.value)}
-                      onFocus={(e) => {
-                        if (colorPalette?.primary) {
-                          e.currentTarget.style.borderColor = colorPalette.primary;
-                          e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
+                    } ${errors.routerModel ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
+                    <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
+                    <input
+                      type="text"
+                      placeholder="Search Router Model..."
+                      value={isRouterModelOpen ? routerModelSearch : (formData.routerModel || '')}
+                      onChange={(e) => {
+                        setRouterModelSearch(e.target.value);
+                        if (!isRouterModelOpen) setIsRouterModelOpen(true);
+                      }}
+                      onFocus={() => {
+                        setIsRouterModelOpen(true);
+                      }}
+                      className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isRouterModelOpen) {
+                          setIsRouterModelOpen(false);
+                        } else {
+                          handleInputChange('routerModel', '');
+                          setRouterModelSearch('');
                         }
                       }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor = errors.routerModel ? '#ef4444' : (isDarkMode ? '#374151' : '#d1d5db');
-                        e.currentTarget.style.boxShadow = 'none';
-                      }}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none transition-colors appearance-none ${errors.routerModel ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+                      className={`ml-2 transition-transform duration-200 ${isRouterModelOpen ? 'rotate-180' : ''}`}
                     >
-                      <option value="">Select Router Model</option>
-                      {routerModels.map((model, index) => (
-                        <option key={index} value={model.model}>
-                          {model.model}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
+                      <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
+                    </button>
                   </div>
+
+                  {/* Router Model Recommendation Dropdown */}
+                  {isRouterModelOpen && (
+                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} style={{ minWidth: '100%' }}>
+                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                        {inventoryRouterModels
+                          .filter(item => item.item_name.toLowerCase().includes(routerModelSearch.toLowerCase()))
+                          .map((item) => (
+                            <div
+                              key={item.id}
+                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.routerModel === item.item_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                              onClick={() => {
+                                handleInputChange('routerModel', item.item_name);
+                                setIsRouterModelOpen(false);
+                                setRouterModelSearch('');
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span>{item.item_name}</span>
+                                {formData.routerModel === item.item_name && (
+                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        {inventoryRouterModels.filter(item => item.item_name.toLowerCase().includes(routerModelSearch.toLowerCase())).length === 0 && (
+                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                            No Router Model found for "{routerModelSearch}"
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Click outside to close */}
+                  {isRouterModelOpen && (
+                    <div
+                      className="fixed inset-0 z-40 bg-transparent"
+                      onClick={() => {
+                        setIsRouterModelOpen(false);
+                        setRouterModelSearch('');
+                      }}
+                    />
+                  )}
                   {errors.routerModel && <p className="text-red-500 text-xs mt-1">{errors.routerModel}</p>}
                 </div>
 

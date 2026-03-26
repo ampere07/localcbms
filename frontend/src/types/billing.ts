@@ -56,6 +56,7 @@ export interface BillingRecord {
   billingAccountUpdatedAt?: string;
   customerCreatedAt?: string;
   customerCreatedBy?: string;
+  customerUpdatedBy?: string;
   usernameStatus?: string;
   techCreatedAt?: string;
   techCreatedBy?: string;

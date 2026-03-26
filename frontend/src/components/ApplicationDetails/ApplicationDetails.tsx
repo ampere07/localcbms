@@ -47,6 +47,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [selectedPlanForOverlay, setSelectedPlanForOverlay] = useState<Plan | null>(null);
   const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
   const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
+  const [statusRemarks, setStatusRemarks] = useState<string>('');
 
   const FIELD_VISIBILITY_KEY = 'applicationDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'applicationDetailsFieldOrder';
@@ -76,7 +77,9 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     'nearestLandmark1',
     'nearestLandmark2',
     'documentAttachment',
-    'otherIspBill'
+    'otherIspBill',
+    'remarks',
+    'updatedBy'
   ];
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
@@ -89,7 +92,12 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
   const [fieldOrder, setFieldOrder] = useState<string[]>(() => {
     const saved = localStorage.getItem(FIELD_ORDER_KEY);
-    return saved ? JSON.parse(saved) : defaultFields;
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      const missing = defaultFields.filter((f: string) => !parsed.includes(f));
+      return missing.length > 0 ? [...parsed, ...missing] : parsed;
+    }
+    return defaultFields;
   });
 
   useEffect(() => {
@@ -202,6 +210,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
   const handleStatusChange = (newStatus: string) => {
     setPendingStatus(newStatus);
+    setStatusRemarks('');
     setShowStatusConfirmation(true);
   };
 
@@ -210,13 +219,22 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     try {
       setLoading(true);
 
-      await updateApplication(application.id, { status: pendingStatus });
+      const authData = localStorage.getItem('authData');
+      const parsedUser = authData ? JSON.parse(authData) : null;
+      const updatedBy = parsedUser ? (parsedUser.email_address || parsedUser.email || '') : '';
+
+      await updateApplication(application.id, {
+        status: pendingStatus,
+        remarks: statusRemarks,
+        updated_by: updatedBy
+      } as any);
 
       const updatedApplication = await getApplication(application.id);
       setDetailedApplication(updatedApplication);
 
       setShowStatusConfirmation(false);
       setPendingStatus('');
+      setStatusRemarks('');
 
       if (onApplicationUpdate) {
         onApplicationUpdate();
@@ -235,6 +253,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const handleCancelStatusChange = () => {
     setShowStatusConfirmation(false);
     setPendingStatus('');
+    setStatusRemarks('');
   };
 
   const handleSaveJOForm = (formData: JobOrderData) => {
@@ -356,7 +375,9 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
       nearestLandmark1: 'Nearest Landmark 1',
       nearestLandmark2: 'Nearest Landmark 2',
       documentAttachment: 'Document Attachment',
-      otherIspBill: 'Other ISP Bill'
+      otherIspBill: 'Other ISP Bill',
+      remarks: 'Remarks',
+      updatedBy: 'Updated By'
     };
     return labels[fieldKey] || fieldKey;
   };
@@ -865,6 +886,24 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
         );
 
+      case 'remarks':
+        if (!detailedApplication?.remarks) return null;
+        return (
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Remarks:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{detailedApplication.remarks}</div>
+          </div>
+        );
+
+      case 'updatedBy':
+        if (!detailedApplication?.updated_by) return null;
+        return (
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Updated By:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{detailedApplication.updated_by}</div>
+          </div>
+        );
+
       default:
         return null;
     }
@@ -912,7 +951,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
 
         <div className="flex items-center space-x-3">
-          {detailedApplication?.status?.toLowerCase() !== 'scheduled' && detailedApplication?.status?.toLowerCase() !== 'schedule' && (
+          {!['scheduled', 'schedule', 'duplicate', 'cancelled', 'no slot', 'no facility'].includes(detailedApplication?.status?.toLowerCase() || '') && (
             <button
               className="px-3 py-1 rounded-sm flex items-center text-white"
               style={{
@@ -1046,7 +1085,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
       <div className={`py-3 border-b flex items-center justify-center px-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
         }`}>
-        <button
+        {detailedApplication?.status?.toLowerCase() !== 'no facility' && <button
           className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
             }`}
           onClick={() => handleStatusChange('No Facility')}
@@ -1064,9 +1103,9 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
           <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>No Facility</span>
-        </button>
+        </button>}
 
-        <button
+        {detailedApplication?.status?.toLowerCase() !== 'cancelled' && <button
           className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
             }`}
           onClick={() => handleStatusChange('Cancelled')}
@@ -1084,9 +1123,9 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
           <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>Cancelled</span>
-        </button>
+        </button>}
 
-        <button
+        {detailedApplication?.status?.toLowerCase() !== 'no slot' && <button
           className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
             }`}
           onClick={() => handleStatusChange('No Slot')}
@@ -1104,9 +1143,9 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
           <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>No Slot</span>
-        </button>
+        </button>}
 
-        <button
+        {detailedApplication?.status?.toLowerCase() !== 'duplicate' && <button
           className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
             }`}
           onClick={() => handleStatusChange('Duplicate')}
@@ -1124,7 +1163,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           </div>
           <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
             }`}>Duplicate</span>
-        </button>
+        </button>}
       </div>
 
       {error && (
@@ -1161,15 +1200,50 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         onCancel={() => setShowMoveConfirmation(false)}
       />
 
-      <ConfirmationModal
-        isOpen={showStatusConfirmation}
-        title="Confirm Status Change"
-        message={`Are you sure you want to change the status to "${pendingStatus}"?`}
-        confirmText="Change Status"
-        cancelText="Cancel"
-        onConfirm={handleConfirmStatusChange}
-        onCancel={handleCancelStatusChange}
-      />
+      {showStatusConfirmation && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[6000]">
+          <div className={`w-full max-w-md rounded-lg shadow-xl ${isDarkMode ? 'bg-gray-900 border border-gray-700' : 'bg-white border border-gray-200'}`}>
+            <div className={`px-6 py-4 border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <h3 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                Change Status to "{pendingStatus}"
+              </h3>
+            </div>
+            <div className="px-6 py-4 space-y-3">
+              <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                Are you sure you want to change the status to "{pendingStatus}"?
+              </p>
+              <div>
+                <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Remarks
+                </label>
+                <textarea
+                  value={statusRemarks}
+                  onChange={(e) => setStatusRemarks(e.target.value)}
+                  rows={3}
+                  placeholder="Enter remarks (optional)"
+                  className={`w-full px-3 py-2 rounded border focus:outline-none resize-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                />
+              </div>
+            </div>
+            <div className={`px-6 py-4 border-t flex justify-end gap-3 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+              <button
+                onClick={handleCancelStatusChange}
+                className={`px-4 py-2 rounded text-sm ${isDarkMode ? 'bg-gray-800 hover:bg-gray-700 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-900'}`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmStatusChange}
+                disabled={loading}
+                className="px-4 py-2 rounded text-sm text-white disabled:opacity-50"
+                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
+              >
+                {loading ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <JOAssignFormModal
         isOpen={showJOAssignForm}

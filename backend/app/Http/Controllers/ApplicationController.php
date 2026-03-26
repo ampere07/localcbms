@@ -360,6 +360,7 @@ class ApplicationController extends Controller
                 'updated_at' => $application->updated_at ? $application->updated_at->format('Y-m-d H:i:s') : null,
                 'created_by_user_id' => $application->created_by_user_id,
                 'updated_by' => $application->updated_by,
+                'remarks' => $application->remarks,
                 
                 'create_date' => $application->timestamp ? $application->timestamp->format('Y-m-d') : null,
                 'create_time' => $application->timestamp ? $application->timestamp->format('H:i:s') : null
@@ -399,12 +400,14 @@ class ApplicationController extends Controller
                 'landmark' => 'nullable',
                 'referred_by' => 'nullable|string|max:255',
                 'desired_plan' => 'nullable|string|max:255',
-                'promo' => 'nullable|string|max:255'
+                'promo' => 'nullable|string|max:255',
+                'remarks' => 'nullable|string',
+                'updated_by' => 'nullable|string|max:255'
             ]);
 
             $application = Application::findOrFail($id);
             $oldStatus = $application->status;
-            $validatedData['updated_by'] = auth()->user()->email ?? 'system';
+            $validatedData['updated_by'] = $request->input('updated_by') ?? auth()->user()->email ?? 'system';
             $application->update($validatedData);
 
             // Create Activity Log
