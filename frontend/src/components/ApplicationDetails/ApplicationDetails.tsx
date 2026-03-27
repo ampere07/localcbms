@@ -28,6 +28,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detailedApplication, setDetailedApplication] = useState<any>(null);
+  const currentStatus = (detailedApplication?.status || application.status || '').toLowerCase();
   const [showMoveConfirmation, setShowMoveConfirmation] = useState(false);
   const [showJOAssignForm, setShowJOAssignForm] = useState(false);
   const [showVisitForm, setShowVisitForm] = useState(false);
@@ -951,7 +952,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
 
         <div className="flex items-center space-x-3">
-          {!['scheduled', 'schedule', 'duplicate', 'cancelled', 'no slot', 'no facility'].includes(detailedApplication?.status?.toLowerCase() || '') && (
+          {!['scheduled', 'schedule', 'duplicate', 'cancelled', 'no slot', 'no facility'].includes(currentStatus) && (
             <button
               className="px-3 py-1 rounded-sm flex items-center text-white"
               style={{
@@ -1083,88 +1084,90 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
       </div>
 
-      <div className={`py-3 border-b flex items-center justify-center px-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
-        }`}>
-        {detailedApplication?.status?.toLowerCase() !== 'no facility' && <button
-          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-            }`}
-          onClick={() => handleStatusChange('No Facility')}
-          disabled={loading}
-        >
-          <div
-            className="p-2 rounded-full"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
+      {currentStatus !== 'scheduled' && currentStatus !== 'schedule' && (
+        <div className={`py-3 border-b flex items-center justify-center px-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-100 border-gray-200'
+          }`}>
+          {currentStatus !== 'no facility' && <button
+            className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+              }`}
+            onClick={() => handleStatusChange('No Facility')}
+            disabled={loading}
           >
-            <div className="text-white">
-              <Ban size={18} />
+            <div
+              className="p-2 rounded-full"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+            >
+              <div className="text-white">
+                <Ban size={18} />
+              </div>
             </div>
-          </div>
-          <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>No Facility</span>
-        </button>}
+            <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>No Facility</span>
+          </button>}
 
-        {detailedApplication?.status?.toLowerCase() !== 'cancelled' && <button
-          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-            }`}
-          onClick={() => handleStatusChange('Cancelled')}
-          disabled={loading}
-        >
-          <div
-            className="p-2 rounded-full"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
+            {currentStatus !== 'cancelled' && <button
+            className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+              }`}
+            onClick={() => handleStatusChange('Cancelled')}
+            disabled={loading}
           >
-            <div className="text-white">
-              <XCircle size={18} />
+            <div
+              className="p-2 rounded-full"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+            >
+              <div className="text-white">
+                <XCircle size={18} />
+              </div>
             </div>
-          </div>
-          <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Cancelled</span>
-        </button>}
+            <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Cancelled</span>
+          </button>}
 
-        {detailedApplication?.status?.toLowerCase() !== 'no slot' && <button
-          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-            }`}
-          onClick={() => handleStatusChange('No Slot')}
-          disabled={loading}
-        >
-          <div
-            className="p-2 rounded-full"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
+            {currentStatus !== 'no slot' && <button
+            className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+              }`}
+            onClick={() => handleStatusChange('No Slot')}
+            disabled={loading}
           >
-            <div className="text-white">
-              <RotateCw size={18} />
+            <div
+              className="p-2 rounded-full"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+            >
+              <div className="text-white">
+                <RotateCw size={18} />
+              </div>
             </div>
-          </div>
-          <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>No Slot</span>
-        </button>}
+            <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>No Slot</span>
+          </button>}
 
-        {detailedApplication?.status?.toLowerCase() !== 'duplicate' && <button
-          className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
-            }`}
-          onClick={() => handleStatusChange('Duplicate')}
-          disabled={loading}
-        >
-          <div
-            className="p-2 rounded-full"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
+            {currentStatus !== 'duplicate' && <button
+            className={`flex flex-col items-center text-center p-2 rounded-md transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-200'
+              }`}
+            onClick={() => handleStatusChange('Duplicate')}
+            disabled={loading}
           >
-            <div className="text-white">
-              <Square size={18} />
+            <div
+              className="p-2 rounded-full"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+            >
+              <div className="text-white">
+                <Square size={18} />
+              </div>
             </div>
-          </div>
-          <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-            }`}>Duplicate</span>
-        </button>}
-      </div>
+            <span className={`text-xs mt-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}>Duplicate</span>
+          </button>}
+        </div>
+      )}
 
       {error && (
         <div className={`p-3 m-3 rounded ${isDarkMode

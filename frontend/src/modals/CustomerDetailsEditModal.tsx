@@ -662,8 +662,19 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       }
     }
 
+    setLoading(true);
+    setLoadingPercentage(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingPercentage(prev => {
+        if (prev >= 99) return 99;
+        if (prev >= 90) return prev + 1;
+        if (prev >= 70) return prev + 2;
+        return prev + 5;
+      });
+    }, 300);
+
     try {
-      setLoading(true);
       setModal({
         isOpen: true,
         type: 'loading',
@@ -671,13 +682,25 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
         message: 'Please wait while we update the details.'
       });
 
-      // Inject logged-in user's email as updatedBy
+      // Inject logged-in user's ID as updatedBy (backend expects an unsignedBigInteger for the users table foreign key)
       const authData = localStorage.getItem('authData');
       const parsedUser = authData ? JSON.parse(authData) : null;
-      const updatedBy = parsedUser ? (parsedUser.email_address || parsedUser.email || '') : '';
-      const dataWithUpdatedBy = { ...formData, updatedBy };
+      let loggedInUserId = '';
+      
+      if (parsedUser) {
+        // Use user ID so the backend stores the correct foreign key (e.g., 7 instead of truncating an email string to 1 or 0)
+        loggedInUserId = parsedUser.id || parsedUser.user?.id || '';
+      }
+      
+      const dataWithUpdatedBy = { ...formData, updatedBy: loggedInUserId };
 
       await onSave(dataWithUpdatedBy, editType);
+
+      clearInterval(progressInterval);
+      setLoadingPercentage(100);
+
+      // Brief delay to show 100%
+      await new Promise(resolve => setTimeout(resolve, 500));
 
       setModal({
         isOpen: true,
@@ -691,6 +714,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       });
     } catch (error: any) {
       console.error('Save failed:', error);
+      clearInterval(progressInterval);
       setModal({
         isOpen: true,
         type: 'error',
@@ -700,6 +724,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       });
     } finally {
       setLoading(false);
+      setLoadingPercentage(0);
     }
   };
 
@@ -1536,7 +1561,7 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                             // Support existing non-standard port names if they're not in the generated list
                             if (!formData.port) return null;
                             const currentPort = String(formData.port);
-                            const isGenerated = Array.from({ length: totalPorts }).some((_, i) => `p${(i + 1).toString().padStart(2, '0')}` === currentPort);
+                            const isGenerated = Array.from({ length: totalPorts }).some((_, i) => `P${(i + 1).toString().padStart(2, '0')}` === currentPort);
                             if (isGenerated) return null;
                             return <option value={currentPort}>{currentPort}</option>;
                           })()}
@@ -1642,9 +1667,11 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
               {modal.type === 'loading' ? (
                 <div className="text-center">
                   <div className="flex justify-center mb-6">
-                    <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-orange-500"></div>
+                    <div className="animate-spin rounded-full h-20 w-20 border-b-4" style={{ borderColor: colorPalette?.primary || '#f97316' }}></div>
                   </div>
-                  <p className="text-white text-4xl font-bold">{loadingPercentage}%</p>
+                  <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{loadingPercentage}%</p>
+                  <h3 className={`text-xl font-semibold mt-4 mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{modal.title}</h3>
+                  <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>{modal.message}</p>
                 </div>
               ) : (
                 <>
