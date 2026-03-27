@@ -4,6 +4,7 @@ interface Column {
   key: string;
   label: string;
   render?: (value: any, row: any) => React.ReactNode;
+  className?: string;
 }
 
 interface RelatedDataTableProps {
@@ -37,7 +38,7 @@ const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
             {columns.map((column) => (
               <th
                 key={column.key}
-                className={`px-4 py-2 text-left text-xs font-medium whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                className={`px-4 py-2 text-left text-xs font-medium ${column.className || 'whitespace-nowrap'} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}
               >
                 {column.label}
@@ -61,7 +62,7 @@ const RelatedDataTable: React.FC<RelatedDataTableProps> = ({
               {columns.map((column) => (
                 <td
                   key={column.key}
-                  className={`px-4 py-2 text-sm whitespace-nowrap ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  className={`px-4 py-2 text-sm ${column.className || 'whitespace-nowrap'} ${isDarkMode ? 'text-white' : 'text-gray-900'
                     }`}
                 >
                   {column.render

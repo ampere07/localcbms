@@ -4,6 +4,7 @@ export interface TableColumn {
   key: string;
   label: string;
   render?: (value: any, row: any) => React.ReactNode;
+  className?: string;
 }
 
 const formatDate = (val: any) => {
@@ -17,6 +18,40 @@ const formatDate = (val: any) => {
     return `${mm}/${dd}/${yyyy}`;
   } catch (e) {
     return val;
+  }
+};
+
+const renderDetailsJson = (val: any) => {
+  if (!val) return '-';
+  try {
+    const parsed = typeof val === 'string' ? JSON.parse(val) : val;
+    // Handle both our new structure {type: '...', data: {...}} and older flat JSON
+    const data = parsed.data || parsed;
+    
+    // Ignore the internal 'type' field if it exists at the root level of flat JSONs
+    const entries = Object.entries(data).filter(([k]) => k !== 'type');
+    
+    if (entries.length === 0) return '-';
+    
+    return (
+      <ul className="list-disc pl-4 text-xs w-full break-words max-h-[160px] overflow-y-auto overflow-x-hidden p-1 custom-scroll">
+        {entries.map(([k, v]) => {
+          const displayKey = k.replace(/_/g, ' ')
+                              .split(' ')
+                              .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                              .join(' ');
+          
+          return (
+            <li key={k} className="mb-0.5 whitespace-normal">
+              <span className="font-bold">{displayKey}:</span>{' '}
+              <span className="opacity-90 break-all">{v === null || v === '' ? '(empty)' : String(v)}</span>
+            </li>
+          );
+        })}
+      </ul>
+    );
+  } catch (e) {
+    return String(val);
   }
 };
 
@@ -280,8 +315,8 @@ export const relatedDataColumns = {
   detailsUpdateLogs: [
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
-    { key: 'old_details', label: 'Old Details', render: (val: any) => val || '-' },
-    { key: 'new_details', label: 'New Details', render: (val: any) => val || '-' },
+    { key: 'old_details', label: 'Old Details', render: renderDetailsJson, className: 'min-w-[300px]' },
+    { key: 'new_details', label: 'New Details', render: renderDetailsJson, className: 'min-w-[300px]' },
     { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
     { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
     { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },

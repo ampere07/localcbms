@@ -686,12 +686,12 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
       const authData = localStorage.getItem('authData');
       const parsedUser = authData ? JSON.parse(authData) : null;
       let loggedInUserId = '';
-      
+
       if (parsedUser) {
         // Use user ID so the backend stores the correct foreign key (e.g., 7 instead of truncating an email string to 1 or 0)
         loggedInUserId = parsedUser.id || parsedUser.user?.id || '';
       }
-      
+
       const dataWithUpdatedBy = { ...formData, updatedBy: loggedInUserId };
 
       await onSave(dataWithUpdatedBy, editType);
@@ -1124,9 +1124,8 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                         }`}
                     >
                       <option value="">Select Housing Status</option>
-                      <option value="Owned">Owned</option>
-                      <option value="Rented">Rented</option>
-                      <option value="Family Owned">Family Owned</option>
+                      <option value="Owner">Owner</option>
+                      <option value="Renter">Renter</option>
                     </select>
                     <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                   </div>

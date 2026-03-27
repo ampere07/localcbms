@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { dashboardService, DashboardCounts } from '../services/dashboardService';
+import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { Wifi, WifiOff, Ban } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -28,6 +29,7 @@ const DashboardContent: React.FC = () => {
   const [counts, setCounts] = useState<DashboardCounts | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<boolean>(false);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
 
   useEffect(() => {
     const checkDarkMode = () => {
@@ -60,8 +62,17 @@ const DashboardContent: React.FC = () => {
         setLoading(false);
       }
     };
+    const fetchColorPalette = async () => {
+      try {
+        const activePalette = await settingsColorPaletteService.getActive();
+        setColorPalette(activePalette);
+      } catch (err) {
+        console.error('Failed to fetch color palette:', err);
+      }
+    };
 
     fetchCounts();
+    fetchColorPalette();
     const interval = setInterval(fetchCounts, 30000);
 
     return () => {
@@ -213,7 +224,7 @@ const DashboardContent: React.FC = () => {
               <div className="h-[250px] relative">
                 <Bar
                   options={chartOptions}
-                  data={getChartData(counts?.monthly_support_concerns || [], 'rgba(99, 102, 241, 0.8)')}
+                  data={getChartData(counts?.monthly_support_concerns || [], colorPalette?.primary || 'rgba(99, 102, 241, 0.8)')}
                 />
               </div>
             </div>
@@ -224,7 +235,7 @@ const DashboardContent: React.FC = () => {
               <div className="h-[250px] relative">
                 <Bar
                   options={chartOptions}
-                  data={getChartData(counts?.monthly_repair_categories || [], 'rgba(16, 185, 129, 0.8)')}
+                  data={getChartData(counts?.monthly_repair_categories || [], colorPalette?.secondary || 'rgba(16, 185, 129, 0.8)')}
                 />
               </div>
             </div>

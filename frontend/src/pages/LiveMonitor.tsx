@@ -155,8 +155,9 @@ const LiveMonitor: React.FC = () => {
     if (savedLayouts) {
       initialLayouts = JSON.parse(savedLayouts);
     } else {
-      // Create default layout
-      const defaultLayout = Object.keys(WIDGETS).map((id, i) => {
+      // Create default layout - ONLY for visible widgets to ensure they file left-to-right
+      const visibleIds = Object.keys(WIDGETS).filter(id => DEFAULT_VISIBLE_WIDGETS.includes(id));
+      const defaultLayout = visibleIds.map((id, i) => {
         const config = WIDGETS[id];
         return {
           i: id,
@@ -306,18 +307,16 @@ const LiveMonitor: React.FC = () => {
           const w = Math.min(config.w || 4, cols);
           const h = config.h || 6;
 
-          // Simple approach: put at bottom
-          let maxY = 0;
-          currentLayout.forEach((item: any) => {
-            if ((item.y + item.h) > maxY) maxY = item.y + item.h;
-          });
-
+          // Sequence horizontally left to right
+          const newX = (currentLayout.length * w) % cols;
+          const newY = Math.floor((currentLayout.length * w) / cols) * h;
+          
           newLayouts[bp] = [
             ...currentLayout,
             {
               i: widgetId,
-              x: 0, // Default to start of row
-              y: maxY, 
+              x: newX,
+              y: newY,
               w: w,
               h: h,
               minW: 2,
@@ -337,17 +336,51 @@ const LiveMonitor: React.FC = () => {
   };
 
   const toggleWidgetVisibility = (id: string) => {
-    const isVisible = widgetStates[id]?.visible;
-    if (!isVisible) {
-      ensureWidgetInLayout(id);
-    }
-    updateWidgetState(id, { visible: !isVisible });
+    setWidgetStates(prev => {
+      const isVisible = !prev[id]?.visible;
+      const nextStates = {
+        ...prev,
+        [id]: { ...prev[id], visible: isVisible }
+      };
 
-    // Force a re-layout/resize after the widget is added to the DOM
-    // This solves the 'autoresize' issue where charts don't fill their container initially
-    setTimeout(() => {
-      window.dispatchEvent(new Event('resize'));
-    }, 150);
+      // Recalculate layout for all visible widgets to ensure 3-column flow
+      const visibleIds = Object.keys(WIDGETS).filter(wid => nextStates[wid]?.visible);
+      const breakpoints = ['lg', 'md', 'sm', 'xs', 'xxs'];
+      const columnCounts = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+      
+      const newLayouts: any = {};
+      breakpoints.forEach(bp => {
+        const cols = (columnCounts as any)[bp];
+        newLayouts[bp] = visibleIds.map((vid, idx) => {
+          const config = WIDGETS[vid];
+          const w = Math.min(config.w || 4, cols);
+          const h = config.h || 6;
+          const itemsPerRow = Math.max(1, Math.floor(cols / w));
+          
+          return {
+            i: vid,
+            x: (idx % itemsPerRow) * w,
+            y: Math.floor(idx / itemsPerRow) * h,
+            w,
+            h,
+            minW: 2,
+            minH: 3
+          };
+        });
+      });
+
+      setLayouts(newLayouts);
+      localStorage.setItem('dashboard_layouts', JSON.stringify(newLayouts));
+      localStorage.setItem(`widget_state_${id}`, JSON.stringify(nextStates[id]));
+
+      // Force a re-layout/resize
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        fetchAllWidgets(nextStates);
+      }, 150);
+
+      return nextStates;
+    });
   };
 
   const generateChartData = (widgetData: WidgetData[], widgetId: string, viewType: string) => {
@@ -1100,21 +1133,40 @@ const LiveMonitor: React.FC = () => {
                 <button
                   onClick={() => {
                     const ids = Object.keys(WIDGETS);
-                    ids.forEach(id => ensureWidgetInLayout(id));
-                    
-                    setWidgetStates(prev => {
-                      const nextStates = { ...prev };
-                      ids.forEach(id => {
-                        nextStates[id] = { ...nextStates[id], visible: true };
-                        localStorage.setItem(`widget_state_${id}`, JSON.stringify(nextStates[id]));
-                      });
-                      return nextStates;
+                    const nextStates = { ...widgetStates };
+                    ids.forEach(id => {
+                      nextStates[id] = { ...nextStates[id], visible: true };
+                      localStorage.setItem(`widget_state_${id}`, JSON.stringify(nextStates[id]));
                     });
+                    
+                    // Reflow All
+                    const breakpoints = ['lg', 'md', 'sm', 'xs', 'xxs'];
+                    const columnCounts = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 };
+                    const newLayouts: any = {};
+                    breakpoints.forEach(bp => {
+                      const cols = (columnCounts as any)[bp];
+                      newLayouts[bp] = ids.map((vid, idx) => {
+                        const config = WIDGETS[vid];
+                        const w = Math.min(config.w || 4, cols);
+                        const h = config.h || 6;
+                        const itemsPerRow = Math.max(1, Math.floor(cols / w));
+                        return {
+                          i: vid,
+                          x: (idx % itemsPerRow) * w,
+                          y: Math.floor(idx / itemsPerRow) * h,
+                          w, h, minW: 2, minH: 3
+                        };
+                      });
+                    });
+
+                    setWidgetStates(nextStates);
+                    setLayouts(newLayouts);
+                    localStorage.setItem('dashboard_layouts', JSON.stringify(newLayouts));
 
                     // Trigger resize to fix all layouts
                     setTimeout(() => {
                       window.dispatchEvent(new Event('resize'));
-                      fetchAllWidgets();
+                      fetchAllWidgets(nextStates);
                     }, 200);
                   }}
                   className="text-xs px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-white"
@@ -1170,6 +1222,7 @@ const LiveMonitor: React.FC = () => {
           breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
           cols={{ lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 }}
           rowHeight={60}
+          compactType="horizontal"
           isDraggable={isDraggable}
           isResizable={isDraggable}
           onLayoutChange={(currentLayout: any, allLayouts: any) => {
@@ -1180,17 +1233,18 @@ const LiveMonitor: React.FC = () => {
           }}
           draggableHandle=".drag-handle"
         >
-          {Object.entries(WIDGETS).map(([id, config], i) => {
-            if (!widgetStates[id]?.visible) return null;
-
+          {Object.keys(WIDGETS).filter(id => widgetStates[id]?.visible).map((id, visibleIdx) => {
+            const config = WIDGETS[id];
+            const itemsPerRow = Math.max(1, Math.floor(12 / (config.w || 4)));
+            
             return (
               <div
                 key={id}
                 data-grid={{
                   w: config.w,
                   h: config.h || 6,
-                  x: (i * config.w) % 12,
-                  y: Math.floor(i / Math.max(1, Math.floor(12 / config.w))) * (config.h ? config.h : 6),
+                  x: (visibleIdx * (config.w || 4)) % 12,
+                  y: Math.floor(visibleIdx / itemsPerRow) * (config.h ? config.h : 6),
                   minW: 2,
                   minH: 3
                 }}
