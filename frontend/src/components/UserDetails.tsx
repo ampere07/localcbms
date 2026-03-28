@@ -1,13 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Settings, Edit2, Trash2 } from 'lucide-react';
+import { X, Settings, Edit2, Trash2, Loader2 } from 'lucide-react';
 import { User as UserType } from '../types/api';
 import { ColorPalette } from '../services/settingsColorPaletteService';
+import { userService } from '../services/userService';
+import { useUserStore } from '../store/userStore';
+
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
 
 interface UserDetailsProps {
   user: UserType;
   onClose: () => void;
-  onEdit: (user: UserType) => void;
-  onDelete: (user: UserType) => void;
+  onEdit?: (user: UserType) => void;
   isMobile: boolean;
   isDarkMode: boolean;
   colorPalette: ColorPalette | null;
@@ -17,7 +27,6 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   user,
   onClose,
   onEdit,
-  onDelete,
   isMobile,
   isDarkMode,
   colorPalette
@@ -29,6 +38,17 @@ const UserDetails: React.FC<UserDetailsProps> = ({
 
   const [showFieldSettings, setShowFieldSettings] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const [loading, setLoading] = useState(false);
+  const [loadingPercentage, setLoadingPercentage] = useState(0);
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
+
+  const { removeUser } = useUserStore();
 
   const getFullName = (u: UserType): string => {
     const parts = [u.first_name, u.middle_initial, u.last_name].filter(Boolean);
@@ -109,12 +129,12 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   };
 
   const selectAllFields = () => {
-    const allVisible = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: true }), {});
+    const allVisible = defaultFields.reduce((acc: Record<string, boolean>, field: string) => ({ ...acc, [field]: true }), {});
     setFieldVisibility(allVisible);
   };
 
   const deselectAllFields = () => {
-    const allHidden = defaultFields.reduce((acc: Record<string, boolean>, field) => ({ ...acc, [field]: false }), {});
+    const allHidden = defaultFields.reduce((acc: Record<string, boolean>, field: string) => ({ ...acc, [field]: false }), {});
     setFieldVisibility(allHidden);
   };
 
@@ -132,6 +152,63 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   const resetFieldSettings = () => {
     setFieldOrder(defaultFields);
     selectAllFields();
+  };
+
+  const handleDeleteConfirm = async () => {
+    setModal(prev => ({ ...prev, isOpen: false }));
+    setLoading(true);
+    setLoadingPercentage(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingPercentage(prev => {
+        if (prev >= 99) return 99;
+        if (prev >= 90) return prev + 1;
+        if (prev >= 70) return prev + 2;
+        return prev + 5;
+      });
+    }, 300);
+
+    try {
+      const res = await userService.deleteUser(user.id);
+      
+      clearInterval(progressInterval);
+      setLoadingPercentage(100);
+      
+      if (res.success) {
+        removeUser(user.id);
+        
+        setTimeout(() => {
+          setLoading(false);
+          setModal({
+            isOpen: true,
+            type: 'success',
+            title: 'Deleted Successfully',
+            message: `User "${getFullName(user)}" has been deleted.`,
+            onConfirm: () => {
+              setModal(prev => ({ ...prev, isOpen: false }));
+              onClose(); // Close details view after deletion
+            }
+          });
+        }, 500);
+      } else {
+        setLoading(false);
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Delete Failed',
+          message: res.message || 'Failed to delete user'
+        });
+      }
+    } catch (err: any) {
+      clearInterval(progressInterval);
+      setLoading(false);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: err.message || 'Error deleting user'
+      });
+    }
   };
 
   const renderFieldContent = (fieldKey: string) => {
@@ -204,112 +281,222 @@ const UserDetails: React.FC<UserDetailsProps> = ({
   };
 
   return (
-    <div
-      className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'}`}
-      style={!isMobile && window.innerWidth >= 768 ? { width: `${detailsWidth}px` } : undefined}
-    >
-      {!isMobile && (
-        <div
-          className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'}`}
-          onMouseDown={handleMouseDownResize}
-        />
-      )}
-
-      <div className="flex-1 overflow-y-auto block h-full flex flex-col">
-        <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-          <div className="flex-1 min-w-0 pr-4">
-            <h2 className={`truncate text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{getFullName(user)}</h2>
-          </div>
-
-          <div className="flex items-center space-x-2 flex-shrink-0 ml-auto">
-            <button
-              onClick={() => onEdit(user)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90"
-              style={{ backgroundColor: colorPalette?.primary || '#3b82f6' }}
-            >
-              <Edit2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Edit</span>
-            </button>
-            <button
-              onClick={() => onDelete(user)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${isDarkMode ? 'border-red-500/50 text-red-500 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Delete</span>
-            </button>
-
-            <div className="relative">
-              <button
-                onClick={() => setShowFieldSettings(!showFieldSettings)}
-                className={isDarkMode ? 'hover:text-white text-gray-400' : 'hover:text-gray-900 text-gray-600'}
-                title="Field Settings"
-              >
-                <Settings size={16} />
-              </button>
-              {showFieldSettings && (
-                <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-lg border z-50 max-h-96 overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                  <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                    <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Field Visibility & Order</h3>
-                    <div className="flex items-center space-x-2">
-                      <button onClick={selectAllFields} className="text-blue-600 hover:text-blue-700 text-xs">Show All</button>
-                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
-                      <button onClick={deselectAllFields} className="text-blue-600 hover:text-blue-700 text-xs">Hide All</button>
-                      <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
-                      <button onClick={resetFieldSettings} className="text-blue-600 hover:text-blue-700 text-xs">Reset</button>
-                    </div>
-                  </div>
-                  <div className="p-2">
-                    <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Drag to reorder fields</div>
-                    {fieldOrder.map((fieldKey, index) => (
-                      <div
-                        key={fieldKey}
-                        draggable
-                        onDragStart={() => handleDragStart(index)}
-                        onDragOver={handleDragOver}
-                        onDrop={() => handleDrop(index)}
-                        onDragEnd={handleDragEnd}
-                        className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} ${draggedIndex === index ? (isDarkMode ? 'bg-gray-600' : 'bg-gray-200') : ''}`}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={fieldVisibility[fieldKey]}
-                          onChange={() => toggleFieldVisibility(fieldKey)}
-                          onClick={(e) => e.stopPropagation()}
-                          className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                        />
-                        <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>☰</span>
-                        <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{getFieldLabel(fieldKey)}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+    <>
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
             </div>
-            <button
-              onClick={onClose}
-              className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}`}
-              aria-label="Close"
-            >
-              <X size={18} />
-            </button>
-
           </div>
         </div>
+      )}
 
-        {/* Scrollable content area */}
-        <div className="flex-1 overflow-y-auto w-full h-full relative">
-          <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
-            <div className="space-y-4">
-              {fieldOrder.map((fieldKey) => (
-                <React.Fragment key={fieldKey}>
-                  {renderFieldContent(fieldKey)}
-                </React.Fragment>
-              ))}
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={() => setModal(prev => ({ ...prev, isOpen: false }))}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleDeleteConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors shadow-lg active:scale-95"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal(prev => ({ ...prev, isOpen: false }));
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors shadow-lg active:scale-95"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div
+        className={`h-full flex flex-col overflow-hidden ${!isMobile ? 'md:border-l' : ''} relative w-full md:w-auto ${isDarkMode ? 'bg-gray-950 border-white border-opacity-30' : 'bg-gray-50 border-gray-300'}`}
+        style={!isMobile && window.innerWidth >= 768 ? { width: `${detailsWidth}px` } : undefined}
+      >
+        {!isMobile && (
+          <div
+            className={`hidden md:block absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'}`}
+            onMouseDown={handleMouseDownResize}
+          />
+        )}
+
+        <div className="flex-1 overflow-y-auto block h-full flex flex-col">
+          <div className={`p-3 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+            <div className="flex-1 min-w-0 pr-4">
+              <h2 className={`truncate text-sm font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{getFullName(user)}</h2>
+            </div>
+
+            <div className="flex items-center space-x-2 flex-shrink-0 ml-auto">
+              {onEdit && (
+                <button
+                  onClick={() => onEdit(user)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90 active:scale-95 shadow-sm"
+                  style={{ backgroundColor: colorPalette?.primary || '#3b82f6' }}
+                >
+                  <Edit2 className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">Edit</span>
+                </button>
+              )}
+              <button
+                onClick={() => {
+                  setModal({
+                    isOpen: true,
+                    type: 'confirm',
+                    title: 'Delete User',
+                    message: `Are you sure you want to delete user "${getFullName(user)}"?`,
+                    onConfirm: handleDeleteConfirm,
+                    onCancel: () => setModal(prev => ({ ...prev, isOpen: false }))
+                  });
+                }}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all active:scale-95 shadow-sm ${isDarkMode ? 'border-red-500/50 text-red-500 hover:bg-red-500/10' : 'border-red-200 text-red-600 hover:bg-red-50'}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Delete</span>
+              </button>
+
+              <div className="relative">
+                <button
+                  onClick={() => setShowFieldSettings(!showFieldSettings)}
+                  className={isDarkMode ? 'hover:text-white text-gray-400 p-1.5' : 'hover:text-gray-900 text-gray-600 p-1.5'}
+                  title="Field Settings"
+                >
+                  <Settings size={16} />
+                </button>
+                {showFieldSettings && (
+                  <div className={`absolute right-0 mt-2 w-80 rounded-lg shadow-2xl border z-50 max-h-96 overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                    <div className={`px-4 py-3 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                      <h3 className={`font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Field Visibility & Order</h3>
+                      <div className="flex items-center space-x-2">
+                        <button onClick={selectAllFields} className="text-blue-600 hover:text-blue-700 text-xs">Show All</button>
+                        <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                        <button onClick={deselectAllFields} className="text-blue-600 hover:text-blue-700 text-xs">Hide All</button>
+                        <span className={isDarkMode ? 'text-gray-500' : 'text-gray-400'}>|</span>
+                        <button onClick={resetFieldSettings} className="text-blue-600 hover:text-blue-700 text-xs">Reset</button>
+                      </div>
+                    </div>
+                    <div className="p-2">
+                      <div className={`text-xs mb-2 px-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Drag to reorder fields</div>
+                      {fieldOrder.map((fieldKey, index) => (
+                        <div
+                          key={fieldKey}
+                          draggable
+                          onDragStart={() => handleDragStart(index)}
+                          onDragOver={handleDragOver}
+                          onDrop={() => handleDrop(index)}
+                          onDragEnd={handleDragEnd}
+                          className={`flex items-center space-x-2 px-2 py-1.5 rounded cursor-move transition-colors ${isDarkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-100'} ${draggedIndex === index ? (isDarkMode ? 'bg-gray-600' : 'bg-gray-200') : ''}`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={fieldVisibility[fieldKey]}
+                            onChange={() => toggleFieldVisibility(fieldKey)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                          />
+                          <span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>☰</span>
+                          <span className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>{getFieldLabel(fieldKey)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={onClose}
+                className={`p-1.5 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-white' : 'hover:bg-gray-100 text-gray-600 hover:text-gray-900'}`}
+                aria-label="Close"
+              >
+                <X size={18} />
+              </button>
+
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto w-full h-full relative">
+            <div className={`max-w-2xl mx-auto py-6 px-4 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+              <div className="space-y-4">
+                {fieldOrder.map((fieldKey) => (
+                  <React.Fragment key={fieldKey}>
+                    {renderFieldContent(fieldKey)}
+                  </React.Fragment>
+                ))}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 };
 

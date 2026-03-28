@@ -6,6 +6,7 @@ import EditConcernModal from '../modals/EditConcernModal';
 
 interface ConcernFormData {
   name: string;
+  userId?: number;
 }
 
 const ConcernConfig: React.FC = () => {
@@ -109,9 +110,9 @@ const ConcernConfig: React.FC = () => {
   const handleSave = async (formData: ConcernFormData) => {
     try {
       if (editingItem) {
-        await concernService.updateConcern(editingItem.id, formData.name.trim());
+        await concernService.updateConcern(editingItem.id, formData.name.trim(), formData.userId);
       } else {
-        await concernService.createConcern(formData.name.trim());
+        await concernService.createConcern(formData.name.trim(), formData.userId);
       }
       await loadConcerns();
     } catch (error) {

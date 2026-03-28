@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, X, ArrowUp, ArrowDown, Columns3, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter, RefreshCw } from 'lucide-react';
+import { Search, X, ArrowUp, ChevronLeft, ChevronRight ,ArrowDown, Columns3, ChevronsLeft, ChevronsRight, Menu, Globe, Calendar, ChevronDown, Filter, RefreshCw } from 'lucide-react';
 import InvoiceDetails from '../components/InvoiceDetails';
 
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
@@ -132,7 +132,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
             }`}
         >
-          Previous
+          <ChevronLeft size={16} />
         </button>
 
         <div className="flex items-center space-x-1">
@@ -149,7 +149,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
             }`}
         >
-          Next
+          <ChevronRight size={16} />
         </button>
 
         <button

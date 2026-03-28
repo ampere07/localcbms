@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { AlertTriangle, Search, Circle, X, ChevronLeft, ChevronRight, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { AlertTriangle, Search, Circle, ChevronLeft, ChevronRight, Menu, ChevronDown, RefreshCw, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import DisconnectionLogsDetails from '../components/DisconnectionLogsDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useDisconnectionStore } from '../store/disconnectionStore';
@@ -46,6 +46,15 @@ const DisconnectionLogs: React.FC = () => {
   const [selectedLog, setSelectedLog] = useState<DisconnectionLogRecord | null>(null);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [sidebarWidth, setSidebarWidth] = useState<number>(256);
+  const [isResizingSidebar, setIsResizingSidebar] = useState<boolean>(false);
+  const sidebarStartXRef = useRef<number>(0);
+  const sidebarStartWidthRef = useRef<number>(0);
+  const [statementDateFrom, setStatementDateFrom] = useState<string>('');
+  const [statementDateTo, setStatementDateTo] = useState<string>('');
+  const [selectedDate, setSelectedDate] = useState<string>('All');
+  const [isDateDropdownOpen, setIsDateDropdownOpen] = useState<boolean>(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -116,39 +125,7 @@ const DisconnectionLogs: React.FC = () => {
   // Reset pagination when search or location changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedLocation]);
-
-  // Memoize location items for performance
-  const locationItems: LocationItem[] = useMemo(() => {
-    const items: LocationItem[] = [
-      {
-        id: 'all',
-        name: 'All',
-        count: logRecords.length
-      }
-    ];
-
-    // Create a map to count records by cityId
-    const cityCountMap = new Map<number, number>();
-
-    logRecords.forEach(record => {
-      if (record.cityId !== undefined) {
-        const currentCount = cityCountMap.get(record.cityId) || 0;
-        cityCountMap.set(record.cityId, currentCount + 1);
-      }
-    });
-
-    // Add city items
-    cityCountMap.forEach((count, cityId) => {
-      items.push({
-        id: String(cityId),
-        name: getCityName(cityId),
-        count
-      });
-    });
-
-    return items;
-  }, [logRecords]);
+  }, [searchQuery, selectedLocation, statementDateFrom, statementDateTo, selectedDate]);
 
   // Mock function to get city name by ID (would be replaced with actual data)
   function getCityName(cityId: number): string {
@@ -170,6 +147,34 @@ const DisconnectionLogs: React.FC = () => {
     return false;
   };
 
+  // Memoize records filtered by global filters (search and date range) but NOT categorical filters (location/month)
+  const globalFilteredRecords = useMemo(() => {
+    return logRecords.filter(record => {
+      const matchesSearch = searchQuery === '' || checkValue(record, searchQuery);
+      
+      let matchesDateRange = true;
+      if (statementDateFrom || statementDateTo) {
+        const dateRaw = record.date || record.disconnectionDate || '';
+        const dateValue = new Date(dateRaw).getTime();
+
+        if (isNaN(dateValue)) {
+          matchesDateRange = false;
+        } else {
+          if (statementDateFrom) {
+            const fromDate = new Date(statementDateFrom).setHours(0, 0, 0, 0);
+            if (dateValue < fromDate) matchesDateRange = false;
+          }
+          if (statementDateTo) {
+            const toDate = new Date(statementDateTo).setHours(23, 59, 59, 999);
+            if (dateValue > toDate) matchesDateRange = false;
+          }
+        }
+      }
+      
+      return matchesSearch && matchesDateRange;
+    });
+  }, [logRecords, searchQuery, statementDateFrom, statementDateTo]);
+
   const formatDate = (dateStr?: string): string => {
     if (!dateStr) return '-';
     try {
@@ -184,6 +189,97 @@ const DisconnectionLogs: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (!isResizingSidebar) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingSidebar) return;
+
+      const diff = e.clientX - sidebarStartXRef.current;
+      const newWidth = Math.max(200, Math.min(500, sidebarStartWidthRef.current + diff));
+
+      setSidebarWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizingSidebar(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizingSidebar]);
+
+  const handleMouseDownSidebarResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingSidebar(true);
+    sidebarStartXRef.current = e.clientX;
+    sidebarStartWidthRef.current = sidebarWidth;
+  };
+
+  // Memoize location items for performance
+  const locationItems: LocationItem[] = useMemo(() => {
+    // Only records matching the global filters and the selected month if not 'All'
+    let filteredForLocations = globalFilteredRecords.filter(record => {
+      return selectedDate === 'All' || (record.date && record.date.startsWith(selectedDate));
+    });
+
+    const items: LocationItem[] = [];
+
+    // Create a map to count records by cityId
+    const cityCountMap = new Map<number, number>();
+
+    filteredForLocations.forEach(record => {
+      if (record.cityId !== undefined) {
+        const currentCount = cityCountMap.get(record.cityId) || 0;
+        cityCountMap.set(record.cityId, currentCount + 1);
+      }
+    });
+
+    // Add city items
+    cityCountMap.forEach((count, cityId) => {
+      items.push({
+        id: String(cityId),
+        name: getCityName(cityId),
+        count
+      });
+    });
+
+    return items;
+  }, [globalFilteredRecords, selectedDate]);
+
+  const dateItems = useMemo(() => {
+    // Only records matching the global filters and the selected location if not 'all'
+    let filteredForMonths = globalFilteredRecords.filter(record => {
+      return selectedLocation === 'all' || (record.cityId !== undefined && record.cityId === Number(selectedLocation));
+    });
+
+    const counts: Record<string, number> = {};
+    const months = new Set<string>();
+
+    filteredForMonths.forEach(record => {
+      if (record.date && record.date !== '-') {
+        const monthKey = record.date.substring(0, 7); // YYYY-MM
+        counts[monthKey] = (counts[monthKey] || 0) + 1;
+        months.add(monthKey);
+      }
+    });
+
+    const sortedMonths = Array.from(months).sort().reverse().map(month => ({
+      date: month,
+      count: counts[month]
+    }));
+
+    return {
+      all: filteredForMonths.length,
+      dates: sortedMonths
+    };
+  }, [globalFilteredRecords, selectedLocation]);
+
   // Memoize filtered records for performance
   const filteredLogRecords = useMemo(() => {
     return logRecords.filter(record => {
@@ -192,9 +288,30 @@ const DisconnectionLogs: React.FC = () => {
 
       const matchesSearch = searchQuery === '' || checkValue(record, searchQuery);
 
-      return matchesLocation && matchesSearch;
+      let matchesDateRange = true;
+      if (statementDateFrom || statementDateTo) {
+        const dateRaw = record.date || record.disconnectionDate || '';
+        const dateValue = new Date(dateRaw).getTime();
+
+        if (isNaN(dateValue)) {
+          matchesDateRange = false;
+        } else {
+          if (statementDateFrom) {
+            const fromDate = new Date(statementDateFrom).setHours(0, 0, 0, 0);
+            if (dateValue < fromDate) matchesDateRange = false;
+          }
+          if (statementDateTo) {
+            const toDate = new Date(statementDateTo).setHours(23, 59, 59, 999);
+            if (dateValue > toDate) matchesDateRange = false;
+          }
+        }
+      }
+
+      const matchesMonth = selectedDate === 'All' || (record.date && record.date.startsWith(selectedDate));
+
+      return matchesLocation && matchesSearch && matchesDateRange && matchesMonth;
     });
-  }, [logRecords, selectedLocation, searchQuery]);
+  }, [logRecords, selectedLocation, searchQuery, statementDateFrom, statementDateTo, selectedDate]);
 
   // Pagination logic
   const totalPages = Math.ceil(filteredLogRecords.length / itemsPerPage);
@@ -246,8 +363,7 @@ const DisconnectionLogs: React.FC = () => {
             </span>
           </div>
         );
-      case 'accountNo':
-        return <span className="text-red-400">{record.accountNo}</span>;
+
       case 'customerName':
         return record.customerName;
       case 'address':
@@ -266,8 +382,7 @@ const DisconnectionLogs: React.FC = () => {
         return record.disconnectedBy || '-';
       case 'reason':
         return record.reason || '-';
-      case 'remarks':
-        return record.remarks || '-';
+
       case 'appliedDate':
         return formatDate(record.appliedDate);
       case 'reconnectionFee':
@@ -286,48 +401,213 @@ const DisconnectionLogs: React.FC = () => {
   return (
     <div className={`h-full flex overflow-hidden ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'
       }`}>
-      <div className={`w-64 border-r flex-shrink-0 flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
-        <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
-          }`}>
-          <div className="flex items-center justify-between mb-1">
-            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>Disconnection Logs</h2>
-          </div>
+      {/* Sidebar */}
+      <div 
+        className={`border-r flex-shrink-0 flex flex-col relative transition-all duration-300 ease-in-out ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'}`}
+        style={{ width: `${sidebarWidth}px` }}
+      >
+        {/* Header */}
+        <div className={`p-4 border-b flex items-center justify-between shadow-sm ${isDarkMode ? 'bg-gray-800/50 border-gray-700' : 'bg-gray-50/50 border-gray-100'}`}>
+          <h2 className={`text-lg font-semibold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+            Disconnected Logs
+          </h2>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {locationItems.map((location) => (
-            <button
-              key={location.id}
-              onClick={() => setSelectedLocation(location.id)}
-              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === location.id
+
+        <div className="flex-1 overflow-y-auto no-scrollbar">
+          {/* Date Range Filter Section */}
+          <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+            <div className="flex items-center justify-between">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                Date Range
+              </span>
+              {(statementDateFrom || statementDateTo) && (
+                <button
+                  onClick={() => {
+                    setStatementDateFrom('');
+                    setStatementDateTo('');
+                  }}
+                  className="text-[10px] font-bold uppercase tracking-wider hover:underline"
+                  style={{ color: colorPalette?.primary || '#7c3aed' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>From</label>
+                <input
+                  type="date"
+                  value={statementDateFrom}
+                  onChange={(e) => setStatementDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={statementDateFrom ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+              <div className="relative">
+                <label className={`text-[10px] mb-1 block ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>To</label>
+                <input
+                  type="date"
+                  value={statementDateTo}
+                  onChange={(e) => setStatementDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs focus:outline-none border ${isDarkMode
+                    ? 'bg-gray-800 border-gray-700 text-white'
+                    : 'bg-white border-gray-300 text-gray-900'
+                    }`}
+                  style={statementDateTo ? { borderColor: colorPalette?.primary || '#7c3aed' } : {}}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* All Level */}
+          <button
+            onClick={() => {
+              setSelectedLocation('all');
+              setSelectedDate('All');
+            }}
+            className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+              } ${selectedLocation === 'all' && selectedDate === 'All'
                 ? ''
-                : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
+                : isDarkMode ? 'text-gray-300' : 'text-gray-700'
+              }`}
+            style={selectedLocation === 'all' && selectedDate === 'All' ? {
+              backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+              color: colorPalette?.primary || '#7c3aed'
+            } : {}}
+          >
+            <div className="flex items-center">
+              <span>All Records</span>
+            </div>
+            <span
+              className={`px-2 py-1 rounded text-xs transition-colors ${selectedLocation === 'all' && selectedDate === 'All'
+                ? 'text-white'
+                : isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-gray-100 text-gray-400'
                 }`}
-              style={selectedLocation === location.id ? {
-                backgroundColor: `${colorPalette?.primary || '#7c3aed'}33`, // 20% opacity (approx hex suffix 33)
-                color: colorPalette?.primary || '#7c3aed'
+              style={selectedLocation === 'all' && selectedDate === 'All' ? {
+                backgroundColor: colorPalette?.primary || '#7c3aed'
               } : {}}
             >
+              {globalFilteredRecords.length}
+            </span>
+          </button>
+
+          {/* Month Dropdown */}
+          <div className={`p-0 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-100'}`}>
+            <button
+              onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                } ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}
+            >
               <div className="flex items-center">
-                <AlertTriangle className="h-4 w-4 mr-2" />
-                <span className="capitalize">{location.name}</span>
+                <span className="font-medium">Disconnection Month</span>
               </div>
-              {location.count > 0 && (
-                <span className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
-                  ? 'text-white'
-                  : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
-                  }`}
-                  style={selectedLocation === location.id ? {
-                    backgroundColor: colorPalette?.primary || '#7c3aed'
-                  } : {}}
+              <div className="flex items-center space-x-2">
+                <span
+                  className={`px-2 py-0.5 rounded text-[10px] font-bold transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-100 text-gray-400'
+                    }`}
                 >
-                  {location.count}
+                  {dateItems.dates.length}
                 </span>
-              )}
+                <ChevronDown
+                  className={`h-4 w-4 transition-transform duration-200 ${isDateDropdownOpen ? 'rotate-180' : ''}`}
+                />
+              </div>
             </button>
-          ))}
+
+            {isDateDropdownOpen && (
+              <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50 shadow-inner'}`}>
+                {dateItems.dates.map((item, index) => (
+                  <button
+                    key={index}
+                    onClick={() => setSelectedDate(item.date)}
+                    className={`w-full flex items-center justify-between px-6 py-2.5 text-sm transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
+                      } ${selectedDate === item.date
+                        ? ''
+                        : isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}
+                    style={selectedDate === item.date ? {
+                      backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)',
+                      color: colorPalette?.primary || '#7c3aed',
+                      fontWeight: 500
+                    } : {}}
+                  >
+                    <div className="flex items-center">
+                      <span className="truncate">{item.date}</span>
+                    </div>
+                    <span
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${selectedDate === item.date
+                        ? 'text-white'
+                        : isDarkMode ? 'bg-gray-800 text-gray-500' : 'bg-gray-200 text-gray-500'
+                        }`}
+                      style={selectedDate === item.date ? {
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      } : {}}
+                    >
+                      {item.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="py-2">
+            {locationItems.map((location) => (
+              <button
+                key={location.id}
+                onClick={() => setSelectedLocation(location.id)}
+                className={`w-full flex items-center justify-between px-4 py-3 text-sm transition-colors ${selectedLocation === location.id
+                  ? ''
+                  : isDarkMode ? 'text-gray-300 hover:bg-gray-800' : 'text-gray-700 hover:bg-gray-100'
+                  }`}
+                style={selectedLocation === location.id ? {
+                  backgroundColor: `${colorPalette?.primary || '#7c3aed'}33`,
+                  color: colorPalette?.primary || '#7c3aed'
+                } : {}}
+              >
+                <div className="flex items-center">
+                  <AlertTriangle className="h-4 w-4 mr-2" />
+                  <span className="capitalize">{location.name}</span>
+                </div>
+                {location.count > 0 && (
+                  <span className={`px-2 py-1 rounded-full text-xs ${selectedLocation === location.id
+                    ? 'text-white'
+                    : isDarkMode ? 'bg-gray-700 text-gray-300' : 'bg-gray-200 text-gray-700'
+                    }`}
+                    style={selectedLocation === location.id ? {
+                      backgroundColor: colorPalette?.primary || '#7c3aed'
+                    } : {}}
+                  >
+                    {location.count}
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
+
+        {/* Sidebar Resize Handle */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-10"
+          style={{
+            backgroundColor: isResizingSidebar ? (colorPalette?.primary || '#7c3aed') : 'transparent'
+          }}
+          onMouseEnter={(e) => {
+            if (!isResizingSidebar && colorPalette?.primary) {
+              e.currentTarget.style.backgroundColor = colorPalette.primary;
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isResizingSidebar) {
+              e.currentTarget.style.backgroundColor = 'transparent';
+            }
+          }}
+          onMouseDown={handleMouseDownSidebarResize}
+        />
       </div>
 
       <div className={`flex-1 overflow-hidden ${isDarkMode ? 'bg-gray-900' : 'bg-white'
@@ -336,6 +616,13 @@ const DisconnectionLogs: React.FC = () => {
           <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setMobileMenuOpen(true)}
+                className={`md:hidden p-2 rounded-lg transition-colors ${isDarkMode ? 'hover:bg-gray-800 text-gray-400' : 'hover:bg-gray-100 text-gray-600'
+                  }`}
+              >
+                <Menu className="h-5 w-5" />
+              </button>
               <div className="relative flex-1">
                 <input
                   type="text"
@@ -363,9 +650,11 @@ const DisconnectionLogs: React.FC = () => {
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}
-                className="text-white px-4 py-2 rounded text-sm transition-colors"
-                style={{
-                  backgroundColor: isLoading ? (isDarkMode ? '#4b5563' : '#9ca3af') : (colorPalette?.primary || '#7c3aed')
+                title="Refresh Records"
+                className="p-2 rounded-lg transition-all duration-200 flex items-center justify-center shadow-sm disabled:opacity-50"
+                style={{ 
+                  backgroundColor: colorPalette?.primary || '#7c3aed',
+                  color: isDarkMode ? '#111827' : '#ffffff'
                 }}
                 onMouseEnter={(e) => {
                   if (!isLoading && colorPalette?.accent) {
@@ -378,7 +667,7 @@ const DisconnectionLogs: React.FC = () => {
                   }
                 }}
               >
-                {isLoading ? 'Loading...' : 'Refresh'}
+                <RefreshCw className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
           </div>
@@ -479,12 +768,24 @@ const DisconnectionLogs: React.FC = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                  onClick={() => setCurrentPage(1)}
                   disabled={currentPage === 1}
                   className={`p-2 rounded border transition-colors ${isDarkMode
                     ? 'border-gray-700 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent'
                     : 'border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent'
                     }`}
+                  title="First Page"
+                >
+                  <ChevronsLeft size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className={`p-2 rounded border transition-colors ${isDarkMode
+                    ? 'border-gray-700 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent'
+                    : 'border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent'
+                    }`}
+                  title="Previous Page"
                 >
                   <ChevronLeft size={16} />
                 </button>
@@ -492,14 +793,26 @@ const DisconnectionLogs: React.FC = () => {
                   Page {currentPage} of {totalPages || 1}
                 </div>
                 <button
-                  onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                  onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
                   disabled={currentPage === totalPages || totalPages === 0}
                   className={`p-2 rounded border transition-colors ${isDarkMode
                     ? 'border-gray-700 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent'
                     : 'border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent'
                     }`}
+                  title="Next Page"
                 >
                   <ChevronRight size={16} />
+                </button>
+                <button
+                  onClick={() => setCurrentPage(totalPages)}
+                  disabled={currentPage === totalPages || totalPages === 0}
+                  className={`p-2 rounded border transition-colors ${isDarkMode
+                    ? 'border-gray-700 hover:bg-gray-800 disabled:opacity-30 disabled:hover:bg-transparent'
+                    : 'border-gray-300 hover:bg-gray-100 disabled:opacity-30 disabled:hover:bg-transparent'
+                    }`}
+                  title="Last Page"
+                >
+                  <ChevronsRight size={16} />
                 </button>
               </div>
             </div>
@@ -508,26 +821,132 @@ const DisconnectionLogs: React.FC = () => {
       </div>
 
       {selectedLog && (
-        <div className={`w-full max-w-3xl border-l flex-shrink-0 relative ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-          }`}>
-          <div className="absolute top-4 right-4 z-10">
-            <button
-              onClick={handleCloseDetails}
-              className={`transition-colors rounded p-1 ${isDarkMode
-                ? 'text-gray-400 hover:text-white bg-gray-800'
-                : 'text-gray-600 hover:text-gray-900 bg-gray-100'
-                }`}
-            >
-              <X size={20} />
-            </button>
-          </div>
-          <DisconnectionLogsDetails
-            disconnectionRecord={selectedLog}
-          />
-        </div>
+        <DisconnectionLogsDetails
+          disconnectionRecord={selectedLog}
+          onClose={handleCloseDetails}
+        />
       )}
+
+      <MobileMenu
+        isOpen={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        isDarkMode={isDarkMode}
+        colorPalette={colorPalette}
+        selectedLocation={selectedLocation}
+        setSelectedLocation={setSelectedLocation}
+        selectedDate={selectedDate}
+        setSelectedDate={setSelectedDate}
+        dateItems={dateItems}
+        locationItems={locationItems}
+        statementDateFrom={statementDateFrom}
+        setStatementDateFrom={setStatementDateFrom}
+        statementDateTo={statementDateTo}
+        setStatementDateTo={setStatementDateTo}
+        isDateDropdownOpen={isDateDropdownOpen}
+        setIsDateDropdownOpen={setIsDateDropdownOpen}
+        logRecordsCount={globalFilteredRecords.length}
+      />
     </div>
   );
+};
+
+const MobileMenu: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  isDarkMode: boolean;
+  colorPalette: ColorPalette | null;
+  selectedLocation: string;
+  setSelectedLocation: (id: string) => void;
+  selectedDate: string;
+  setSelectedDate: (date: string) => void;
+  dateItems: { all: number, dates: { date: string, count: number }[] };
+  locationItems: LocationItem[];
+  statementDateFrom: string;
+  setStatementDateFrom: (val: string) => void;
+  statementDateTo: string;
+  setStatementDateTo: (val: string) => void;
+  isDateDropdownOpen: boolean;
+  setIsDateDropdownOpen: (val: boolean) => void;
+  logRecordsCount: number;
+}> = ({
+  isOpen, onClose, isDarkMode, colorPalette,
+  selectedLocation, setSelectedLocation,
+  selectedDate, setSelectedDate,
+  dateItems, locationItems,
+  statementDateFrom, setStatementDateFrom,
+  statementDateTo, setStatementDateTo,
+  isDateDropdownOpen, setIsDateDropdownOpen,
+  logRecordsCount
+}) => {
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 md:hidden">
+        <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
+        <div className={`absolute inset-y-0 left-0 w-64 shadow-xl flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
+          <div className={`p-4 border-b flex items-center justify-between ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <h2 className={`text-lg font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Disconnected Logs</h2>
+            <button onClick={onClose} className={isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'}>
+              <Circle className="h-6 w-6" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <div className={`px-4 py-3 border-b space-y-3 ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>Date Range</span>
+              <div className="grid grid-cols-1 gap-2">
+                <input
+                  type="date"
+                  value={statementDateFrom}
+                  onChange={(e) => setStatementDateFrom(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+                <input
+                  type="date"
+                  value={statementDateTo}
+                  onChange={(e) => setStatementDateTo(e.target.value)}
+                  className={`w-full px-2 py-1.5 rounded text-xs border ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300'}`}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={() => { setSelectedLocation('all'); setSelectedDate('All'); onClose(); }}
+              className={`w-full flex items-center justify-between px-4 py-3 text-sm border-b ${isDarkMode ? 'hover:bg-gray-800 border-gray-800' : 'hover:bg-gray-100 border-gray-200'}`}
+              style={selectedLocation === 'all' && selectedDate === 'All' ? { backgroundColor: colorPalette?.primary ? `${colorPalette.primary}33` : 'rgba(249, 115, 22, 0.2)', color: colorPalette?.primary || '#7c3aed' } : {}}
+            >
+              <div className="flex items-center"><span>All Records</span></div>
+              <span className="px-2 py-1 rounded-full text-xs bg-gray-700 text-gray-300">{logRecordsCount}</span>
+            </button>
+
+            <div className={`border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+              <button onClick={() => setIsDateDropdownOpen(!isDateDropdownOpen)} className="w-full flex items-center justify-between px-4 py-3 text-sm">
+                <div className="flex items-center"><span>Months</span></div>
+                <ChevronDown className={`h-4 w-4 transition-transform ${isDateDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+              {isDateDropdownOpen && (
+                <div className={isDarkMode ? 'bg-gray-900/50' : 'bg-gray-50/50'}>
+                  {dateItems.dates.map((item, idx) => (
+                    <button key={idx} onClick={() => { setSelectedDate(item.date); onClose(); }} className="w-full flex items-center justify-between px-6 py-2 text-sm">
+                      <span>{item.date}</span>
+                      <span className="text-[10px] opacity-60">{item.count}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="py-2">
+              {locationItems.map(loc => (
+                <button key={loc.id} onClick={() => { setSelectedLocation(loc.id); onClose(); }} className="w-full flex items-center justify-between px-4 py-2 text-sm">
+                  <span>{loc.name}</span>
+                  <span className="text-[10px] opacity-60">{loc.count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
 };
 
 export default DisconnectionLogs;

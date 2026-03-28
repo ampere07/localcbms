@@ -44,10 +44,11 @@ export const concernService = {
     }
   },
 
-  createConcern: async (concernName: string): Promise<Concern | null> => {
+  createConcern: async (concernName: string, userId?: number): Promise<Concern | null> => {
     try {
       const response = await apiClient.post<ApiResponse<Concern>>('/concerns', {
-        concern_name: concernName
+        concern_name: concernName,
+        created_by_user_id: userId
       });
       return response.data.data;
     } catch (error) {
@@ -56,10 +57,11 @@ export const concernService = {
     }
   },
 
-  updateConcern: async (id: number, concernName: string): Promise<Concern | null> => {
+  updateConcern: async (id: number, concernName: string, userId?: number): Promise<Concern | null> => {
     try {
       const response = await apiClient.put<ApiResponse<Concern>>(`/concerns/${id}`, {
-        concern_name: concernName
+        concern_name: concernName,
+        updated_by_user_id: userId
       });
       return response.data.data;
     } catch (error) {

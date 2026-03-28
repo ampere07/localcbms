@@ -3,17 +3,7 @@ import { BillingRecord, BillingDetailRecord } from '../types/billing';
 
 export type { BillingRecord, BillingDetailRecord };
 
-interface BillingApiResponse {
-  data?: BillingRecord[];
-  message?: string;
-  status?: string;
-}
 
-interface BillingDetailApiResponse {
-  data?: BillingDetailRecord;
-  message?: string;
-  status?: string;
-}
 
 const getFallbackBillingStatus = (id: string | number): string => {
   const map: Record<string, string> = {
@@ -51,7 +41,7 @@ export const getBillingRecords = async (page: number = 1, perPage: number = 50, 
         address: item.Address || '',
         status: item.Status || 'Inactive',
         balance: parseFloat(item.account_balance) || parseFloat(item.Account_Balance) || 0,
-        onlineStatus: item.Online_Session_Status || 'Offline',
+        onlineStatus: item.Online_Session_Status || 'Empty',
         cityId: null,
         regionId: null,
         timestamp: item.Modified_Date || '',
@@ -142,7 +132,7 @@ export const getBillingRecordDetails = async (id: string): Promise<BillingDetail
         address: item.Address || '',
         status: item.Status || 'Inactive',
         balance: parseFloat(item.account_balance) || parseFloat(item.Account_Balance) || 0,
-        onlineStatus: item.Online_Session_Status || 'Offline',
+        onlineStatus: item.Online_Session_Status || 'Empty',
         cityId: null,
         regionId: null,
         timestamp: item.Modified_Date || '',

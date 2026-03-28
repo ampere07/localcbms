@@ -1655,8 +1655,6 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
                 <UserDetails
                   user={selectedUserForOverlay}
                   onClose={() => setSelectedUserForOverlay(null)}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
                   isMobile={isMobile}
                   isDarkMode={isDarkMode}
                   colorPalette={colorPalette}

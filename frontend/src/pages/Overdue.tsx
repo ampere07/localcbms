@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronsLeft, ChevronsRight, X, Menu, Globe, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronLeft, ChevronRight ,ChevronsRight, X, Menu, Globe, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useOverdueStore } from '../store/overdueStore';
 import pusher from '../services/pusherService';
@@ -300,7 +300,7 @@ const OverduePage: React.FC = () => {
               : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
               }`}
           >
-            Previous
+            <ChevronLeft size={16} />
           </button>
 
           <div className="flex items-center space-x-1">
@@ -317,7 +317,7 @@ const OverduePage: React.FC = () => {
               : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
               }`}
           >
-            Next
+            <ChevronRight size={16} />
           </button>
 
           <button

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, Filter, ChevronsLeft, ChevronsRight, Globe, Calendar } from 'lucide-react';
+import { Search, ChevronDown, ChevronRight, Columns3, ArrowUp, ArrowDown, Menu, X, RefreshCw, ChevronLeft ,Filter, ChevronsLeft, ChevronsRight, Globe, Calendar } from 'lucide-react';
 import JobOrderDetails from '../components/JobOrderDetails';
 import JobOrderFunnelFilter, { FilterValues, allColumns as filterColumns } from '../components/filters/JobOrderFunnelFilter';
 import { useJobOrderStore } from '../store/jobOrderStore';
@@ -2401,7 +2401,7 @@ const JobOrderPage: React.FC = () => {
                       : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
                       }`}
                   >
-                    Previous
+                    <ChevronLeft size={16} />
                   </button>
 
                   <div className="flex items-center space-x-1">
@@ -2418,7 +2418,7 @@ const JobOrderPage: React.FC = () => {
                       : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
                       }`}
                   >
-                    Next
+                    <ChevronRight size={16} />
                   </button>
 
                   <button

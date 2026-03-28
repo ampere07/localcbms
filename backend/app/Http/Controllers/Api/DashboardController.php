@@ -24,7 +24,7 @@ class DashboardController extends Controller
                 'radius_online' => DB::table('online_status')->where('session_status', 'Online')->count(),
                 'radius_offline' => DB::table('online_status')->where('session_status', 'Offline')->count(),
                 'radius_blocked' => DB::table('online_status')->where('session_status', 'Blocked')->count(),
-                
+
                 // Support Status Today (Based on timestamp)
                 'support_status_in_progress' => DB::table('service_orders')->where('support_status', 'In Progress')->whereDate('timestamp', $todayStr)->count(),
                 'support_status_for_visit' => DB::table('service_orders')->where('support_status', 'For Visit')->whereDate('timestamp', $todayStr)->count(),
@@ -43,7 +43,7 @@ class DashboardController extends Controller
                     ->where('concern', '<>', '')->whereNotNull('concern')
                     ->select('concern as label', DB::raw('count(*) as count'))
                     ->groupBy('concern')->orderByRaw('count(*) desc')->limit(10)->get(),
-                
+
                 'monthly_repair_categories' => DB::table('service_orders')
                     ->whereYear($dateField, $year)->whereMonth($dateField, $month)
                     ->where('repair_category', '<>', '')->whereNotNull('repair_category')

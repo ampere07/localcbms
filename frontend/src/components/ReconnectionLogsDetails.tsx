@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Maximize2, X, Info } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, Info } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 const formatDate = (dateString: string | null | undefined): string => {
@@ -44,11 +44,17 @@ interface ReconnectionRecord {
 
 interface ReconnectionLogsDetailsProps {
   reconnectionRecord: ReconnectionRecord;
+  onClose: () => void;
+  isMobile?: boolean;
 }
 
-const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ reconnectionRecord }) => {
+const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ reconnectionRecord, onClose, isMobile = false }) => {
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [detailsWidth, setDetailsWidth] = useState<number>(600);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+  const startXRef = useRef<number>(0);
+  const startWidthRef = useRef<number>(0);
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -57,6 +63,38 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
     return () => observer.disconnect();
   }, []);
+
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizing) return;
+
+      const diff = startXRef.current - e.clientX;
+      const newWidth = Math.max(600, Math.min(1200, startWidthRef.current + diff));
+
+      setDetailsWidth(newWidth);
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
+
+  const handleMouseDownResize = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizing(true);
+    startXRef.current = e.clientX;
+    startWidthRef.current = detailsWidth;
+  };
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -73,8 +111,17 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
   const title = `${reconnectionRecord.accountNo} | ${reconnectionRecord.customerName} | ${reconnectionRecord.address}`;
 
   return (
-    <div className={`h-full flex flex-col ${isDarkMode ? 'bg-gray-900 text-white' : 'bg-white text-gray-900'
-      }`}>
+    <div className={`h-full flex flex-col overflow-hidden relative ${!isMobile ? 'border-l' : ''} ${isDarkMode
+      ? 'bg-gray-950 border-white border-opacity-30'
+      : 'bg-white border-gray-300'
+      }`} style={!isMobile ? { width: `${detailsWidth}px` } : undefined}>
+      {!isMobile && (
+        <div
+          className={`absolute left-0 top-0 bottom-0 w-1 cursor-col-resize transition-colors z-50 ${isDarkMode ? 'hover:bg-orange-500' : 'hover:bg-orange-600'
+            }`}
+          onMouseDown={handleMouseDownResize}
+        />
+      )}
       <div className={`px-4 py-3 flex items-center justify-between border-b ${isDarkMode
         ? 'bg-gray-800 border-gray-700'
         : 'bg-gray-100 border-gray-200'
@@ -83,32 +130,16 @@ const ReconnectionLogsDetails: React.FC<ReconnectionLogsDetailsProps> = ({ recon
           }`}>
           {title}
         </h1>
-        <div className="flex items-center space-x-2 flex-shrink-0">
-          <button className={`p-2 rounded transition-colors ${isDarkMode
-            ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}>
-            <ChevronLeft size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${isDarkMode
-            ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}>
-            <ChevronRight size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${isDarkMode
-            ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}>
-            <Maximize2 size={18} />
-          </button>
-          <button className={`p-2 rounded transition-colors ${isDarkMode
-            ? 'text-gray-400 hover:text-white hover:bg-gray-700'
-            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-            }`}>
+          <button
+            onClick={onClose}
+            className={`p-2 rounded transition-colors ${isDarkMode
+              ? 'text-gray-400 hover:text-white hover:bg-gray-700'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+              }`}
+            aria-label="Close"
+          >
             <X size={18} />
           </button>
-        </div>
       </div>
 
       {/* Content */}

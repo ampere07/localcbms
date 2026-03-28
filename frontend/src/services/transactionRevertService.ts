@@ -73,6 +73,7 @@ export interface CreateTransactionRevertPayload {
     reason: string;
     status?: string;
     requested_by?: string; // email address
+    updated_by?: string; // email address
 }
 
 export const transactionRevertService = {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { CreditCard, Search, Circle, X, Columns3, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { CreditCard, ChevronLeft,Search, Circle, X, Columns3, ArrowUp, ArrowDown, RefreshCw, Filter, ChevronRight, ChevronDown, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import pusher from '../services/pusherService';
 import BillingDetails from '../components/CustomerDetails';
 import { getBillingRecords, BillingRecord, checkForBillingUpdates } from '../services/billingService';
@@ -44,7 +44,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     address: customerData.address,
     status: customerData.billingAccount?.billingStatusName || (customerData.billingAccount?.billingStatusId === 1 ? 'Active' : 'Inactive'),
     balance: customerData.billingAccount?.accountBalance || 0,
-    onlineStatus: customerData.onlineSessionStatus || (customerData.billingAccount?.billingStatusName === 'Active' ? 'Online' : 'Offline'),
+    onlineStatus: customerData.onlineSessionStatus || 'Empty',
     cityId: null,
     regionId: null,
     timestamp: customerData.updatedAt || '',
@@ -172,7 +172,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
             }`}
         >
-          Previous
+          <ChevronLeft size={16} />
         </button>
 
         <div className="flex items-center space-x-1">
@@ -189,7 +189,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
             }`}
         >
-          Next
+          <ChevronRight size={16} />
         </button>
 
         <button
@@ -614,6 +614,7 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
     if (lower === 'not found') return { label: 'NOT FOUND', color: 'text-red-600', hex: '#dc2626', fillColor: 'bg-red-600', hollow: false };
     if (lower === 'blocked') return { label: 'BLOCKED', color: 'text-orange-500', hex: '#7c3aed', hollow: true };
     if (lower === 'inactive') return { label: 'INACTIVE', color: 'text-gray-400', hex: '#9ca3af', fillColor: 'bg-gray-400', hollow: false };
+    if (lower === 'empty') return { label: 'EMPTY', color: 'text-slate-400', hex: '#94a3b8', hollow: true };
     return { label: bucket.toUpperCase(), color: 'text-blue-500', hex: '#3b82f6', fillColor: 'bg-blue-500', hollow: false };
   };
 
@@ -787,7 +788,16 @@ const Customer: React.FC<CustomerProps> = ({ initialSearchQuery, autoOpenAccount
             count: brgyCount
           }))
         }))
-      })),
+      })).sort((a, b) => {
+        const order = ['online', 'offline', 'inactive', 'blocked', 'not found', 'empty'];
+        const indexA = order.indexOf(a.name.toLowerCase());
+        const indexB = order.indexOf(b.name.toLowerCase());
+        
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        return a.name.localeCompare(b.name);
+      }),
       total: globalFilteredRecords.length
     };
   }, [globalFilteredRecords]);

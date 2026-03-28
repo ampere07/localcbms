@@ -1161,8 +1161,6 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
                 <UserDetails
                   user={selectedUserForOverlay}
                   onClose={() => setSelectedUserForOverlay(null)}
-                  onEdit={() => {}}
-                  onDelete={() => {}}
                   isMobile={isMobile}
                   isDarkMode={isDarkMode}
                   colorPalette={colorPalette}

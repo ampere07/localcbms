@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, RefreshCw, CheckCircle, Info } from 'lucide-react';
+import { X, RefreshCw } from 'lucide-react';
 import { TransactionRevert, transactionRevertService } from '../services/transactionRevertService';
 import { ColorPalette } from '../services/settingsColorPaletteService';
-import { transactionService } from '../services/transactionService';
+
 import { useBillingStore } from '../store/billingStore';
 import LoadingModal from './LoadingModal';
 
@@ -121,7 +121,7 @@ const TransactionsRevertDetails: React.FC<TransactionsRevertDetailsProps> = ({
             const authData = localStorage.getItem('authData');
             if (authData) {
                 const parsed = JSON.parse(authData);
-                return parsed.email_address || parsed.email || '';
+                return parsed.email_address || '';
             }
         } catch (e) { }
         return '';
@@ -240,11 +240,6 @@ const TransactionsRevertDetails: React.FC<TransactionsRevertDetailsProps> = ({
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto">
                     <div className={`mx-auto py-1 px-4 ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-
-                        {/* Revert Request Info Section */}
-                        <div className={`mt-4 mb-2 text-xs font-semibold uppercase tracking-widest ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            Revert Request Info
-                        </div>
                         <div className="space-y-1">
                             {renderField('Request ID', `#${currentRevert.id}`)}
                             <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'}`}>

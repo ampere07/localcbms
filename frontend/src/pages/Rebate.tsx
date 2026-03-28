@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, ChevronsLeft, ChevronsRight, X, RefreshCw } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, X, RefreshCw , ChevronLeft, ChevronRight} from 'lucide-react';
 import RebateFormModal from '../modals/RebateFormModal';
 import RebateDetails from '../components/RebateDetails';
 import apiClient from '../config/api';
@@ -357,7 +357,7 @@ const Rebate: React.FC = () => {
               : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
               }`}
           >
-            Previous
+            <ChevronLeft size={16} />
           </button>
 
           <div className="flex items-center space-x-1">
@@ -374,7 +374,7 @@ const Rebate: React.FC = () => {
               : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
               }`}
           >
-            Next
+            <ChevronRight size={16} />
           </button>
 
           <button

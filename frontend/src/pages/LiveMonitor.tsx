@@ -118,8 +118,36 @@ const LiveMonitor: React.FC = () => {
     };
     fetchColorPalette();
 
-    const theme = localStorage.getItem('theme');
-    setIsDarkMode(theme === 'dark' || theme === null);
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
+    const observer = new MutationObserver(() => {
+      checkDarkMode();
+    });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'theme' || !e.key) {
+        checkDarkMode();
+        // Also update document element class just in case Header didn't do it yet for this window
+        const theme = localStorage.getItem('theme');
+        if (theme === 'dark' || theme === null) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
 
     const initialStates: Record<string, WidgetState> = {};
     Object.keys(WIDGETS).forEach(id => {
@@ -210,6 +238,8 @@ const LiveMonitor: React.FC = () => {
 
     return () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current);
+      observer.disconnect();
+      window.removeEventListener('storage', handleStorageChange);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

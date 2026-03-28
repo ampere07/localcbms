@@ -94,6 +94,18 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
     };
 
     fetchColorPalette();
+
+    const handlePaletteUpdate = () => {
+      fetchColorPalette();
+    };
+
+    window.addEventListener('palette-updated', handlePaletteUpdate);
+    window.addEventListener('storage', handlePaletteUpdate);
+
+    return () => {
+      window.removeEventListener('palette-updated', handlePaletteUpdate);
+      window.removeEventListener('storage', handlePaletteUpdate);
+    };
   }, []);
 
   const menuItems: MenuItem[] = [
@@ -252,7 +264,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
   const renderMenuItem = (item: MenuItem, level = 0) => {
     const hasChildren = item.children && item.children.length > 0;
     const isExpanded = expandedItems.includes(item.id);
-    const isChildActive = hasChildren && item.children!.some(child => activeSection === child.id);
     const isCurrentItemActive = activeSection === item.id;
     const IconComponent = item.icon;
 

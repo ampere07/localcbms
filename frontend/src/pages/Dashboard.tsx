@@ -153,7 +153,25 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
             attributeFilter: ['class']
         });
 
-        return () => observer.disconnect();
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'theme' || !e.key) {
+                checkDarkMode();
+                // Update document layout as well
+                const theme = localStorage.getItem('theme');
+                if (theme === 'dark' || theme === null) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+
+        return () => {
+            observer.disconnect();
+            window.removeEventListener('storage', handleStorageChange);
+        };
     }, []);
 
     useEffect(() => {

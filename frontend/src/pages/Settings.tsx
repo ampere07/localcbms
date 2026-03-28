@@ -68,6 +68,18 @@ const Settings: React.FC = () => {
       }
     };
     fetchColorPalette();
+
+    const handlePaletteUpdate = () => {
+      fetchColorPalette();
+    };
+
+    window.addEventListener('palette-updated', handlePaletteUpdate);
+    window.addEventListener('storage', handlePaletteUpdate);
+
+    return () => {
+      window.removeEventListener('palette-updated', handlePaletteUpdate);
+      window.removeEventListener('storage', handlePaletteUpdate);
+    };
   }, []);
 
   useEffect(() => {
@@ -177,7 +189,7 @@ const Settings: React.FC = () => {
 
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
-        if (prev >= 90) return prev + 1;
+        if (prev >= 90) return Math.min(99, prev + 1);
         return Math.min(99, prev + 10);
       });
     }, 100);
@@ -195,17 +207,22 @@ const Settings: React.FC = () => {
         }
       }
 
-      clearInterval(progressInterval);
-      setLoadingPercentage(100);
-      setLoading(false);
+        clearInterval(progressInterval);
+        setLoadingPercentage(100);
+        
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('palette-updated'));
 
-      setModal({
-        isOpen: true,
-        type: 'success',
-        title: 'Success',
-        message: 'Color palette activated successfully!'
-      });
-    } catch (error) {
+        setTimeout(() => {
+          setLoading(false);
+          setModal({
+            isOpen: true,
+            type: 'success',
+            title: 'Success',
+            message: 'Color palette activated successfully!'
+          });
+        }, 500);
+      } catch (error) {
       clearInterval(progressInterval);
       setLoading(false);
       setModal({
@@ -234,7 +251,7 @@ const Settings: React.FC = () => {
 
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
-        if (prev >= 90) return prev + 1;
+        if (prev >= 90) return Math.min(99, prev + 1);
         return Math.min(99, prev + 10);
       });
     }, 100);
@@ -246,14 +263,16 @@ const Settings: React.FC = () => {
 
       clearInterval(progressInterval);
       setLoadingPercentage(100);
-      setLoading(false);
-
-      setModal({
-        isOpen: true,
-        type: 'success',
-        title: 'Success',
-        message: 'Image upload size updated successfully!'
-      });
+      
+      setTimeout(() => {
+        setLoading(false);
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: 'Image upload size updated successfully!'
+        });
+      }, 500);
     } catch (error) {
       clearInterval(progressInterval);
       setLoading(false);
@@ -317,7 +336,7 @@ const Settings: React.FC = () => {
 
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
-        if (prev >= 90) return prev + 1;
+        if (prev >= 90) return Math.min(99, prev + 1);
         return Math.min(99, prev + 10);
       });
     }, 100);
@@ -342,14 +361,16 @@ const Settings: React.FC = () => {
         
         clearInterval(progressInterval);
         setLoadingPercentage(100);
-        setLoading(false);
-
-        setModal({
-          isOpen: true,
-          type: 'success',
-          title: 'Success',
-          message: 'Logo uploaded successfully!'
-        });
+        
+        setTimeout(() => {
+          setLoading(false);
+          setModal({
+            isOpen: true,
+            type: 'success',
+            title: 'Success',
+            message: 'Logo uploaded successfully!'
+          });
+        }, 500);
       }
     } catch (error) {
       clearInterval(progressInterval);
@@ -378,7 +399,7 @@ const Settings: React.FC = () => {
 
         const progressInterval = setInterval(() => {
           setLoadingPercentage(prev => {
-            if (prev >= 90) return prev + 1;
+            if (prev >= 90) return Math.min(99, prev + 1);
             return Math.min(99, prev + 10);
           });
         }, 100);
@@ -396,14 +417,16 @@ const Settings: React.FC = () => {
           
           clearInterval(progressInterval);
           setLoadingPercentage(100);
-          setLoading(false);
-
-          setModal({
-            isOpen: true,
-            type: 'success',
-            title: 'Success',
-            message: 'Logo deleted successfully!'
-          });
+          
+          setTimeout(() => {
+            setLoading(false);
+            setModal({
+              isOpen: true,
+              type: 'success',
+              title: 'Success',
+              message: 'Logo deleted successfully!'
+            });
+          }, 500);
         } catch (error) {
           clearInterval(progressInterval);
           setLoading(false);

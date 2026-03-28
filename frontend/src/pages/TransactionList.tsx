@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Receipt, Search, ChevronDown, CheckCheck, X, Check, ChevronRight, Menu, FileText, Globe, Filter, ChevronsLeft, ChevronsRight, RefreshCw, Loader2 } from 'lucide-react';
+import { Receipt, Search, ChevronLeft ,ChevronDown, CheckCheck, X, Check, ChevronRight, Menu, FileText, Globe, Filter, ChevronsLeft, ChevronsRight, RefreshCw, Loader2 } from 'lucide-react';
 import TransactionListDetails from '../components/TransactionListDetails';
 import { transactionService } from '../services/transactionService';
 import { getCities, City } from '../services/cityService';
@@ -139,7 +139,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
             }`}
         >
-          Previous
+          <ChevronLeft size={16} />
         </button>
 
         <div className="flex items-center space-x-1">
@@ -156,7 +156,7 @@ const PaginationControls: React.FC<PaginationControlsProps> = ({
             : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
             }`}
         >
-          Next
+          <ChevronRight size={16} />
         </button>
 
         <button

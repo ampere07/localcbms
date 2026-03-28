@@ -65,7 +65,7 @@ const TransactionRevertModal: React.FC<TransactionRevertModalProps> = ({
                 const authData = localStorage.getItem('authData');
                 if (authData) {
                     const parsed = JSON.parse(authData);
-                    const email = parsed.email_address || parsed.email || parsed.user?.email_address || parsed.user?.email || '';
+                    const email = parsed.email_address || '';
                     setRequestedBy(email);
                 }
             } catch (err) {
@@ -102,6 +102,7 @@ const TransactionRevertModal: React.FC<TransactionRevertModalProps> = ({
                 remarks: remarks.trim() || undefined,
                 reason: reason.trim(),
                 requested_by: requestedBy,
+                updated_by: requestedBy,
                 status: 'pending',
             });
 

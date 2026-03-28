@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronsLeft, ChevronsRight, X, Menu, Globe, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
+import { Search, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight ,X, Menu, Globe, Calendar, ChevronDown, RefreshCw } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useDCNoticeContext } from '../contexts/DCNoticeContext';
 import pusher from '../services/pusherService';
@@ -307,7 +307,7 @@ const DCNoticePage: React.FC = () => {
               : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
               }`}
           >
-            Previous
+            <ChevronLeft size={16} />
           </button>
 
           <div className="flex items-center space-x-1">
@@ -324,7 +324,7 @@ const DCNoticePage: React.FC = () => {
               : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
               }`}
           >
-            Next
+            <ChevronRight size={16} />
           </button>
 
           <button

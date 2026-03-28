@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Search, Plus, Loader2, RefreshCw, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, User as UserIcon, X } from 'lucide-react';
 import { User } from '../types/api';
-import { userService } from '../services/userService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import UserDetails from '../components/UserDetails';
 import UserModal from '../modals/UserModal';
@@ -25,8 +24,7 @@ const UserManagement: React.FC = () => {
     refreshUsers, 
     silentRefresh,
     addUser, 
-    updateUser, 
-    removeUser 
+    updateUser 
   } = useUserStore();
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -102,20 +100,7 @@ const UserManagement: React.FC = () => {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
-  const handleDeleteUser = async (user: User) => {
-    if (!window.confirm(`Are you sure you want to delete user "${getFullName(user)}"?`)) return;
-    try {
-      const res = await userService.deleteUser(user.id);
-      if (res.success) {
-        removeUser(user.id);
-        if (selectedUser?.id === user.id) setSelectedUser(null);
-      } else {
-        alert(res.message || 'Failed to delete user');
-      }
-    } catch (err: any) {
-      alert(err.message || 'Error deleting user');
-    }
-  };
+
 
   const handleSaveUser = (savedUser: User) => {
     const exists = users.find(u => u.id === savedUser.id);
@@ -290,7 +275,6 @@ const UserManagement: React.FC = () => {
               user={selectedUser}
               onClose={() => { setSelectedUser(null); setMobileView('users'); }}
               onEdit={(u) => { setSelectedUser(u); setShowModal(true); }}
-              onDelete={handleDeleteUser}
               isMobile={mobileView === 'details'}
               isDarkMode={isDarkMode}
               colorPalette={colorPalette}
