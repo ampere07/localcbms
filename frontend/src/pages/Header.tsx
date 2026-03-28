@@ -36,19 +36,45 @@ const Header: React.FC<HeaderProps> = ({ onToggleSidebar, onSearch, onNavigate, 
     return `${apiUrl}/proxy/image?url=${encodeURIComponent(url)}`;
   };
 
+  const fetchLogo = async () => {
+    try {
+      const config = await formUIService.getConfig();
+      if (config && config.logo_url) {
+        const directUrl = convertGoogleDriveUrl(config.logo_url);
+        setLogoUrl(directUrl);
+      } else {
+        setLogoUrl(null);
+      }
+    } catch (error) {
+      console.error('[Logo] Error fetching logo:', error);
+    }
+  };
+
   useEffect(() => {
-    const fetchLogo = async () => {
-      try {
-        const config = await formUIService.getConfig();
-        if (config && config.logo_url) {
-          const directUrl = convertGoogleDriveUrl(config.logo_url);
-          setLogoUrl(directUrl);
-        }
-      } catch (error) {
-        console.error('[Logo] Error fetching logo:', error);
+    fetchLogo();
+  }, []);
+
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'logoUpdated' || !e.key) {
+        console.log('[Header] Logo update detected');
+        fetchLogo();
       }
     };
-    fetchLogo();
+
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for manual dispatch on the same window
+    const handleCustomLogoUpdate = () => {
+      console.log('[Header] Manual logo update event received');
+      fetchLogo();
+    };
+    window.addEventListener('logo-updated', handleCustomLogoUpdate);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('logo-updated', handleCustomLogoUpdate);
+    };
   }, []);
 
   useEffect(() => {

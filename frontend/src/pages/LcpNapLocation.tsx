@@ -168,6 +168,7 @@ const LcpNapLocation: React.FC = () => {
 
   useEffect(() => {
     if (isMapReady && isDataLoaded && selectedLcpNapId === 'all') {
+      initializeAllMarkers(markers);
       updateMapMarkers(markers);
     }
   }, [isMapReady, isDataLoaded]);

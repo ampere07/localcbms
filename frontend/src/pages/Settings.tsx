@@ -14,6 +14,15 @@ interface ColorPalette {
   accent: string;
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 const Settings: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [isLoadingPreferences, setIsLoadingPreferences] = useState<boolean>(true);
@@ -28,16 +37,19 @@ const Settings: React.FC = () => {
   const [userRoleId, setUserRoleId] = useState<number | null>(null);
   const [userRoleName, setUserRoleName] = useState<string>('');
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [loadingMessage, setLoadingMessage] = useState<string>('');
-  const [showSuccess, setShowSuccess] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string>('');
-  const [showError, setShowError] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState<boolean>(false);
+
+  const [loading, setLoading] = useState(false);
+  const [loadingPercentage, setLoadingPercentage] = useState(0);
+  const [modal, setModal] = useState<ModalConfig>({
+    isOpen: false,
+    type: 'success',
+    title: '',
+    message: ''
+  });
 
   const convertGoogleDriveUrl = (url: string): string => {
     if (!url) return '';
@@ -160,9 +172,15 @@ const Settings: React.FC = () => {
 
 
   const handlePaletteStatusChange = async (id: number, status: 'active' | 'inactive') => {
-    setIsLoading(true);
-    setLoadingMessage('Activating color palette...');
-    setShowError(false);
+    setLoading(true);
+    setLoadingPercentage(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingPercentage(prev => {
+        if (prev >= 90) return prev + 1;
+        return Math.min(99, prev + 10);
+      });
+    }, 100);
 
     try {
       await settingsColorPaletteService.updateStatus(id, status);
@@ -177,21 +195,25 @@ const Settings: React.FC = () => {
         }
       }
 
-      setIsLoading(false);
-      setSuccessMessage('Color palette activated successfully!');
-      setShowSuccess(true);
+      clearInterval(progressInterval);
+      setLoadingPercentage(100);
+      setLoading(false);
 
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 2000);
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Color palette activated successfully!'
+      });
     } catch (error) {
-      setIsLoading(false);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to activate color palette');
-      setShowError(true);
-
-      setTimeout(() => {
-        setShowError(false);
-      }, 3000);
+      clearInterval(progressInterval);
+      setLoading(false);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to activate color palette'
+      });
     }
   };
 
@@ -207,30 +229,40 @@ const Settings: React.FC = () => {
   const handleSaveImageSize = async () => {
     if (selectedImageSizeId === null) return;
 
-    setIsLoading(true);
-    setLoadingMessage('Updating image upload size...');
-    setShowError(false);
+    setLoading(true);
+    setLoadingPercentage(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingPercentage(prev => {
+        if (prev >= 90) return prev + 1;
+        return Math.min(99, prev + 10);
+      });
+    }, 100);
 
     try {
       await settingsImageSizeService.updateStatus(selectedImageSizeId, 'active');
       await loadImageSizes();
       setIsEditingImageSize(false);
 
-      setIsLoading(false);
-      setSuccessMessage('Image upload size updated successfully!');
-      setShowSuccess(true);
+      clearInterval(progressInterval);
+      setLoadingPercentage(100);
+      setLoading(false);
 
-      setTimeout(() => {
-        setShowSuccess(false);
-      }, 2000);
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Image upload size updated successfully!'
+      });
     } catch (error) {
-      setIsLoading(false);
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to update image upload size');
-      setShowError(true);
-
-      setTimeout(() => {
-        setShowError(false);
-      }, 3000);
+      clearInterval(progressInterval);
+      setLoading(false);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to update image upload size'
+      });
     }
   };
 
@@ -259,9 +291,12 @@ const Settings: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
-        setErrorMessage('File size must be less than 5MB');
-        setShowError(true);
-        setTimeout(() => setShowError(false), 3000);
+        setModal({
+          isOpen: true,
+          type: 'warning',
+          title: 'File Too Large',
+          message: 'File size must be less than 5MB'
+        });
         return;
       }
       
@@ -277,8 +312,15 @@ const Settings: React.FC = () => {
   const handleUploadLogo = async () => {
     if (!logoFile) return;
 
-    setIsUploadingLogo(true);
-    setLoadingMessage('Uploading logo to Google Drive...');
+    setLoading(true);
+    setLoadingPercentage(0);
+
+    const progressInterval = setInterval(() => {
+      setLoadingPercentage(prev => {
+        if (prev >= 90) return prev + 1;
+        return Math.min(99, prev + 10);
+      });
+    }, 100);
 
     try {
       const authData = localStorage.getItem('authData');
@@ -296,44 +338,85 @@ const Settings: React.FC = () => {
         }
         localStorage.setItem('logoUpdated', Date.now().toString());
         window.dispatchEvent(new Event('storage'));
-        setSuccessMessage('Logo uploaded successfully!');
-        setShowSuccess(true);
-        setTimeout(() => setShowSuccess(false), 2000);
+        window.dispatchEvent(new CustomEvent('logo-updated'));
+        
+        clearInterval(progressInterval);
+        setLoadingPercentage(100);
+        setLoading(false);
+
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: 'Logo uploaded successfully!'
+        });
       }
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to upload logo');
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
+      clearInterval(progressInterval);
+      setLoading(false);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: error instanceof Error ? error.message : 'Failed to upload logo'
+      });
     } finally {
       setIsUploadingLogo(false);
     }
   };
 
   const handleDeleteLogo = async () => {
-    if (!window.confirm('Are you sure you want to delete the logo?')) return;
+    setModal({
+      isOpen: true,
+      type: 'confirm',
+      title: 'Delete Logo',
+      message: 'Are you sure you want to delete the logo?',
+      onConfirm: async () => {
+        setModal({ ...modal, isOpen: false });
+        setLoading(true);
+        setLoadingPercentage(0);
 
-    setIsLoading(true);
-    setLoadingMessage('Deleting logo...');
+        const progressInterval = setInterval(() => {
+          setLoadingPercentage(prev => {
+            if (prev >= 90) return prev + 1;
+            return Math.min(99, prev + 10);
+          });
+        }, 100);
 
-    try {
-      const authData = localStorage.getItem('authData');
-      const userData = authData ? JSON.parse(authData) : null;
-      const updatedBy = userData?.username || 'system';
+        try {
+          const authData = localStorage.getItem('authData');
+          const userData = authData ? JSON.parse(authData) : null;
+          const updatedBy = userData?.username || 'system';
 
-      await systemConfigService.deleteLogo(updatedBy);
-      setLogoUrl(null);
-      localStorage.setItem('logoUpdated', Date.now().toString());
-      window.dispatchEvent(new Event('storage'));
-      setSuccessMessage('Logo deleted successfully!');
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : 'Failed to delete logo');
-      setShowError(true);
-      setTimeout(() => setShowError(false), 3000);
-    } finally {
-      setIsLoading(false);
-    }
+          await systemConfigService.deleteLogo(updatedBy);
+          setLogoUrl(null);
+          localStorage.setItem('logoUpdated', Date.now().toString());
+          window.dispatchEvent(new Event('storage'));
+          window.dispatchEvent(new CustomEvent('logo-updated'));
+          
+          clearInterval(progressInterval);
+          setLoadingPercentage(100);
+          setLoading(false);
+
+          setModal({
+            isOpen: true,
+            type: 'success',
+            title: 'Success',
+            message: 'Logo deleted successfully!'
+          });
+        } catch (error) {
+          clearInterval(progressInterval);
+          setLoading(false);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Error',
+            message: error instanceof Error ? error.message : 'Failed to delete logo'
+          });
+        }
+      },
+      onCancel: () => setModal({ ...modal, isOpen: false })
+    });
   };
 
   return (
@@ -702,37 +785,100 @@ const Settings: React.FC = () => {
         onSave={handleAddPalette}
       />
 
-      {isLoading && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4">
-            <Loader2 className="h-12 w-12 animate-spin" style={{ color: colorPalette?.primary || '#7c3aed' }} />
-            <p className="text-white font-medium">{loadingMessage}</p>
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
+            <div className="text-center">
+              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
+                }`}>{loadingPercentage}%</p>
+            </div>
           </div>
         </div>
       )}
 
-
-      {showSuccess && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4">
-            <CheckCircle className="h-16 w-16 text-green-500" />
-            <p className="text-white font-medium text-lg">{successMessage}</p>
-          </div>
-        </div>
-      )}
-
-      {showError && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
-          <div className="bg-gray-800 rounded-lg p-8 flex flex-col items-center gap-4">
-            <XCircle className="h-16 w-16 text-red-500" />
-            <p className="text-white font-medium text-lg">Error</p>
-            <p className="text-gray-300 text-sm text-center max-w-md">{errorMessage}</p>
-            <button
-              onClick={() => setShowError(false)}
-              className="mt-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded text-sm"
-            >
-              Close
-            </button>
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 shadow-2xl ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
+                    <>
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }}
+                      >
+                        Confirm
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      OK
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
