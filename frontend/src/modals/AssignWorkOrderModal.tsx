@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Loader2, Eraser, Camera, Search, ChevronDown } from 'lucide-react';
+import { X, Loader2, Eraser, Camera, Search, ChevronDown, ClipboardCheck, UserPlus, Info } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { userService } from '../services/userService';
 import { API_BASE_URL } from '../config/api';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 
 interface AssignWorkOrderModalProps {
   isOpen: boolean;
@@ -17,15 +18,6 @@ interface AssignWorkOrderModalProps {
 interface User {
   email: string;
   name: string;
-}
-
-interface ModalConfig {
-  isOpen: boolean;
-  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
-  title: string;
-  message: string;
-  onConfirm?: () => void;
-  onCancel?: () => void;
 }
 
 const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
@@ -73,9 +65,16 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
   const [loadingPercentage, setLoadingPercentage] = useState(0);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const [modal, setModal] = useState<ModalConfig>({
+  const [globalModal, setGlobalModal] = useState<{
+    isOpen: boolean;
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+    title: string;
+    message: string;
+    percentage?: number;
+    onConfirm?: () => void;
+  }>({
     isOpen: false,
-    type: 'success',
+    type: 'loading',
     title: '',
     message: ''
   });
@@ -83,10 +82,37 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
   const [assignToSearch, setAssignToSearch] = useState('');
   const [isAssignToOpen, setIsAssignToOpen] = useState(false);
 
-  useEffect(() => {
-    const theme = localStorage.getItem('theme');
-    setIsDarkMode(theme !== 'light');
+  const showGlobalModal = (
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
+    title: string, 
+    message: string,
+    onConfirm?: () => void,
+    percentage?: number
+  ) => {
+    setGlobalModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm,
+      percentage
+    });
+  };
 
+  const closeGlobalModal = () => {
+    setGlobalModal(prev => ({ ...prev, isOpen: false }));
+  };
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setIsDarkMode(localStorage.getItem('theme') !== 'light');
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+    setIsDarkMode(localStorage.getItem('theme') !== 'light');
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
     const fetchPalette = async () => {
       const palette = await settingsColorPaletteService.getActive();
       setColorPalette(palette);
@@ -107,21 +133,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
     const fetchTechnicians = async () => {
       if (!isOpen) return;
       try {
-        const response = await userService.getUsersByRole('technician');
-        if (response.success && response.data) {
-          const list = response.data
-            .map((user: any) => ({
-              email: user.email_address || user.email || '',
-              name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || user.username
-            }))
-            .filter((t: User) => t.name && t.email);
-          setTechnicians(list);
-        }
-      } catch (error) {
-        setTechnicians([]);
-      }
-      try {
-        const response = await userService.getUsersByRoleId([1, 2, 4, 5, 6]);
+        const response = await userService.getUsersByRoleId([1, 2, 4, 5, 6, 7]);
         if (response.success && response.data) {
           const list = response.data
             .map((user: any) => ({
@@ -214,33 +226,30 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-    if (!formData.instructions.trim()) newErrors.instructions = 'Instructions are required';
-    if (!formData.work_category) newErrors.work_category = 'Work Category is required';
-    if (!formData.report_to.trim()) newErrors.report_to = 'Report To is required';
-    if (!formData.assign_to.trim()) newErrors.assign_to = 'Assign To is required';
-
-    if (isEditMode) {
-      // Images and signature are now optional
-    }
+    if (!formData.instructions.trim()) newErrors.instructions = 'Tactical instructions required';
+    if (!formData.work_category) newErrors.work_category = 'Classification required';
+    if (!formData.report_to.trim()) newErrors.report_to = 'Report point required';
+    if (!formData.assign_to.trim()) newErrors.assign_to = 'Assignee selection required';
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSave = async () => {
-    if (!validateForm()) return;
+    if (!validateForm()) {
+      showGlobalModal('warning', 'Validation Fail', 'Please complete all prioritized operational fields.');
+      return;
+    }
 
     setLoading(true);
-    setLoadingPercentage(0);
+    showGlobalModal('loading', 'Unit Synchronization', isEditMode ? 'Updating logistical record...' : 'Establishing new work mission...', undefined, 15);
 
     const progressInterval = setInterval(() => {
       setLoadingPercentage(prev => {
-        if (prev >= 99) return 99;
-        if (prev >= 90) return prev + 1;
-        if (prev >= 70) return prev + 2;
+        if (prev >= 95) return 95;
         return prev + 5;
       });
-    }, 300);
+    }, 200);
 
     try {
       const authData = localStorage.getItem('authData');
@@ -249,7 +258,6 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
 
       let signatureFile = images.signature;
 
-      // If no file but canvas has data, grab it
       if (!signatureFile && sigCanvas.current && !sigCanvas.current.isEmpty()) {
         const dataUrl = sigCanvas.current.getTrimmedCanvas().toDataURL('image/png');
         const blob = await (await fetch(dataUrl)).blob();
@@ -292,70 +300,63 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(data.message || Object.values(data.errors || {}).join(', ') || 'Failed to save');
+        throw new Error(data.message || Object.values(data.errors || {}).join(', ') || 'Failed to finalize mission');
       }
 
       clearInterval(progressInterval);
-      setLoadingPercentage(100);
-
-      setTimeout(() => {
-        setModal({
-          isOpen: true,
-          type: 'success',
-          title: 'Success',
-          message: isEditMode ? 'Work Order updated successfully!' : 'Work Order created successfully!',
-          onConfirm: () => {
-            onSave();
-            if (onRefresh) onRefresh();
-            onClose();
-            setModal(prev => ({ ...prev, isOpen: false }));
-          }
-        });
-      }, 500);
+      showGlobalModal('success', 'Execution Priority Alpha', isEditMode ? 'Work order reconfiguration finalized.' : 'New mission entry successfully established.', () => {
+        onSave();
+        if (onRefresh) onRefresh();
+        onClose();
+        closeGlobalModal();
+      });
 
     } catch (error: any) {
       clearInterval(progressInterval);
-      setModal({
-        isOpen: true,
-        type: 'error',
-        title: isEditMode ? 'Failed to Update Work Order' : 'Failed to Create Work Order',
-        message: error.message || 'An error occurred'
-      });
+      showGlobalModal('error', 'Operational Disruption', error.message || 'Verification failure during mission entry.');
     } finally {
-      setTimeout(() => {
-        setLoading(false);
-        setLoadingPercentage(0);
-      }, 500);
+      setLoading(false);
     }
+  };
+
+  const handleClose = () => {
+    onClose();
   };
 
   if (!isOpen) return null;
 
   const ImageUploadPreview = ({ field, label }: { field: 'image_1' | 'image_2' | 'image_3', label: string }) => (
-    <div className="mb-4">
-      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+    <div className="space-y-3">
+      <label className={`block text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
         {label}
       </label>
-      <div className={`border-2 border-dashed rounded-lg p-4 text-center ${isDarkMode ? 'border-gray-700 hover:bg-gray-800' : 'border-gray-300 hover:bg-gray-50'}`}>
+      <div className={`relative border-3 border-dashed rounded-[2rem] p-6 text-center transition-all duration-300 group ${isDarkMode ? 'border-gray-800 hover:border-blue-500/30 hover:bg-white/[0.02]' : 'border-gray-100 hover:border-blue-600/30 hover:bg-gray-50 shadow-sm'}`}>
         {imagePreviews[field] ? (
-          <div className="relative">
-            <img src={imagePreviews[field]} alt={label} className="max-h-48 mx-auto" />
-            <button
-              onClick={() => {
-                setImagePreviews(prev => ({ ...prev, [field]: '' }));
-                setImages(prev => ({ ...prev, [field]: null }));
-              }}
-              className="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full"
-            >
-              <X size={16} />
-            </button>
+          <div className="relative overflow-hidden rounded-2xl shadow-2xl">
+            <img src={imagePreviews[field]} alt={label} className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-500" />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <button
+                onClick={() => {
+                  setImagePreviews(prev => ({ ...prev, [field]: '' }));
+                  setImages(prev => ({ ...prev, [field]: null }));
+                }}
+                className="bg-red-500 text-white p-3 rounded-full hover:scale-110 active:scale-90 transition-all shadow-xl"
+              >
+                <Eraser size={20} />
+              </button>
+            </div>
           </div>
         ) : (
-          <label className="cursor-pointer block">
+          <label className="cursor-pointer block py-8">
             <input type="file" accept="image/*" className="hidden" onChange={(e) => {
               if (e.target.files?.[0]) handleImageUpload(field, e.target.files[0]);
             }} />
-            <span className={`${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Click to upload image</span>
+            <div className="flex flex-col items-center gap-3">
+               <div className={`p-4 rounded-3xl ${isDarkMode ? 'bg-gray-800 text-blue-400' : 'bg-blue-50 text-blue-600'}`}>
+                <Camera size={32} strokeWidth={2.5} />
+               </div>
+               <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-gray-400/60' : 'text-gray-500/60'}`}>Initiate Signal Capture</span>
+            </div>
           </label>
         )}
       </div>
@@ -364,78 +365,122 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
 
   return (
     <>
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-            }`}>
-            <Loader2
-              className="w-20 h-20 animate-spin"
-              style={{ color: colorPalette?.primary || '#7c3aed' }}
-            />
-            <div className="text-center">
-              <p className={`text-4xl font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'
-                }`}>{loadingPercentage}%</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-end z-[5000]">
-        <div className={`h-full w-full max-w-2xl flex flex-col shadow-2xl transition-transform ${isDarkMode ? 'bg-gray-900' : 'bg-white'}`}>
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
-            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Assign Work Order</h2>
-            <div className="flex space-x-2">
-              <button onClick={onClose} className={`px-4 py-2 rounded ${isDarkMode ? 'bg-gray-700 text-white' : 'bg-gray-200 text-gray-900'}`}>Cancel</button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className="px-4 py-2 text-white rounded disabled:opacity-50"
-                style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
-              >
-                Save
-              </button>
-            </div>
+      <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-md flex justify-end z-[5000]" onClick={handleClose}>
+        <div 
+          className={`h-full w-full md:max-w-3xl flex flex-col shadow-4xl transform transition-all duration-500 ease-[cubic-bezier(0.23,1,0.32,1)] ${isDarkMode ? 'bg-gray-950 border-l border-white/5' : 'bg-white border-l border-gray-200'}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Action Header */}
+          <div className={`px-10 py-10 flex items-center justify-between border-b relative overflow-hidden ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-gray-50 border-gray-200 shadow-sm'}`}>
+             <div className="flex flex-col">
+                <div className={`p-3 rounded-2xl w-fit mb-4 ${isDarkMode ? 'bg-blue-500/10 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                   <ClipboardCheck size={32} strokeWidth={2.5} />
+                </div>
+                <h2 className={`text-3xl font-black italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>
+                  {isEditMode ? 'REALIGN MISSION' : 'ASSIGN WORK PRIORITY'}
+                </h2>
+                <div className="flex items-center gap-2 mt-1.5 opacity-50 uppercase text-[10px] font-black tracking-[0.2em]">
+                   <span className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}>Operational Vector Alpha</span>
+                   <span className={isDarkMode ? 'text-gray-700' : 'text-gray-300'}>|</span>
+                   <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Logistical Command System</span>
+                </div>
+             </div>
+             
+             <div className="flex items-center gap-4">
+                <button
+                  onClick={handleClose}
+                  className={`p-3 rounded-full transition-all active:scale-90 ${isDarkMode ? 'hover:bg-gray-800 text-gray-500' : 'hover:bg-gray-100 text-gray-400'}`}
+                >
+                  <X size={32} strokeWidth={3} />
+                </button>
+             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          <div className="flex-1 overflow-y-auto p-10 space-y-12 custom-scrollbar">
             {(() => {
               const isAssignedToCurrentUser = Boolean(isEditMode && formData.assign_to && currentUserEmail && formData.assign_to.toLowerCase() === currentUserEmail.toLowerCase());
-              const disabledClass = isDarkMode ? 'bg-gray-800 border-gray-700 text-gray-500 cursor-not-allowed opacity-70' : 'bg-gray-100 border-gray-300 text-gray-500 cursor-not-allowed opacity-70';
-
+              
               return (
-                <>
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Instructions<span className="text-red-500">*</span></label>
-                    <textarea value={formData.instructions} onChange={(e) => handleInputChange('instructions', e.target.value)} rows={4} disabled={isAssignedToCurrentUser}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none resize-none ${errors.instructions ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
+                <div className="space-y-12">
+                  {/* Status Indicator for Edit Mode */}
+                  {((userRole !== 1 && userRole !== 7) || isEditMode) && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       <div className="group">
+                          <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>Current Mission State</label>
+                          <div className="relative">
+                            <select 
+                              value={formData.work_status} 
+                              onChange={(e) => handleInputChange('work_status', e.target.value)}
+                              className={`w-full px-6 py-4 rounded-[2rem] border-2 appearance-none transition-all duration-300 focus:outline-none focus:ring-8 font-black uppercase tracking-widest text-xs ${isDarkMode 
+                                ? 'bg-gray-900 border-gray-800 text-white focus:border-blue-500/50 focus:ring-blue-500/5' 
+                                : 'bg-white border-gray-100 text-gray-950 focus:border-blue-600/50 focus:ring-blue-600/5 shadow-xl shadow-blue-100/10'}`}
+                            >
+                              <option value="Pending">PENDING DISPATCH</option>
+                              <option value="In Progress">ACTIVE DEPLOYMENT</option>
+                              <option value="Completed">MISSION COMPLETE</option>
+                              <option value="Failed">SYSTEM FAILURE</option>
+                              <option value="Cancelled">ABORTED OPERATION</option>
+                            </select>
+                            <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 opacity-30" size={20} />
+                          </div>
+                       </div>
+                       <div className="group">
+                          <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'}`}>Work Domain Taxonomy</label>
+                          <div className="relative">
+                            <select 
+                              value={formData.work_category} 
+                              onChange={(e) => handleInputChange('work_category', e.target.value)} 
+                              disabled={isAssignedToCurrentUser}
+                              className={`w-full px-6 py-4 rounded-[2rem] border-2 appearance-none transition-all duration-300 focus:outline-none focus:ring-8 font-black uppercase tracking-widest text-xs ${errors.work_category ? 'border-red-500' : ''} ${isAssignedToCurrentUser ? 'opacity-50 cursor-not-allowed' : ''} ${isDarkMode 
+                                ? 'bg-gray-900 border-gray-800 text-white focus:border-blue-500/50 focus:ring-blue-500/5' 
+                                : 'bg-white border-gray-100 text-gray-950 focus:border-blue-600/50 focus:ring-blue-600/5 shadow-xl shadow-blue-100/10'}`}
+                            >
+                              <option value="">UNCATEGORIZED SECTOR</option>
+                              {categories.map(c => <option key={c.id} value={c.category}>{c.category.toUpperCase()}</option>)}
+                            </select>
+                            <ChevronDown className="absolute right-6 top-1/2 -translate-y-1/2 opacity-30" size={20} />
+                          </div>
+                          {errors.work_category && <p className="mt-2 text-red-500 text-[9px] font-black uppercase tracking-widest">{errors.work_category}</p>}
+                       </div>
+                    </div>
+                  )}
+
+                  <div className="group">
+                    <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 transition-colors ${isDarkMode ? 'text-gray-600 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-600'}`}>Tactical Instructions<span className="text-red-500 ml-2">*</span></label>
+                    <textarea 
+                      value={formData.instructions} 
+                      onChange={(e) => handleInputChange('instructions', e.target.value)} 
+                      rows={4} 
+                      disabled={isAssignedToCurrentUser}
+                      style={{ fontSize: '1.25rem' }}
+                      className={`w-full px-8 py-6 rounded-[2.5rem] border-2 transition-all duration-500 focus:outline-none focus:ring-[1rem] font-bold tracking-tight resize-none ${errors.instructions ? 'border-red-500' : isAssignedToCurrentUser ? 'opacity-50' : (isDarkMode ? 'bg-gray-900 border-gray-800 text-white focus:border-blue-500/50 focus:ring-blue-500/5' : 'bg-white border-gray-100 text-gray-950 focus:border-blue-600/50 focus:ring-blue-600/5 shadow-2xl shadow-blue-100/20')}`} 
+                      placeholder="ENTER SPECIFIC ACTION STEPS..." 
+                    />
+                    {errors.instructions && <p className="mt-2 text-red-500 text-[9px] font-black uppercase tracking-widest">{errors.instructions}</p>}
                   </div>
 
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Work Category<span className="text-red-500">*</span></label>
-                    <select value={formData.work_category} onChange={(e) => handleInputChange('work_category', e.target.value)} disabled={isAssignedToCurrentUser}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.work_category ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                      <option value="">Select Category</option>
-                      {categories.map(c => <option key={c.id} value={c.category}>{c.category}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Report To<span className="text-red-500">*</span></label>
-                      <input type="text" value={formData.report_to} onChange={(e) => handleInputChange('report_to', e.target.value)} disabled={isAssignedToCurrentUser}
-                        placeholder="Enter Report To"
-                        className={`w-full px-3 py-2 border rounded focus:outline-none ${errors.report_to ? 'border-red-500' : isAssignedToCurrentUser ? disabledClass : isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                    <div className="group">
+                      <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-gray-600 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-600'}`}>Report Vector Point<span className="text-red-500 ml-2">*</span></label>
+                      <input 
+                        type="text" 
+                        value={formData.report_to} 
+                        onChange={(e) => handleInputChange('report_to', e.target.value)} 
+                        disabled={isAssignedToCurrentUser}
+                        className={`w-full px-8 py-5 rounded-[2rem] border-2 transition-all duration-300 focus:outline-none focus:ring-8 font-bold ${errors.report_to ? 'border-red-500' : (isDarkMode ? 'bg-gray-900 border-gray-800 text-white' : 'bg-white border-gray-100 text-gray-950')}`} 
+                        placeholder="Location/Unit Code"
+                      />
+                      {errors.report_to && <p className="mt-2 text-red-500 text-[9px] font-black uppercase tracking-widest">{errors.report_to}</p>}
                     </div>
 
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Assign To<span className="text-red-500">*</span></label>
+                    <div className="group">
+                      <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-gray-600 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-600'}`}>Operational Assignee<span className="text-red-500 ml-2">*</span></label>
                       <div className="relative">
-                        <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isAssignedToCurrentUser ? disabledClass : (isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300')
-                          } ${errors.assign_to ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
-                          <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                          <input
+                        <div className={`flex items-center px-6 py-4 rounded-[2rem] border-2 transition-all duration-300 focus-within:ring-8 ${isAssignedToCurrentUser ? 'opacity-50' : (isDarkMode ? 'bg-gray-900 border-gray-800 group-focus-within:border-blue-500/50 group-focus-within:ring-blue-500/5' : 'bg-white border-gray-100 group-focus-within:border-blue-600/50 group-focus-within:ring-blue-600/5')}`}>
+                           <UserPlus size={20} className="mr-3 opacity-30" />
+                           <input
                             type="text"
-                            placeholder="Search user..."
+                            placeholder="Search Authorized Personnel..."
                             value={isAssignToOpen ? assignToSearch : (assignees.find(a => a.email === formData.assign_to)?.name || formData.assign_to || assignToSearch)}
                             onChange={(e) => {
                               setAssignToSearch(e.target.value);
@@ -443,7 +488,7 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
                             }}
                             onFocus={() => !isAssignedToCurrentUser && setIsAssignToOpen(true)}
                             disabled={isAssignedToCurrentUser}
-                            className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'} ${isAssignedToCurrentUser ? 'cursor-not-allowed' : ''}`}
+                            className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-950'}`}
                           />
                           {!isAssignedToCurrentUser && (
                             <button
@@ -457,120 +502,75 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
                                   setAssignToSearch('');
                                 }
                               }}
-                              className={`ml-2 transition-transform duration-200`}
+                              className="ml-2"
                             >
-                              {isAssignToOpen || formData.assign_to ? (
-                                <X size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                              ) : (
-                                <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                              )}
+                               {isAssignToOpen || formData.assign_to ? <Eraser size={18} className="opacity-40" /> : <ChevronDown size={18} className="opacity-40" />}
                             </button>
                           )}
                         </div>
 
-                        {/* Recommendation Dropdown */}
                         {isAssignToOpen && !isAssignedToCurrentUser && (
-                          <div
-                            className={`absolute left-0 right-0 top-full mt-1 z-[6000] rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
-                              }`}
-                            style={{ minWidth: '100%' }}
-                          >
-                            <div className="max-h-60 overflow-y-auto custom-scrollbar">
+                          <div className={`absolute left-0 right-0 top-full mt-3 z-[6000] rounded-3xl shadow-[0_30px_100px_-20px_rgba(0,0,0,0.5)] border-2 overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-100'}`}>
+                            <div className="max-h-80 overflow-y-auto custom-scrollbar p-2">
                               {assignees
-                                .filter(a =>
-                                  a.name.toLowerCase().includes(assignToSearch.toLowerCase()) ||
-                                  a.email.toLowerCase().includes(assignToSearch.toLowerCase())
-                                )
+                                .filter(a => a.name.toLowerCase().includes(assignToSearch.toLowerCase()) || a.email.toLowerCase().includes(assignToSearch.toLowerCase()))
                                 .map((assignee) => (
                                   <div
                                     key={assignee.email}
-                                    className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode
-                                      ? 'hover:bg-gray-700 text-gray-200'
-                                      : 'hover:bg-gray-100 text-gray-700'
-                                      } ${formData.assign_to === assignee.email ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
+                                    className={`px-5 py-4 rounded-2xl cursor-pointer transition-all flex flex-col gap-1 mb-1 ${isDarkMode ? 'hover:bg-blue-500/10' : 'hover:bg-blue-50'} ${formData.assign_to === assignee.email ? (isDarkMode ? 'bg-blue-500/20 shadow-inner' : 'bg-blue-50/50') : ''}`}
                                     onClick={() => {
                                       handleInputChange('assign_to', assignee.email);
                                       setAssignToSearch('');
                                       setIsAssignToOpen(false);
                                     }}
                                   >
-                                    <div className="flex flex-col">
-                                      <span className="font-medium">{assignee.name}</span>
-                                      <span className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{assignee.email}</span>
-                                    </div>
+                                    <span className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>{assignee.name}</span>
+                                    <span className={`text-[10px] font-bold opacity-40 italic ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>{assignee.email}</span>
                                   </div>
                                 ))}
-                              {assignees.filter(a =>
-                                a.name.toLowerCase().includes(assignToSearch.toLowerCase()) ||
-                                a.email.toLowerCase().includes(assignToSearch.toLowerCase())
-                              ).length === 0 && (
-                                  <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                    No users found for "{assignToSearch}"
-                                  </div>
-                                )}
                             </div>
                           </div>
                         )}
-
-                        {/* Click outside to close */}
-                        {isAssignToOpen && (
-                          <div
-                            className="fixed inset-0 z-[5500] bg-transparent"
-                            onClick={() => {
-                              setIsAssignToOpen(false);
-                              setAssignToSearch('');
-                            }}
-                          />
-                        )}
                       </div>
-                      {errors.assign_to && (
-                        <p className="text-red-500 text-xs mt-1">{errors.assign_to}</p>
-                      )}
+                      {errors.assign_to && <p className="mt-2 text-red-500 text-[9px] font-black uppercase tracking-widest">{errors.assign_to}</p>}
                     </div>
                   </div>
 
-                  {((userRole !== 1 && userRole !== 7) || isEditMode) && (
-                    <div>
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Work Status</label>
-                      <select value={formData.work_status} onChange={(e) => handleInputChange('work_status', e.target.value)}
-                        className={`w-full px-3 py-2 border rounded focus:outline-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`}>
-                        <option value="Pending">Pending</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                        <option value="Failed">Failed</option>
-                        <option value="Cancelled">Cancelled</option>
-                      </select>
-                    </div>
-                  )}
-
-                  <div>
-                    <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>Remarks</label>
-                    <textarea value={formData.remarks} onChange={(e) => handleInputChange('remarks', e.target.value)} rows={4}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none resize-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'}`} />
+                  <div className="group">
+                    <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 ${isDarkMode ? 'text-gray-600 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-600'}`}>Mission Narrative / Remarks</label>
+                    <textarea 
+                      value={formData.remarks} 
+                      onChange={(e) => handleInputChange('remarks', e.target.value)} 
+                      rows={4}
+                      className={`w-full px-8 py-6 rounded-[2.5rem] border-2 transition-all duration-500 focus:outline-none focus:ring-[1rem] font-medium resize-none ${isDarkMode ? 'bg-gray-900 border-gray-800 text-white focus:border-blue-500/50 focus:ring-blue-500/5' : 'bg-white border-gray-100 text-gray-950 focus:border-blue-600/50 focus:ring-blue-600/5 shadow-2xl shadow-blue-100/10'}`} 
+                      placeholder="ADDITIONAL SYSTEM DEBRIES / OBSERVATIONS..." 
+                    />
                   </div>
 
                   {isEditMode && (
-                    <>
-                      <ImageUploadPreview field="image_1" label="Image 1" />
-                      <ImageUploadPreview field="image_2" label="Image 2" />
-                      <ImageUploadPreview field="image_3" label="Image 3" />
+                    <div className="space-y-12">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <ImageUploadPreview field="image_1" label="Primary Evidence" />
+                        <ImageUploadPreview field="image_2" label="Secondary Proof" />
+                        <ImageUploadPreview field="image_3" label="Site Validation" />
+                      </div>
 
-                      <div>
-                        <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                          Client Signature
+                      <div className="space-y-4">
+                        <label className={`block text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                          Authorized Personnel Signature
                         </label>
-                        <div className={`border rounded overflow-hidden relative w-full h-48 bg-white`}>
+                        <div className={`border-3 rounded-[3rem] overflow-hidden relative w-full h-72 group transition-all duration-500 ${isDarkMode ? 'bg-white border-gray-800' : 'bg-gray-50 border-gray-200 shadow-inner'}`}>
                           {imagePreviews.signature ? (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                              <img src={imagePreviews.signature} alt="Signature Preview" className="max-h-full max-w-full" />
+                            <div className="absolute inset-0 flex items-center justify-center p-10">
+                              <img src={imagePreviews.signature} alt="Signature Preview" className="max-h-full max-w-full drop-shadow-2xl" />
                               <button
                                 onClick={() => {
                                   setImagePreviews(prev => ({ ...prev, signature: '' }));
                                   setImages(prev => ({ ...prev, signature: null }));
                                 }}
-                                className="absolute top-2 right-2 bg-red-500 text-white p-2 rounded-full"
+                                className="absolute top-6 right-6 bg-red-500 text-white p-4 rounded-full shadow-2xl hover:scale-110 active:scale-90 transition-all border-4 border-white/20"
                               >
-                                <X size={16} />
+                                <Eraser size={24} />
                               </button>
                             </div>
                           ) : (
@@ -578,12 +578,12 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
                               <SignatureCanvas
                                 ref={sigCanvas}
                                 penColor="black"
-                                onEnd={() => {
-                                  if (errors.signature) setErrors(prev => ({ ...prev, signature: '' }));
-                                }}
+                                dotSize={1}
+                                minWidth={2}
+                                onEnd={() => { if (errors.signature) setErrors(prev => ({ ...prev, signature: '' })); }}
                                 canvasProps={{ className: 'w-full h-full cursor-crosshair' }}
                               />
-                              <div className="absolute top-2 right-2 flex space-x-2">
+                              <div className="absolute top-6 right-6 flex gap-3">
                                 <input
                                   type="file"
                                   accept="image/*"
@@ -596,117 +596,83 @@ const AssignWorkOrderModal: React.FC<AssignWorkOrderModalProps> = ({
                                 />
                                 <label
                                   htmlFor="sigUploadInput"
-                                  className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-full shadow transition-colors cursor-pointer"
-                                  title="Upload Image"
+                                  className={`p-3 rounded-2xl shadow-xl transition-all cursor-pointer hover:scale-110 active:scale-90 ${isDarkMode ? 'bg-blue-600 text-white' : 'bg-blue-500 text-white'}`}
                                 >
-                                  <Camera size={16} />
+                                  <Camera size={20} strokeWidth={2.5} />
                                 </label>
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    sigCanvas.current?.clear();
-                                  }}
-                                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 p-2 rounded-full shadow transition-colors"
-                                  title="Clear Canvas"
+                                  onClick={() => sigCanvas.current?.clear()}
+                                  className={`p-3 rounded-2xl shadow-xl transition-all hover:scale-110 active:scale-90 ${isDarkMode ? 'bg-gray-800 text-gray-400' : 'bg-white text-gray-600 border'}`}
                                 >
-                                  <Eraser size={16} />
+                                  <Eraser size={20} strokeWidth={2.5} />
                                 </button>
+                              </div>
+                              <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 opacity-20 pointer-events-none">
+                                 <div className="h-px w-8 bg-black"></div>
+                                 <span className="text-[10px] font-black uppercase tracking-widest text-black">Sign Within Boundary</span>
+                                 <div className="h-px w-8 bg-black"></div>
                               </div>
                             </>
                           )}
                         </div>
                       </div>
-                    </>
+                    </div>
                   )}
 
-                </>
+                  <div className={`p-8 rounded-[3rem] border-2 flex flex-col gap-6 shadow-sm ${isDarkMode ? 'bg-blue-500/[0.02] border-blue-500/10' : 'bg-blue-50/50 border-blue-100'}`}>
+                    <div className="flex items-center gap-4">
+                       <div className={`p-2.5 rounded-xl ${isDarkMode ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                          <Info size={20} strokeWidth={3} />
+                       </div>
+                       <h4 className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-blue-400' : 'text-blue-900'}`}>Protocol Directive</h4>
+                    </div>
+                    <p className={`text-[11px] font-bold leading-relaxed opacity-70 italic ${isDarkMode ? 'text-blue-300/60' : 'text-blue-700/80'}`}>
+                      "Assigned personnel must adhere to the tactical instructions provided. Site evidence and signatures are mandatory for mission completion validation. All logistical shifts are logged for historical audit integrity."
+                    </p>
+                  </div>
+                </div>
               );
             })()}
+          </div>
+
+          {/* Action Interface Footer */}
+          <div className={`p-10 border-t flex flex-col gap-4 ${isDarkMode ? 'bg-gray-900/60 border-gray-800' : 'bg-gray-50/80 border-gray-200'}`}>
+             <button
+                onClick={handleSave}
+                disabled={loading}
+                className="w-full px-12 py-6 disabled:opacity-50 text-white rounded-[2.5rem] font-black text-sm uppercase tracking-[0.4em] flex items-center justify-center shadow-4xl active:scale-[0.98] transition-all duration-300"
+                style={{ 
+                  backgroundColor: colorPalette?.primary || '#3b82f6',
+                  boxShadow: `0 25px 60px -15px ${isDarkMode ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.2)'}`
+                }}
+                onMouseEnter={(e) => { if (colorPalette?.accent && !loading) e.currentTarget.style.backgroundColor = colorPalette.accent; }}
+                onMouseLeave={(e) => { if (colorPalette?.primary) e.currentTarget.style.backgroundColor = colorPalette.primary; }}
+              >
+                {loading ? <div className="flex items-center gap-4"><Loader2 size={24} className="animate-spin" /><span>Syncing Logic...</span></div> : 'Commence Mission'}
+              </button>
+              
+              <button
+                onClick={handleClose}
+                className={`w-full py-4 rounded-full font-black text-[9px] uppercase tracking-[0.6em] transition-all duration-300 active:scale-95 ${isDarkMode ? 'text-gray-600 hover:text-white' : 'text-gray-400 hover:text-gray-950'}`}
+              >
+                Abort Classification
+              </button>
           </div>
         </div>
       </div>
 
-      {modal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[10000]">
-          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
-            {modal.type === 'loading' ? (
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
-                </div>
-                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{modal.title}</h3>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>{modal.message}</p>
-              </div>
-            ) : (
-              <>
-                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{modal.title}</h3>
-                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>{modal.message}</p>
-                <div className="flex items-center justify-end gap-3">
-                  {modal.type === 'confirm' ? (
-                    <>
-                      <button
-                        onClick={modal.onCancel}
-                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                          }`}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={modal.onConfirm}
-                        className="px-4 py-2 text-white rounded transition-colors"
-                        style={{
-                          backgroundColor: colorPalette?.primary || '#7c3aed'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (colorPalette?.accent) {
-                            e.currentTarget.style.backgroundColor = colorPalette.accent;
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                        }}
-                      >
-                        Confirm
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (modal.onConfirm) {
-                          modal.onConfirm();
-                        } else {
-                          setModal(prev => ({ ...prev, isOpen: false }));
-                        }
-                      }}
-                      className="px-4 py-2 text-white rounded transition-colors"
-                      style={{
-                        backgroundColor: colorPalette?.primary || '#7c3aed'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (colorPalette?.accent) {
-                          e.currentTarget.style.backgroundColor = colorPalette.accent;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                      }}
-                    >
-                      OK
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        loadingPercentage={globalModal.percentage}
+        onConfirm={globalModal.onConfirm || closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
     </>
   );
 };

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus, AlertCircle, CheckCircle } from 'lucide-react';
+import { X, Plus, Minus } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 
 interface AddPlanModalProps {
   isOpen: boolean;
@@ -22,9 +23,9 @@ interface Plan {
   updated_at?: string;
 }
 
-interface NotificationModal {
+interface GlobalModalState {
   isOpen: boolean;
-  type: 'success' | 'error';
+  type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
   title: string;
   message: string;
 }
@@ -41,13 +42,12 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
     price: 0
   });
 
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [notification, setNotification] = useState<NotificationModal>({
+  const [globalModal, setGlobalModal] = useState<GlobalModalState>({
     isOpen: false,
-    type: 'success',
+    type: 'loading',
     title: '',
     message: ''
   });
@@ -93,8 +93,8 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
     setErrors({});
   };
 
-  const showNotification = (type: 'success' | 'error', title: string, message: string) => {
-    setNotification({
+  const showGlobalModal = (type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', title: string, message: string) => {
+    setGlobalModal({
       isOpen: true,
       type,
       title,
@@ -102,14 +102,14 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
     });
   };
 
-  const closeNotification = () => {
-    setNotification({
-      ...notification,
+  const closeGlobalModal = () => {
+    const wasSuccess = globalModal.type === 'success';
+    setGlobalModal({
+      ...globalModal,
       isOpen: false
     });
 
-    // If it was a success notification, close the modal and refresh
-    if (notification.type === 'success') {
+    if (wasSuccess) {
       handleClose();
       onSave();
     }
@@ -135,7 +135,7 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
       return;
     }
 
-    setLoading(true);
+    showGlobalModal('loading', 'Saving Plan', `Please wait while we ${editingPlan ? 'update' : 'add'} the plan...`);
 
     try {
       const payload = {
@@ -162,18 +162,17 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        showNotification(
+        showGlobalModal(
           'success',
           'Success',
           data.message || `Plan ${editingPlan ? 'updated' : 'added'} successfully`
         );
-        // Don't close immediately - wait for user to click OK on notification
       } else {
         if (data.errors) {
           const errorMessages = Object.values(data.errors).flat().join('\n');
-          showNotification('error', 'Validation Error', errorMessages);
+          showGlobalModal('error', 'Validation Error', errorMessages);
         } else {
-          showNotification(
+          showGlobalModal(
             'error',
             'Error',
             data.message || `Failed to ${editingPlan ? 'update' : 'add'} plan`
@@ -182,13 +181,11 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      showNotification(
+      showGlobalModal(
         'error',
         'Error',
         `Failed to ${editingPlan ? 'update' : 'add'} plan: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -235,13 +232,12 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={loading}
                 className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
                 style={{
                   backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
                 onMouseEnter={(e) => {
-                  if (colorPalette?.accent && !loading) {
+                  if (colorPalette?.accent) {
                     e.currentTarget.style.backgroundColor = colorPalette.accent;
                   }
                 }}
@@ -249,14 +245,7 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
                   e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
                 }}
               >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  'Save'
-                )}
+                Save
               </button>
               <button
                 onClick={handleClose}
@@ -369,57 +358,16 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
         </div>
       </div>
 
-      {notification.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[60]" onClick={closeNotification}>
-          <div
-            className={`max-w-md w-full mx-4 rounded-lg shadow-xl ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-              }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="p-6">
-              <div className="flex items-start space-x-4">
-                <div className={`flex-shrink-0 ${notification.type === 'success' ? 'text-green-500' : 'text-red-500'
-                  }`}>
-                  {notification.type === 'success' ? (
-                    <CheckCircle size={24} />
-                  ) : (
-                    <AlertCircle size={24} />
-                  )}
-                </div>
-                <div className="flex-1">
-                  <h3 className={`text-lg font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                    }`}>
-                    {notification.title}
-                  </h3>
-                  <p className={`text-sm whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-600'
-                    }`}>
-                    {notification.message}
-                  </p>
-                </div>
-              </div>
-              <div className="mt-6 flex justify-end">
-                <button
-                  onClick={closeNotification}
-                  className="px-4 py-2 rounded text-sm text-white"
-                  style={{
-                    backgroundColor: colorPalette?.primary || '#7c3aed'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (colorPalette?.accent) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                  }}
-                >
-                  OK
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        onConfirm={closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
     </>
   );
 };

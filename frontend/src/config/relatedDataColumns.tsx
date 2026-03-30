@@ -12,10 +12,38 @@ const formatDate = (val: any) => {
   try {
     const date = new Date(val);
     if (isNaN(date.getTime())) return val;
-    const mm = String(date.getMonth() + 1).padStart(2, '0');
-    const dd = String(date.getDate()).padStart(2, '0');
-    const yyyy = date.getFullYear();
-    return `${mm}/${dd}/${yyyy}`;
+    
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).format(date);
+  } catch (e) {
+    return val;
+  }
+};
+
+const formatDateTime = (val: any) => {
+  if (!val) return '-';
+  try {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) return val;
+    
+    const formatter = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+    
+    return `${getPart('month')}/${getPart('day')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')} ${getPart('dayPeriod')}`;
   } catch (e) {
     return val;
   }
@@ -317,10 +345,10 @@ export const relatedDataColumns = {
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
     { key: 'old_details', label: 'Old Details', render: renderDetailsJson, className: 'min-w-[300px]' },
     { key: 'new_details', label: 'New Details', render: renderDetailsJson, className: 'min-w-[300px]' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
-    { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
+    { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
+    { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   planChangeLogs: [

@@ -120,7 +120,7 @@ const ReconnectionLogs: React.FC = () => {
 
   // All available columns for the table
   const allColumns = [
-    { key: 'date', label: 'Date', width: 'min-w-36' },
+    { key: 'date', label: 'Date', width: 'min-w-48' },
     { key: 'accountNo', label: 'Account No.', width: 'min-w-32' },
     { key: 'username', label: 'Username', width: 'min-w-36' },
     { key: 'reconnectionFee', label: 'Reconnection Fee', width: 'min-w-40' },
@@ -133,10 +133,10 @@ const ReconnectionLogs: React.FC = () => {
     { key: 'contactNumber', label: 'Contact Number', width: 'min-w-36' },
     { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
     { key: 'balance', label: 'Account Balance', width: 'min-w-32' },
-    { key: 'reconnectionDate', label: 'Reconnection Date', width: 'min-w-36' },
+    { key: 'reconnectionDate', label: 'Reconnection Date', width: 'min-w-48' },
     { key: 'reconnectedBy', label: 'Reconnected By', width: 'min-w-36' },
     { key: 'reason', label: 'Reason', width: 'min-w-40' },
-    { key: 'appliedDate', label: 'Applied Date', width: 'min-w-32' },
+    { key: 'appliedDate', label: 'Applied Date', width: 'min-w-48' },
     { key: 'daysDisconnected', label: 'Days Disconnected', width: 'min-w-36' },
     { key: 'reconnectionCode', label: 'Reconnection Code', width: 'min-w-36' }
   ];
@@ -199,15 +199,26 @@ const ReconnectionLogs: React.FC = () => {
     });
   }, [logRecords, searchQuery, statementDateFrom, statementDateTo]);
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDateTime = (dateStr?: string): string => {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return dateStr;
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      const parts = formatter.formatToParts(date);
+      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+      
+      return `${getPart('month')}/${getPart('day')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')} ${getPart('dayPeriod')}`;
     } catch (e) {
       return dateStr;
     }
@@ -367,7 +378,7 @@ const ReconnectionLogs: React.FC = () => {
   const renderCellValue = (record: ReconnectionLogRecord, columnKey: string) => {
     switch (columnKey) {
       case 'date':
-        return formatDate(record.date || record.reconnectionDate);
+        return formatDateTime(record.date || record.reconnectionDate);
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'username':
@@ -404,7 +415,7 @@ const ReconnectionLogs: React.FC = () => {
       case 'balance':
         return record.balance ? `₱ ${record.balance.toFixed(2)}` : '-';
       case 'reconnectionDate':
-        return formatDate(record.reconnectionDate);
+        return formatDateTime(record.reconnectionDate);
       case 'reconnectedBy': {
         const val = record.reconnectedBy;
         if (!val) return '-';
@@ -417,7 +428,7 @@ const ReconnectionLogs: React.FC = () => {
       case 'reason':
         return record.reason || '-';
       case 'appliedDate':
-        return formatDate(record.appliedDate);
+        return formatDateTime(record.appliedDate);
       case 'daysDisconnected':
         return record.daysDisconnected !== undefined ? record.daysDisconnected : '-';
       case 'reconnectionCode':

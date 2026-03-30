@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
-import { API_BASE_URL } from '../config/api';
+import apiClient from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface ModalConfig {
@@ -12,30 +12,28 @@ interface ModalConfig {
   onCancel?: () => void;
 }
 
-interface Promo {
+interface StatusRemark {
   id: number;
-  name: string;
-  status?: string;
+  status_remarks: string;
 }
 
-interface PromoFormModalProps {
+interface StatusRemarksFormModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
-  editingPromo: Promo | null;
+  editingRemark: StatusRemark | null;
 }
 
-const PromoFormModal: React.FC<PromoFormModalProps> = ({
+const StatusRemarksFormModal: React.FC<StatusRemarksFormModalProps> = ({
   isOpen,
   onClose,
   onSave,
-  editingPromo
+  editingRemark
 }) => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    status: ''
+    status_remarks: ''
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -79,20 +77,18 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (isOpen && editingPromo) {
+    if (isOpen && editingRemark) {
       setFormData({
-        name: editingPromo.name,
-        status: editingPromo.status || ''
+        status_remarks: editingRemark.status_remarks
       });
-    } else if (isOpen && !editingPromo) {
+    } else if (isOpen && !editingRemark) {
       resetForm();
     }
-  }, [isOpen, editingPromo]);
+  }, [isOpen, editingRemark]);
 
   const resetForm = () => {
     setFormData({
-      name: '',
-      status: ''
+      status_remarks: ''
     });
     setErrors({});
   };
@@ -100,8 +96,8 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = 'Promo name is required';
+    if (!formData.status_remarks.trim()) {
+      newErrors.status_remarks = 'Status remark is required';
     }
 
     setErrors(newErrors);
@@ -123,33 +119,23 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
 
     try {
       const payload = {
-        name: formData.name.trim(),
-        status: formData.status.trim()
+        status_remarks: formData.status_remarks.trim()
       };
 
-      const url = editingPromo
-        ? `${API_BASE_URL}/promos/${editingPromo.id}`
-        : `${API_BASE_URL}/promos`;
+      const url = editingRemark
+        ? `/status-remarks/${editingRemark.id}`
+        : `/status-remarks`;
 
-      const method = editingPromo ? 'PUT' : 'POST';
+      const method = editingRemark ? 'put' : 'post';
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
-      });
+      const response = await apiClient[method](url, payload) as any;
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (response.data.success) {
         setModal({
           isOpen: true,
           type: 'success',
           title: 'Success',
-          message: data.message || `Promo ${editingPromo ? 'updated' : 'added'} successfully`,
+          message: response.data.message || `Status remark ${editingRemark ? 'updated' : 'added'} successfully`,
           onConfirm: () => {
             onSave();
             handleClose();
@@ -157,31 +143,32 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
           }
         });
       } else {
-        if (data.errors) {
-          const errorMessages = Object.values(data.errors).flat().join('\n');
-          setModal({
-            isOpen: true,
-            type: 'error',
-            title: 'Validation Errors',
-            message: errorMessages
-          });
-        } else {
-          setModal({
-            isOpen: true,
-            type: 'error',
-            title: 'Error',
-            message: data.message || `Failed to ${editingPromo ? 'update' : 'add'} promo`
-          });
-        }
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: response.data.message || `Failed to ${editingRemark ? 'update' : 'add'} status remark`
+        });
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      setModal({
-        isOpen: true,
-        type: 'error',
-        title: 'Error',
-        message: `Failed to ${editingPromo ? 'update' : 'add'} promo: ${error instanceof Error ? error.message : 'Unknown error'}`
-      });
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      if (error.response?.data?.errors) {
+        const validationMsgs = Object.values(error.response.data.errors).flat().join('\n');
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Validation Errors',
+          message: validationMsgs
+        });
+      } else {
+        setModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Error',
+          message: `Failed to ${editingRemark ? 'update' : 'add'} status remark: ${errorMessage}`
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -205,7 +192,7 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
           <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
             }`}>
             <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{editingPromo ? 'Edit Promo' : 'Add Promo'}</h2>
+              }`}>{editingRemark ? 'Edit Status Remark' : 'Add Status Remark'}</h2>
             <div className="flex items-center space-x-3">
               <button
                 onClick={handleClose}
@@ -257,38 +244,18 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
             <div>
               <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                Promo Name<span className="text-red-500">*</span>
+                Status Remark<span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
+              <textarea
+                value={formData.status_remarks}
+                onChange={(e) => setFormData({ ...formData, status_remarks: e.target.value })}
+                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 min-h-[120px] ${isDarkMode
                   ? 'bg-gray-800 text-white border-gray-700'
                   : 'bg-white text-gray-900 border-gray-300'
-                  } ${errors.name ? 'border-red-500' : ''}`}
-                placeholder="Enter promo name"
+                  } ${errors.status_remarks ? 'border-red-500' : ''}`}
+                placeholder="Enter status remark details"
               />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 text-white border-gray-700'
-                  : 'bg-white text-gray-900 border-gray-300'
-                  }`}
-              >
-                <option value="">Select Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
+              {errors.status_remarks && <p className="text-red-500 text-xs mt-1">{errors.status_remarks}</p>}
             </div>
           </div>
         </div>
@@ -391,4 +358,4 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
   );
 };
 
-export default PromoFormModal;
+export default StatusRemarksFormModal;

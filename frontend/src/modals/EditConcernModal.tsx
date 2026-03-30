@@ -1,17 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { Concern } from '../services/concernService';
-import LoadingModalGlobal from '../components/LoadingModalGlobal';
-
-interface ModalConfig {
-  isOpen: boolean;
-  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
-  title: string;
-  message: string;
-  onConfirm?: () => void;
-  onCancel?: () => void;
-}
 
 interface EditConcernModalProps {
   isOpen: boolean;
@@ -25,19 +15,28 @@ interface ConcernFormData {
   userId?: number;
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 const EditConcernModal: React.FC<EditConcernModalProps> = ({
   isOpen,
   onClose,
   onSave,
   concernItem
 }) => {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
+  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [formData, setFormData] = useState<ConcernFormData>({
     name: ''
   });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [loadingPercentage, setLoadingPercentage] = useState(0);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'success',
@@ -45,16 +44,23 @@ const EditConcernModal: React.FC<EditConcernModalProps> = ({
     message: ''
   });
 
-  const [modifiedDate, setModifiedDate] = useState<string>('');
-  const [modifiedBy, setModifiedBy] = useState<string>('');
-  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
-  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-
   useEffect(() => {
+    const checkDarkMode = () => {
+      const theme = localStorage.getItem('theme');
+      setIsDarkMode(theme === 'dark' || theme === null);
+    };
+
+    checkDarkMode();
+
     const observer = new MutationObserver(() => {
-      setIsDarkMode(localStorage.getItem('theme') === 'dark');
+      checkDarkMode();
     });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
     return () => observer.disconnect();
   }, []);
 
@@ -72,20 +78,16 @@ const EditConcernModal: React.FC<EditConcernModalProps> = ({
 
   useEffect(() => {
     const authData = localStorage.getItem('authData');
-    let userEmail = 'Unknown User';
     let userId: number | undefined;
 
     if (authData) {
       try {
         const userData = JSON.parse(authData);
-        userEmail = userData.email || userData.email_address || 'Unknown User';
         userId = userData.id || userData.user_id;
       } catch (error) {
         console.error('Error parsing auth data:', error);
       }
     }
-
-    setModifiedBy(userEmail);
 
     if (isOpen) {
       if (concernItem) {
@@ -99,244 +101,247 @@ const EditConcernModal: React.FC<EditConcernModalProps> = ({
           userId: userId
         });
       }
-
-      const now = new Date();
-      const formattedDate = formatDateTime(now);
-      setModifiedDate(formattedDate);
+      setErrors({});
     }
   }, [isOpen, concernItem]);
 
-  const formatDateTime = (date: Date): string => {
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    const year = date.getFullYear();
-
-    let hours = date.getHours();
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    const seconds = String(date.getSeconds()).padStart(2, '0');
-    const ampm = hours >= 12 ? 'pm' : 'am';
-
-    hours = hours % 12;
-    hours = hours ? hours : 12;
-    const strHours = String(hours).padStart(2, '0');
-
-    return `${month}/${day}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
-  };
-
-  const handleInputChange = (value: string) => {
-    setFormData(prev => ({ ...prev, name: value }));
-    if (errors.name) {
-      setErrors(prev => ({ ...prev, name: '' }));
-    }
-  };
-
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.name.trim()) {
       newErrors.name = 'Concern name is required';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSave = async () => {
-    if (!validateForm()) return;
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields.'
+      });
+      return;
+    }
 
     setLoading(true);
-    setLoadingPercentage(0);
-
-    const progressInterval = setInterval(() => {
-      setLoadingPercentage(prev => {
-        if (prev >= 99) return 99;
-        if (prev >= 90) return prev + 1;
-        if (prev >= 70) return prev + 2;
-        return prev + 5;
-      });
-    }, 300);
 
     try {
       await onSave(formData);
-      
-      clearInterval(progressInterval);
-      setLoadingPercentage(100);
-      
-      setTimeout(() => {
-        setLoading(false);
-        setModal({
-          isOpen: true,
-          type: 'success',
-          title: 'Success',
-          message: concernItem ? 'Concern updated successfully.' : 'Concern added successfully.',
-          onConfirm: () => {
-            setModal(prev => ({ ...prev, isOpen: false }));
-            handleClose();
-          }
-        });
-      }, 500);
-    } catch (error: any) {
-      clearInterval(progressInterval);
-      setLoading(false);
-      
-      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.message || 'Failed to save concern. Please try again.';
+      setModal({
+        isOpen: true,
+        type: 'success',
+        title: 'Success',
+        message: `Concern ${concernItem ? 'updated' : 'added'} successfully`,
+        onConfirm: () => {
+          handleClose();
+          setModal(prev => ({ ...prev, isOpen: false }));
+        }
+      });
+    } catch (error) {
+      console.error('Error submitting form:', error);
       setModal({
         isOpen: true,
         type: 'error',
-        title: 'Error Saving Concern',
-        message: errorMessage,
-        onConfirm: () => setModal(prev => ({ ...prev, isOpen: false }))
+        title: 'Error',
+        message: `Failed to ${concernItem ? 'update' : 'add'} concern: ${error instanceof Error ? error.message : 'Unknown error'}`
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleClose = () => {
-    setFormData({
-      name: ''
-    });
+    setFormData({ name: '' });
     setErrors({});
     onClose();
   };
 
-  if (!isOpen && !modal.isOpen && !loading) return null;
+  if (!isOpen) return null;
 
   return (
     <>
-      <LoadingModalGlobal
-        isOpen={loading}
-        type="loading"
-        title="Processing"
-        message={concernItem ? 'Updating concern...' : 'Adding concern...'}
-        loadingPercentage={loadingPercentage}
-        isDarkMode={isDarkMode}
-        colorPalette={colorPalette}
-      />
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
+        <div
+          className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
+            }`}>
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>{concernItem ? 'Edit Concern' : 'Add Concern'}</h2>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleClose}
+                className={`px-4 py-2 rounded text-sm transition-colors ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSubmit}
+                disabled={loading}
+                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center transition-colors"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent && !loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </button>
+              <button
+                onClick={handleClose}
+                className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
+                  }`}
+              >
+                <X size={24} />
+              </button>
+            </div>
+          </div>
 
-      <LoadingModalGlobal
-        isOpen={modal.isOpen}
-        type={modal.type as any}
-        title={modal.title}
-        message={modal.message}
-        onConfirm={modal.onConfirm || (() => setModal(prev => ({ ...prev, isOpen: false })))}
-        onCancel={modal.onCancel}
-        isDarkMode={isDarkMode}
-        colorPalette={colorPalette}
-      />
-
-      {isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-          <div
-            className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
-              }`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-                ? 'bg-gray-800 border-gray-700'
-                : 'bg-gray-100 border-gray-300'
-              }`}>
-              <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div>
+              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                 }`}>
-                {concernItem ? 'Edit Concern' : 'Add Concern'}
-              </h2>
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleClose}
-                  className={`px-4 py-2 rounded text-sm ${isDarkMode
-                      ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                    }`}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleSave}
-                  disabled={loading}
-                  className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm font-medium flex items-center transition-all active:scale-95"
-                  style={{
-                    backgroundColor: colorPalette?.primary || '#7c3aed'
-                  }}
-                  onMouseEnter={(e) => {
-                    if (colorPalette?.accent && !loading) {
-                      e.currentTarget.style.backgroundColor = colorPalette.accent;
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                  }}
-                >
-                  {loading ? (
+                Concern Name<span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                className={`w-full px-3 py-2 border rounded focus:outline-none transition-all duration-200 ${isDarkMode
+                  ? 'bg-gray-800 text-white border-gray-700'
+                  : 'bg-white text-gray-900 border-gray-300'
+                  } ${errors.name ? 'border-red-500' : ''}`}
+                placeholder="Enter concern name"
+                autoFocus
+                onFocus={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.borderColor = colorPalette.primary;
+                    e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
+                  }
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+                  e.currentTarget.style.boxShadow = 'none';
+                }}
+              />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {loading && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
+          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
+            }`}>
+            <Loader2
+              className="w-20 h-20 animate-spin"
+              style={{ color: colorPalette?.primary || '#7c3aed' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {modal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
+          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+            }`}>
+            {modal.type === 'loading' ? (
+              <div className="text-center">
+                <div className="flex justify-center mb-4">
+                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
+                </div>
+                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  }`}>{modal.message}</p>
+              </div>
+            ) : (
+              <>
+                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
+                  }`}>{modal.title}</h3>
+                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                  }`}>{modal.message}</p>
+                <div className="flex items-center justify-end gap-3">
+                  {modal.type === 'confirm' ? (
                     <>
-                      <Loader2 size={16} className="animate-spin mr-2" />
-                      Saving...
+                      <button
+                        onClick={modal.onCancel}
+                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
+                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                          }`}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={modal.onConfirm}
+                        className="px-4 py-2 text-white rounded transition-colors"
+                        style={{
+                          backgroundColor: colorPalette?.primary || '#7c3aed'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (colorPalette?.accent) {
+                            e.currentTarget.style.backgroundColor = colorPalette.accent;
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                        }}
+                      >
+                        Confirm
+                      </button>
                     </>
                   ) : (
-                    'Save'
+                    <button
+                      onClick={() => {
+                        if (modal.onConfirm) {
+                          modal.onConfirm();
+                        } else {
+                          setModal({ ...modal, isOpen: false });
+                        }
+                      }}
+                      className="px-4 py-2 text-white rounded transition-colors"
+                      style={{
+                        backgroundColor: colorPalette?.primary || '#7c3aed'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (colorPalette?.accent) {
+                          e.currentTarget.style.backgroundColor = colorPalette.accent;
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                      }}
+                    >
+                      OK
+                    </button>
                   )}
-                </button>
-                <button
-                  onClick={handleClose}
-                  className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Concern Name<span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange(e.target.value)}
-                  placeholder="Enter concern name"
-                  className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
-                  autoFocus
-                />
-                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Modified Date
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={modifiedDate}
-                    readOnly
-                    className={`w-full px-3 py-2 pr-10 border rounded cursor-not-allowed ${isDarkMode
-                        ? 'bg-gray-800 border-gray-700 text-gray-400'
-                        : 'bg-gray-100 border-gray-300 text-gray-500'
-                      }`}
-                  />
-                  <Calendar className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                    }`} size={20} />
                 </div>
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Modified By
-                </label>
-                <input
-                  type="text"
-                  value={modifiedBy}
-                  readOnly
-                  className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode
-                      ? 'bg-gray-800 border-gray-700 text-gray-400'
-                      : 'bg-gray-100 border-gray-300 text-gray-500'
-                    }`}
-                />
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -345,4 +350,3 @@ const EditConcernModal: React.FC<EditConcernModalProps> = ({
 };
 
 export default EditConcernModal;
-

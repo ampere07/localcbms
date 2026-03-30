@@ -44,10 +44,12 @@ class StatusRemarksController extends Controller
                 ], 422);
             }
 
+            $userIdentifier = \Auth::check() ? \Auth::user()->email_address : 'System';
+
             $statusRemark = StatusRemarksList::create([
                 'status_remarks' => $request->status_remarks,
-                'created_by_user_id' => 1,
-                'updated_by_user_id' => 1
+                'created_by_user' => $userIdentifier,
+                'updated_by_user' => $userIdentifier
             ]);
 
             return response()->json([
@@ -102,11 +104,13 @@ class StatusRemarksController extends Controller
                 ], 422);
             }
 
+            $userIdentifier = \Auth::check() ? \Auth::user()->email_address : 'System';
+
             $statusRemark = StatusRemarksList::findOrFail($id);
             
             $statusRemark->update([
                 'status_remarks' => $request->status_remarks,
-                'updated_by_user_id' => 1
+                'updated_by_user' => $userIdentifier
             ]);
 
             return response()->json([

@@ -65,8 +65,9 @@ const TransactionRevertModal: React.FC<TransactionRevertModalProps> = ({
                 const authData = localStorage.getItem('authData');
                 if (authData) {
                     const parsed = JSON.parse(authData);
-                    const email = parsed.email_address || '';
-                    setRequestedBy(email);
+                    // Try to get email from email_address, then email, then use username as fallback
+                    const userEmail = parsed.email_address || parsed.email || parsed.username || '';
+                    setRequestedBy(userEmail);
                 }
             } catch (err) {
                 console.error('Error getting user email:', err);

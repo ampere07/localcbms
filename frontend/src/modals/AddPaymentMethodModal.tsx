@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, Loader2, CreditCard } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 
 interface AddPaymentMethodModalProps {
   isOpen: boolean;
@@ -33,6 +34,38 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  const [globalModal, setGlobalModal] = useState<{
+    isOpen: boolean;
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    type: 'loading',
+    title: '',
+    message: ''
+  });
+
+  const showGlobalModal = (
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
+    title: string, 
+    message: string,
+    onConfirm?: () => void
+  ) => {
+    setGlobalModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm
+    });
+  };
+
+  const closeGlobalModal = () => {
+    setGlobalModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -84,6 +117,7 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
 
   const handleSubmit = async () => {
     if (!validateForm()) {
+      showGlobalModal('warning', 'Validation Error', 'Payment method name is required.');
       return;
     }
 
@@ -112,20 +146,22 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        alert(data.message || `Payment method ${editingPaymentMethod ? 'updated' : 'added'} successfully`);
-        onSave();
-        handleClose();
+        showGlobalModal('success', 'Success', data.message || `Payment method ${editingPaymentMethod ? 'updated' : 'added'} successfully`, () => {
+          onSave();
+          handleClose();
+          closeGlobalModal();
+        });
       } else {
         if (data.errors) {
           const errorMessages = Object.values(data.errors).flat().join('\n');
-          alert('Validation errors:\n' + errorMessages);
+          showGlobalModal('error', 'Validation Fail', errorMessages);
         } else {
-          alert(data.message || `Failed to ${editingPaymentMethod ? 'update' : 'add'} payment method`);
+          showGlobalModal('error', 'Update Failed', data.message || `Failed to ${editingPaymentMethod ? 'update' : 'add'} method`);
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error submitting form:', error);
-      alert(`Failed to ${editingPaymentMethod ? 'update' : 'add'} payment method: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      showGlobalModal('error', 'System Error', `Failed to finalize request: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -139,34 +175,100 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-      <div
-        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
-          }`}>
-          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>{editingPaymentMethod ? 'Edit Payment Method' : 'Add Payment Method'}</h2>
-          <div className="flex items-center space-x-3">
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-65 backdrop-blur-sm flex items-center justify-end z-[40]" onClick={handleClose}>
+        <div
+          className={`h-full w-full md:max-w-2xl shadow-3xl transform transition-transform duration-300 ease-out flex flex-col ${isDarkMode ? 'bg-gray-950 border-l border-white/5' : 'bg-white border-l border-gray-200'
+            }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div className={`px-8 py-8 flex items-center justify-between border-b ${isDarkMode
+              ? 'bg-gray-900/40 border-gray-800'
+              : 'bg-gray-50 border-gray-200'
+            }`}>
+            <div className="flex flex-col">
+              <h2 className={`text-2xl font-black tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                {editingPaymentMethod ? 'Configure Gateway' : 'New Payment Portal'}
+              </h2>
+              <p className={`text-xs mt-1 font-bold tracking-wide uppercase opacity-60 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                {editingPaymentMethod ? 'Update existing financial channel' : 'Establish a new payment reception point'}
+              </p>
+            </div>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleClose}
+                className={`p-2 rounded-full transition-all active:scale-90 ${isDarkMode ? 'hover:bg-gray-800 text-gray-500' : 'hover:bg-gray-100 text-gray-400'}`}
+              >
+                <X size={28} />
+              </button>
+            </div>
+          </div>
+
+          {/* Form Content */}
+          <div className="flex-1 overflow-y-auto p-10 space-y-10 custom-scrollbar">
+            <div className="space-y-8">
+              <div className="group">
+                <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-3 transition-colors ${isDarkMode ? 'text-gray-600 group-focus-within:text-emerald-500' : 'text-gray-400 group-focus-within:text-emerald-600'}`}>
+                  Payment Method Identifier<span className="text-red-500 ml-1">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={formData.payment_method}
+                    onChange={(e) => {
+                      setFormData({ ...formData, payment_method: e.target.value });
+                      if (errors.payment_method) setErrors({...errors, payment_method: ''});
+                    }}
+                    className={`w-full px-6 py-4.5 rounded-2xl border-2 transition-all duration-300 focus:outline-none focus:ring-8 ${isDarkMode 
+                      ? 'bg-gray-900 text-white border-gray-800 focus:border-emerald-500/50 focus:ring-emerald-500/5' 
+                      : 'bg-white text-gray-900 border-gray-100 focus:border-emerald-600/50 focus:ring-emerald-600/5 shadow-xl shadow-gray-200/50'
+                      } ${errors.payment_method ? 'border-red-500/50 ring-red-500/5' : ''}`}
+                    placeholder="e.g. G-Cash, PayMaya, Bank Transfer"
+                    autoFocus
+                  />
+                  {errors.payment_method && (
+                    <p className="mt-2 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                      <X size={10} /> {errors.payment_method}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              <div className={`p-6 rounded-3xl border-2 flex gap-6 ${isDarkMode
+                  ? 'bg-emerald-500/[0.03] border-emerald-500/10'
+                  : 'bg-emerald-50 border-emerald-100 shadow-inner'
+                }`}>
+                <div className={`p-3 rounded-2xl ${isDarkMode ? 'bg-emerald-500/10 text-emerald-400' : 'bg-emerald-100 text-emerald-600'}`}>
+                  <CreditCard size={32} strokeWidth={2.5} />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <h4 className={`text-base font-black ${isDarkMode ? 'text-emerald-400' : 'text-emerald-900'}`}>Financial Compliance</h4>
+                  <p className={`text-xs leading-relaxed font-bold opacity-70 ${isDarkMode ? 'text-emerald-300/60' : 'text-emerald-700/80'}`}>
+                    Ensure the method name matches the provider's official designation. This field is used for automated reconciliation and accounting reports. Incorrect naming can lead to audit discrepancies.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Footer */}
+          <div className={`p-8 border-t flex gap-4 ${isDarkMode ? 'bg-gray-900/60 border-gray-800' : 'bg-gray-50 border-gray-200'}`}>
             <button
               onClick={handleClose}
-              className={`px-4 py-2 rounded text-sm ${isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+              className={`flex-1 px-6 py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 ${isDarkMode
+                  ? 'bg-gray-800 text-gray-500 hover:text-white'
+                  : 'bg-white text-gray-400 hover:text-gray-900 shadow-sm'
                 }`}
             >
-              Cancel
+              Discard Changes
             </button>
             <button
               onClick={handleSubmit}
               disabled={loading}
-              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+              className="flex-[2] px-10 py-4 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-2xl font-black text-xs uppercase tracking-widest flex items-center justify-center shadow-2xl shadow-emerald-500/20 active:scale-95 transition-all"
               style={{
-                backgroundColor: colorPalette?.primary || '#7c3aed'
+                backgroundColor: colorPalette?.primary || '#10b981'
               }}
               onMouseEnter={(e) => {
                 if (colorPalette?.accent && !loading) {
@@ -174,59 +276,35 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
                 }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                if (colorPalette?.primary) {
+                  e.currentTarget.style.backgroundColor = colorPalette.primary;
+                }
               }}
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Saving...
+                  <Loader2 size={20} className="animate-spin mr-3" />
+                  Synchronizing...
                 </>
               ) : (
-                'Save'
+                'Finalize Configuration'
               )}
             </button>
-            <button
-              onClick={handleClose}
-              className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
-            >
-              <X size={24} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              Payment Method Name<span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.payment_method}
-              onChange={(e) => setFormData({ ...formData, payment_method: e.target.value })}
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.payment_method ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
-              placeholder="Enter payment method name"
-            />
-            {errors.payment_method && <p className="text-red-500 text-xs mt-1">{errors.payment_method}</p>}
-          </div>
-
-          <div>
-            <div className={`p-4 border rounded-lg ${isDarkMode
-                ? 'bg-blue-900/20 border-blue-700/30'
-                : 'bg-blue-50 border-blue-200'
-              }`}>
-              <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
-                }`}>
-                <strong>Note:</strong> Payment methods are used to categorize different ways customers can pay their bills. Created and updated date information will be set automatically.
-              </p>
-            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        onConfirm={globalModal.onConfirm || closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
+    </>
   );
 };
 

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Calendar } from 'lucide-react';
+import { X, Calendar, Trash2, Loader2 } from 'lucide-react';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
+import { useNapStore } from '../store/napStore';
 
 interface EditNapModalProps {
   isOpen: boolean;
@@ -36,6 +38,40 @@ const EditNapModal: React.FC<EditNapModalProps> = ({
   const [modifiedBy, setModifiedBy] = useState<string>('');
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+
+  const [globalModal, setGlobalModal] = useState<{
+    isOpen: boolean;
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    type: 'loading',
+    title: '',
+    message: ''
+  });
+
+  const { deleteNapItem } = useNapStore();
+
+  const showGlobalModal = (
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
+    title: string, 
+    message: string,
+    onConfirm?: () => void
+  ) => {
+    setGlobalModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm
+    });
+  };
+
+  const closeGlobalModal = () => {
+    setGlobalModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     const observer = new MutationObserver(() => {
@@ -130,6 +166,7 @@ const EditNapModal: React.FC<EditNapModalProps> = ({
     const isValid = validateForm();
 
     if (!isValid) {
+      showGlobalModal('warning', 'Validation Error', 'NAP Name is required.');
       return;
     }
 
@@ -142,8 +179,40 @@ const EditNapModal: React.FC<EditNapModalProps> = ({
     } catch (error: any) {
       console.error('Error saving NAP:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to save NAP. Please try again.';
-      alert(`Error: ${errorMessage}`);
+      showGlobalModal('error', 'Error', errorMessage);
       setLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    if (!napItem) return;
+    
+    showGlobalModal(
+      'confirm',
+      'Confirm Deletion',
+      `Are you sure you want to permanently delete "${napItem.nap_name}"?`,
+      executeDelete
+    );
+  };
+
+  const executeDelete = async () => {
+    if (!napItem) return;
+    closeGlobalModal();
+    setLoading(true);
+    
+    showGlobalModal('loading', 'Deleting', `Removing ${napItem.nap_name}...`);
+    
+    try {
+      await deleteNapItem(napItem.id);
+      setLoading(false);
+      showGlobalModal('success', 'Deleted', 'NAP item deleted successfully', () => {
+        closeGlobalModal();
+        handleClose();
+      });
+    } catch (error: any) {
+      console.error('Error deleting NAP:', error);
+      setLoading(false);
+      showGlobalModal('error', 'Error', error.response?.data?.message || error.message || 'Failed to delete NAP');
     }
   };
 
@@ -158,121 +227,160 @@ const EditNapModal: React.FC<EditNapModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-      <div
-        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-            ? 'bg-gray-800 border-gray-700'
-            : 'bg-gray-100 border-gray-300'
-          }`}>
-          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-[40]" onClick={handleClose}>
+        <div
+          className={`h-full w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`px-6 py-5 flex items-center justify-between border-b ${isDarkMode
+              ? 'bg-gray-800 border-gray-700'
+              : 'bg-gray-50 border-gray-200'
             }`}>
-            {napItem ? 'Edit NAP' : 'Add NAP'}
-          </h2>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleClose}
-              className={`px-4 py-2 rounded text-sm ${isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
-              style={{
-                backgroundColor: colorPalette?.primary || '#7c3aed'
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.accent && !loading) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-              }}
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Saving...
-                </>
-              ) : (
-                'Save'
+            <h2 className={`text-xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>
+              {napItem ? 'Edit NAP Details' : 'Add New NAP'}
+            </h2>
+            <div className="flex items-center space-x-3">
+              {napItem && (
+                <button
+                  onClick={handleDelete}
+                  className={`p-2 rounded-lg transition-all ${isDarkMode
+                    ? 'text-gray-400 hover:text-red-400 hover:bg-red-400/10'
+                    : 'text-gray-600 hover:text-red-600 hover:bg-red-50'
+                    }`}
+                  title="Delete NAP"
+                >
+                  <Trash2 size={20} />
+                </button>
               )}
-            </button>
-            <button
-              onClick={handleClose}
-              className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
-            >
-              <X size={24} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              NAP Name<span className="text-red-500">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => handleInputChange(e.target.value)}
-              placeholder="Enter NAP name"
-              className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                }`}
-              autoFocus
-            />
-            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-          </div>
-
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              Modified Date
-            </label>
-            <div className="relative">
-              <input
-                type="text"
-                value={modifiedDate}
-                readOnly
-                className={`w-full px-3 py-2 pr-10 border rounded cursor-not-allowed ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-gray-400'
-                    : 'bg-gray-100 border-gray-300 text-gray-500'
-                  }`}
-              />
-              <Calendar className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
-                }`} size={20} />
+              <button
+                onClick={handleClose}
+                className={`p-2 rounded-lg transition-colors ${isDarkMode 
+                  ? 'text-gray-400 hover:text-white hover:bg-gray-700' 
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'}`}
+              >
+                <X size={24} />
+              </button>
             </div>
           </div>
 
-          <div>
-            <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-              }`}>
-              Modified By
-            </label>
-            <input
-              type="text"
-              value={modifiedBy}
-              readOnly
-              className={`w-full px-3 py-2 border rounded cursor-not-allowed ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-gray-400'
-                  : 'bg-gray-100 border-gray-300 text-gray-500'
-                }`}
-            />
+          <div className="flex-1 overflow-y-auto p-6 space-y-8">
+            <div className="space-y-4">
+              <div className="group">
+                <label className={`block text-xs font-bold uppercase tracking-wider mb-2 transition-colors ${isDarkMode ? 'text-gray-400 group-focus-within:text-blue-400' : 'text-gray-500 group-focus-within:text-blue-600'
+                  }`}>
+                  NAP Name<span className="text-red-500 ml-1">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => handleInputChange(e.target.value)}
+                  placeholder="Enter NAP instance name"
+                  className={`w-full px-4 py-3 rounded-xl border transition-all duration-200 shadow-sm focus:ring-2 focus:ring-opacity-50 ring-offset-2 ${isDarkMode ? 'ring-offset-gray-900' : 'ring-offset-white'} ${errors.name 
+                    ? 'border-red-500 ring-red-500/20' 
+                    : isDarkMode 
+                      ? 'border-gray-700 bg-gray-800 text-white focus:border-blue-500 focus:ring-blue-500/20' 
+                      : 'border-gray-200 bg-white text-gray-900 focus:border-blue-500 focus:ring-blue-500/20'
+                    }`}
+                  autoFocus
+                />
+                {errors.name && <p className="text-red-500 text-xs font-medium mt-1.5 flex items-center gap-1"><X size={12} /> {errors.name}</p>}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                <div className="space-y-2">
+                  <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Modified Date
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={modifiedDate}
+                      readOnly
+                      className={`w-full px-4 py-2.5 pr-10 border rounded-lg cursor-not-allowed text-sm font-medium ${isDarkMode
+                          ? 'bg-gray-800/50 border-gray-700 text-gray-400'
+                          : 'bg-gray-50 border-gray-200 text-gray-500'
+                        }`}
+                    />
+                    <Calendar className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDarkMode ? 'text-gray-600' : 'text-gray-400'
+                      }`} size={18} />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+                    Modified By
+                  </label>
+                  <input
+                    type="text"
+                    value={modifiedBy}
+                    readOnly
+                    className={`w-full px-4 py-2.5 border rounded-lg cursor-not-allowed text-sm font-medium ${isDarkMode
+                        ? 'bg-gray-800/50 border-gray-700 text-gray-400'
+                        : 'bg-gray-50 border-gray-200 text-gray-500'
+                      }`}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className={`mt-auto pt-6 border-t ${isDarkMode ? 'border-gray-800' : 'border-gray-100'}`}>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={handleClose}
+                  className={`flex-1 px-6 py-3 rounded-xl font-bold text-sm transition-all active:scale-95 ${isDarkMode
+                      ? 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={loading}
+                  className="flex-[2] px-6 py-3 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-sm flex items-center justify-center transition-all shadow-lg active:scale-95 ring-2 ring-blue-500 ring-opacity-0 hover:ring-opacity-50"
+                  style={{
+                    backgroundColor: colorPalette?.primary || '#7c3aed'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (colorPalette?.accent && !loading) {
+                      e.currentTarget.style.backgroundColor = colorPalette.accent;
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (colorPalette?.primary) {
+                      e.currentTarget.style.backgroundColor = colorPalette.primary;
+                    }
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin h-5 w-5 mr-3" />
+                      Processing...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        onConfirm={globalModal.onConfirm || closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
+    </>
   );
 };
 

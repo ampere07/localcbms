@@ -181,14 +181,25 @@ const Logs: React.FC = () => {
     }
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDateTime = (dateString: string) => {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString;
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      const parts = formatter.formatToParts(date);
+      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+      
+      return `${getPart('month')}/${getPart('day')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')} ${getPart('dayPeriod')}`;
     } catch (e) {
       return dateString;
     }
@@ -355,7 +366,7 @@ const Logs: React.FC = () => {
                           }`}>
                           <td className={`px-4 py-4 text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>
-                            {formatDate(log.created_at)}
+                            {formatDateTime(log.created_at)}
                           </td>
                           <td className="px-4 py-4 text-sm">
                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${levelColors[log.level]}`}>

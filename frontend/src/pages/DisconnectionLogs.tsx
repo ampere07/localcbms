@@ -96,7 +96,7 @@ const DisconnectionLogs: React.FC = () => {
 
   // All available columns for the table
   const allColumns = [
-    { key: 'date', label: 'Date', width: 'min-w-36' },
+    { key: 'date', label: 'Date', width: 'min-w-48' },
     { key: 'accountNo', label: 'Account No.', width: 'min-w-32' },
     { key: 'username', label: 'Username', width: 'min-w-36' },
     { key: 'remarks', label: 'Remarks', width: 'min-w-40' },
@@ -108,10 +108,10 @@ const DisconnectionLogs: React.FC = () => {
     { key: 'emailAddress', label: 'Email Address', width: 'min-w-48' },
     { key: 'plan', label: 'Plan', width: 'min-w-40' },
     { key: 'balance', label: 'Account Balance', width: 'min-w-32' },
-    { key: 'disconnectionDate', label: 'Disconnection Date', width: 'min-w-36' },
+    { key: 'disconnectionDate', label: 'Disconnection Date', width: 'min-w-48' },
     { key: 'disconnectedBy', label: 'Disconnected By', width: 'min-w-36' },
     { key: 'reason', label: 'Reason', width: 'min-w-40' },
-    { key: 'appliedDate', label: 'Applied Date', width: 'min-w-32' },
+    { key: 'appliedDate', label: 'Applied Date', width: 'min-w-48' },
     { key: 'reconnectionFee', label: 'Reconnection Fee', width: 'min-w-36' },
     { key: 'daysDisconnected', label: 'Days Disconnected', width: 'min-w-36' },
     { key: 'disconnectionCode', label: 'Disconnection Code', width: 'min-w-36' }
@@ -175,15 +175,26 @@ const DisconnectionLogs: React.FC = () => {
     });
   }, [logRecords, searchQuery, statementDateFrom, statementDateTo]);
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDateTime = (dateStr?: string): string => {
     if (!dateStr) return '-';
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return dateStr;
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      
+      const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      const parts = formatter.formatToParts(date);
+      const getPart = (type: string) => parts.find(p => p.type === type)?.value || '';
+      
+      return `${getPart('month')}/${getPart('day')}/${getPart('year')} ${getPart('hour')}:${getPart('minute')} ${getPart('dayPeriod')}`;
     } catch (e) {
       return dateStr;
     }
@@ -343,7 +354,7 @@ const DisconnectionLogs: React.FC = () => {
   const renderCellValue = (record: DisconnectionLogRecord, columnKey: string) => {
     switch (columnKey) {
       case 'date':
-        return formatDate(record.date || record.disconnectionDate);
+        return formatDateTime(record.date || record.disconnectionDate);
       case 'accountNo':
         return <span className="text-red-400">{record.accountNo}</span>;
       case 'username':
@@ -377,14 +388,14 @@ const DisconnectionLogs: React.FC = () => {
       case 'balance':
         return record.balance ? `₱ ${record.balance.toFixed(2)}` : '-';
       case 'disconnectionDate':
-        return formatDate(record.disconnectionDate);
+        return formatDateTime(record.disconnectionDate);
       case 'disconnectedBy':
         return record.disconnectedBy || '-';
       case 'reason':
         return record.reason || '-';
 
       case 'appliedDate':
-        return formatDate(record.appliedDate);
+        return formatDateTime(record.appliedDate);
       case 'reconnectionFee':
         return record.reconnectionFee ? `₱ ${record.reconnectionFee.toFixed(2)}` : '-';
       case 'daysDisconnected':

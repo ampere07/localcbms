@@ -7,6 +7,7 @@ import { WorkOrder } from '../types/workOrder';
 import WorkOrderDetails from '../components/WorkOrderDetails';
 import AssignWorkOrderModal from '../modals/AssignWorkOrderModal';
 import pusher from '../services/pusherService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 
 const WorkOrderPage: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
@@ -19,6 +20,38 @@ const WorkOrderPage: React.FC = () => {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [deletingItems, setDeletingItems] = useState<Set<number>>(new Set());
   const [mobileView, setMobileView] = useState<'orders' | 'details'>('orders');
+
+  const [globalModal, setGlobalModal] = useState<{
+    isOpen: boolean;
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+    title: string;
+    message: string;
+    onConfirm?: () => void;
+  }>({
+    isOpen: false,
+    type: 'loading',
+    title: '',
+    message: ''
+  });
+
+  const showGlobalModal = (
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
+    title: string, 
+    message: string,
+    onConfirm?: () => void
+  ) => {
+    setGlobalModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm
+    });
+  };
+
+  const closeGlobalModal = () => {
+    setGlobalModal(prev => ({ ...prev, isOpen: false }));
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -142,10 +175,21 @@ const WorkOrderPage: React.FC = () => {
   }, [fetchUpdates]);
 
 
-  const handleDelete = async (workOrder: WorkOrder) => {
-    if (!window.confirm(`⚠️ Are you sure you want to permanently delete this work order?`)) return;
+  const handleDelete = (workOrder: WorkOrder) => {
+    showGlobalModal(
+      'confirm',
+      'Confirm Deletion',
+      `Are you sure you want to permanently delete this work order?`,
+      () => executeDelete(workOrder)
+    );
+  };
 
+  const executeDelete = async (workOrder: WorkOrder) => {
+    closeGlobalModal();
+    
     setDeletingItems(prev => new Set(prev).add(workOrder.id));
+    showGlobalModal('loading', 'Deleting', 'Removing work order from system...');
+
     try {
       const response = await fetch(`${API_BASE_URL}/work-orders/${workOrder.id}`, {
         method: 'DELETE',
@@ -157,11 +201,13 @@ const WorkOrderPage: React.FC = () => {
       const data = await response.json();
       if (response.ok && data.success) {
         await fetchWorkOrders(1, 1000, '', '');
+        showGlobalModal('success', 'Deleted', 'Work order deleted successfully');
       } else {
-        alert('❌ Failed to delete work order');
+        showGlobalModal('error', 'Delete Failed', data.message || 'Failed to delete work order');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting work order:', error);
+      showGlobalModal('error', 'Error', error.message || 'An unexpected error occurred during deletion');
     } finally {
       setDeletingItems(prev => {
         const newSet = new Set(prev);
@@ -197,10 +243,7 @@ const WorkOrderPage: React.FC = () => {
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return dateString;
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      return date.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
     } catch (e) {
       return dateString;
     }
@@ -357,7 +400,7 @@ const WorkOrderPage: React.FC = () => {
   };
 
   return (
-    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950' : 'bg-gray-50'}`}>
+    <div className={`h-full flex flex-col md:flex-row overflow-hidden pb-16 md:pb-0 ${isDarkMode ? 'bg-gray-950 text-white' : 'bg-gray-50 text-gray-900'}`}>
       <div className={`overflow-hidden flex-1 flex flex-col md:pb-0 ${mobileView === 'details' ? 'hidden md:flex' : ''}`}>
         <div className="flex flex-col h-full">
           <div className={`border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'}`}>
@@ -399,78 +442,69 @@ const WorkOrderPage: React.FC = () => {
                     placeholder="Search work orders..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode ? 'bg-gray-800 text-white border-gray-700' : 'bg-gray-100 text-gray-900 border-gray-300'} border`}
-                    onFocus={(e) => {
-                      if (colorPalette?.primary) {
-                        e.currentTarget.style.borderColor = colorPalette.primary;
-                        e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                      }
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                      e.currentTarget.style.boxShadow = 'none';
-                    }}
+                    className={`w-full rounded-xl pl-10 pr-10 py-2.5 focus:outline-none focus:ring-4 transition-all ${isDarkMode 
+                      ? 'bg-gray-800 text-white border-gray-700/50 focus:border-blue-500 focus:ring-blue-500/10' 
+                      : 'bg-white text-gray-900 border-gray-200 focus:border-blue-600 focus:ring-blue-600/10 shadow-sm'} border`}
                   />
-                  <Search className={`absolute left-3 top-2.5 h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
                   {searchQuery && (
                     <button
                       onClick={() => setSearchQuery('')}
-                      className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+                      className={`absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
                         }`}
                     >
-                      <X className="h-4 w-4" />
+                      <X size={16} />
                     </button>
                   )}
                 </div>
-
-
               </div>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto" ref={scrollRef}>
+          <div className="flex-1 overflow-y-auto custom-scrollbar" ref={scrollRef}>
             {isLoading ? (
-              <div className="flex justify-center py-20">
-                <Loader2 className={`h-8 w-8 animate-spin ${isDarkMode ? 'text-white' : 'text-gray-900'}`} />
+              <div className="flex flex-col items-center justify-center py-20 gap-4">
+                <Loader2 className="h-10 w-10 animate-spin" style={{ color: colorPalette?.primary }} />
+                <p className="animate-pulse font-medium opacity-60">Synchronizing work orders...</p>
               </div>
             ) : error ? (
-              <div className="text-center py-20 text-red-500">{error}</div>
+              <div className="text-center py-20 text-red-500 font-bold whitespace-pre-wrap px-4">{error}</div>
             ) : filteredWorkOrders.length > 0 ? (
-              <div className="space-y-0">
+              <div className="divide-y divide-gray-800/10 dark:divide-white/5">
                 {paginatedWorkOrders.map((wo) => (
                   <div
                     key={wo.id}
                     onClick={() => handleEdit(wo)}
-                    className={`flex items-start px-4 py-3 cursor-pointer transition-colors border-b ${isDarkMode
-                      ? `hover:bg-gray-800 border-b-gray-800 ${selectedWorkOrder?.id === wo.id ? 'bg-gray-800' : ''}`
-                      : `hover:bg-gray-100 border-b-gray-200 ${selectedWorkOrder?.id === wo.id ? 'bg-gray-100' : ''}`
+                    className={`flex items-start px-6 py-4 cursor-pointer transition-all duration-200 ${isDarkMode
+                      ? `hover:bg-white/[0.02] border-gray-800 ${selectedWorkOrder?.id === wo.id ? 'bg-white/[0.05]' : ''}`
+                      : `hover:bg-gray-50 border-gray-200 ${selectedWorkOrder?.id === wo.id ? 'bg-gray-50 border-l-4 border-l-blue-500 pl-5' : ''}`
                       }`}
                   >
                     <div className="flex-1 min-w-0 pr-4">
-                      <div className={`font-semibold text-sm mb-0.5 truncate uppercase flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                        <span className="truncate">{wo.instructions || `WORK ORDER #${wo.id}`}</span>
-                        <span className={`text-[10px] font-medium tracking-wide flex-shrink-0 ml-2 ${getStatusColor(wo.work_status)}`}>
-                          {(wo.work_status || 'SCHEDULED').toUpperCase()}
-                        </span>
+                      <div className={`font-bold text-sm mb-1 truncate uppercase flex items-center justify-between ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                        <span className="truncate group-hover:translate-x-1 transition-transform">{wo.instructions || `WORK ORDER #${wo.id}`}</span>
+                        <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'bg-black/20' : 'bg-gray-100'}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${getStatusColor(wo.work_status).replace('text-', 'bg-')}`}></span>
+                          <span className={getStatusColor(wo.work_status)}>{(wo.work_status || 'SCHEDULED').toUpperCase()}</span>
+                        </div>
                       </div>
-                      <div className={`text-xs truncate ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} flex items-center`}>
+                      <div className={`text-[10px] sm:text-xs font-bold uppercase tracking-wide flex items-center gap-3 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                         {wo.work_category && (
-                          <>
-                            <span className="font-medium text-blue-500">{wo.work_category}</span>
-                            <span className="mx-1.5 opacity-50">|</span>
-                          </>
+                          <span className="text-blue-500 font-black">{wo.work_category}</span>
                         )}
+                        <span className="opacity-30">•</span>
                         <span>{formatDate(wo.requested_date)}</span>
-                        <span className="mx-1.5 opacity-50">|</span>
-                        <span className="truncate">{wo.report_to || 'Location not specified'}</span>
+                        <span className="opacity-30">•</span>
+                        <span className="truncate">{wo.report_to || 'LOCATION PENDING'}</span>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className={`text-center py-20 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                No work orders found
+              <div className="flex flex-col items-center justify-center py-32 space-y-4 opacity-40">
+                <Search size={64} strokeWidth={1} />
+                <p className="text-xl font-bold">No operational orders discovered</p>
               </div>
             )}
           </div>
@@ -515,6 +549,17 @@ const WorkOrderPage: React.FC = () => {
           onRefresh={() => fetchWorkOrders(1, 1000, '', '')}
         />
       )}
+
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        onConfirm={globalModal.onConfirm || closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

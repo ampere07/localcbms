@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { MapPin, Search, Plus, Edit2, Trash2, ChevronRight, ChevronDown, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { Search, Plus, ChevronRight, ChevronDown, X, RefreshCw, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import AddLocationModal from '../modals/AddLocationModal';
 import EditLocationModal from '../modals/EditLocationModal';
-import LocationDetailsModal from '../modals/LocationDetailsModal';
+import LocationListDetails from '../components/LocationListDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 import {
   getRegions,
   getCities,
@@ -39,7 +40,6 @@ const LocationList: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [sidebarFilter, setSidebarFilter] = useState<SidebarFilter>({ type: 'all' });
   const [selectedLocation, setSelectedLocation] = useState<LocationItem | null>(null);
@@ -52,52 +52,39 @@ const LocationList: React.FC = () => {
   const [expandedRegions, setExpandedRegions] = useState<Set<number>>(new Set());
   const [expandedCities, setExpandedCities] = useState<Set<number>>(new Set());
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [alertConfig, setAlertConfig] = useState<{
+  const [globalModal, setGlobalModal] = useState<{
     isOpen: boolean;
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
     title: string;
     message: string;
-    type: 'alert' | 'confirm' | 'error' | 'warning';
     onConfirm?: () => void;
-    onCancel?: () => void;
   }>({
     isOpen: false,
+    type: 'loading',
     title: '',
-    message: '',
-    type: 'alert'
+    message: ''
   });
 
-  const customConfirm = (title: string, message: string, type: 'confirm' | 'warning' = 'confirm'): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setAlertConfig({
-        isOpen: true,
-        title,
-        message,
-        type,
-        onConfirm: () => {
-          setAlertConfig(prev => ({ ...prev, isOpen: false }));
-          resolve(true);
-        },
-        onCancel: () => {
-          setAlertConfig(prev => ({ ...prev, isOpen: false }));
-          resolve(false);
-        }
-      });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+
+  const showGlobalModal = (
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
+    title: string, 
+    message: string,
+    onConfirm?: () => void
+  ) => {
+    setGlobalModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm
     });
   };
 
-  const customAlert = (title: string, message: string, type: 'alert' | 'error' | 'warning' = 'alert'): Promise<void> => {
-    return new Promise((resolve) => {
-      setAlertConfig({
-        isOpen: true,
-        title,
-        message,
-        type,
-        onConfirm: () => {
-          setAlertConfig(prev => ({ ...prev, isOpen: false }));
-          resolve();
-        }
-      });
-    });
+  const closeGlobalModal = () => {
+    setGlobalModal(prev => ({ ...prev, isOpen: false }));
   };
 
   useEffect(() => {
@@ -137,8 +124,8 @@ const LocationList: React.FC = () => {
     fetchLocationData();
   }, []);
 
-  const fetchLocationData = async () => {
-    setIsLoading(true);
+  const fetchLocationData = async (silent = false) => {
+    if (!silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -186,8 +173,6 @@ const LocationList: React.FC = () => {
 
     boroughs.forEach(borough => {
       const city = cities.find(c => c.id === borough.city_id);
-      const region = regions.find(r => r.id === city?.region_id);
-
       locationItems.push({
         id: borough.id,
         name: borough.name,
@@ -263,6 +248,29 @@ const LocationList: React.FC = () => {
     });
   }, [allLocations, searchQuery, sidebarFilter]);
 
+  const totalPages = Math.ceil(filteredLocations.length / itemsPerPage);
+  const paginatedLocations = useMemo(() => {
+    return filteredLocations.slice(
+      (currentPage - 1) * itemsPerPage,
+      currentPage * itemsPerPage
+    );
+  }, [filteredLocations, currentPage, itemsPerPage]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, sidebarFilter, itemsPerPage]);
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+    }
+  };
+
+  const handleItemsPerPageChange = (newCount: number) => {
+    setItemsPerPage(newCount);
+    setCurrentPage(1);
+  };
+
   const toggleRegion = (regionId: number) => {
     const newExpanded = new Set(expandedRegions);
     if (newExpanded.has(regionId)) {
@@ -301,43 +309,46 @@ const LocationList: React.FC = () => {
 
   const handleLocationClick = (location: LocationItem) => {
     setSelectedLocation(location);
-    setIsDetailsModalOpen(true);
   };
 
   const handleEditFromDetails = (location: LocationItem) => {
-    setIsDetailsModalOpen(false);
-    setIsEditModalOpen(true);
-  };
-
-  const handleDeleteFromDetails = (location: LocationItem) => {
-    setIsDetailsModalOpen(false);
-    handleDeleteLocation(location, { stopPropagation: () => { } } as React.MouseEvent);
-  };
-
-  const handleEditLocation = (location: LocationItem, event: React.MouseEvent) => {
-    event.stopPropagation();
     setSelectedLocation(location);
     setIsEditModalOpen(true);
   };
 
+  const handleDeleteFromDetails = (location: LocationItem) => {
+    handleDeleteLocation(location, { stopPropagation: () => { } } as React.MouseEvent);
+  };
+
+
+
   const handleSaveEdit = async (updatedLocation: LocationItem) => {
     try {
-      await fetchLocationData();
+      await fetchLocationData(true);
       setIsEditModalOpen(false);
-      setSelectedLocation(null);
+      // Refresh the selected location if it was the one being edited
+      if (selectedLocation && selectedLocation.id === updatedLocation.id && selectedLocation.type === updatedLocation.type) {
+        setSelectedLocation(updatedLocation);
+      }
     } catch (error) {
       console.error('Error updating location:', error);
-      await customAlert('Error', 'Failed to update location. Please try again.', 'error');
+      showGlobalModal('error', 'Error', 'Failed to update location. Please try again.');
     }
   };
 
-  const handleDeleteLocation = async (location: LocationItem, event: React.MouseEvent) => {
+  const handleDeleteLocation = (location: LocationItem, event: React.MouseEvent) => {
     event.stopPropagation();
+    showGlobalModal(
+      'confirm',
+      'Confirm Delete',
+      `Are you sure you want to delete ${location.name}?`,
+      () => executeDelete(location)
+    );
+  };
 
-    const confirmMessage = `Are you sure you want to delete ${location.name}?`;
-    if (!(await customConfirm('Confirm Delete', confirmMessage, 'warning'))) {
-      return;
-    }
+  const executeDelete = async (location: LocationItem) => {
+    closeGlobalModal();
+    showGlobalModal('loading', 'Deleting Location', `Deleting ${location.name}...`);
 
     try {
       switch (location.type) {
@@ -357,16 +368,14 @@ const LocationList: React.FC = () => {
           throw new Error(`Unknown location type: ${location.type}`);
       }
 
-      await fetchLocationData();
-      setIsDetailsModalOpen(false);
-      setIsEditModalOpen(false);
+      await fetchLocationData(true);
+      showGlobalModal('success', 'Deleted', 'Location deleted successfully');
       setSelectedLocation(null);
     } catch (error: any) {
       console.error('Error deleting location:', error);
 
       if (error.response?.status === 422 && error.response?.data?.data?.can_cascade) {
         const data = error.response.data.data;
-
         let cascadeMessage = `${location.name} contains:\n\n`;
 
         if (data.type === 'region') {
@@ -383,42 +392,48 @@ const LocationList: React.FC = () => {
 
         cascadeMessage += `\n\nDo you want to proceed?`;
 
-        if (await customConfirm('Cascade Delete Required', cascadeMessage, 'warning')) {
-          try {
-            switch (location.type) {
-              case 'region':
-                await deleteRegion(location.id, true);
-                break;
-              case 'city':
-                await deleteCity(location.id, true);
-                break;
-              case 'borough':
-                await deleteBarangay(location.id, true);
-                break;
-              case 'location':
-                await deleteLocation(location.id);
-                break;
-            }
+        showGlobalModal(
+          'warning',
+          'Cascade Delete Required',
+          cascadeMessage,
+          async () => {
+            closeGlobalModal();
+            showGlobalModal('loading', 'Deleting Location', `Deleting ${location.name} and its contents...`);
+            try {
+              switch (location.type) {
+                case 'region':
+                  await deleteRegion(location.id, true);
+                  break;
+                case 'city':
+                  await deleteCity(location.id, true);
+                  break;
+                case 'borough':
+                  await deleteBarangay(location.id, true);
+                  break;
+                case 'location':
+                  await deleteLocation(location.id);
+                  break;
+              }
 
-            await fetchLocationData();
-            setIsDetailsModalOpen(false);
-            setIsEditModalOpen(false);
-            setSelectedLocation(null);
-          } catch (cascadeError: any) {
-            console.error('Error during cascade delete:', cascadeError);
-            await customAlert('Error', 'Failed to delete location. Please try again.', 'error');
+              await fetchLocationData(true);
+              showGlobalModal('success', 'Deleted', 'Location and all nested items deleted successfully');
+              setSelectedLocation(null);
+            } catch (cascadeError: any) {
+              console.error('Error during cascade delete:', cascadeError);
+              showGlobalModal('error', 'Error', 'Failed to delete location. Please try again.');
+            }
           }
-        }
+        );
       } else if (error.response?.data?.message) {
-        await customAlert('Error', error.response.data.message, 'error');
+        showGlobalModal('error', 'Error', error.response.data.message);
       } else {
-        await customAlert('Error', 'Failed to delete location. Please try again.', 'error');
+        showGlobalModal('error', 'Error', 'Failed to delete location. Please try again.');
       }
     }
   };
 
   const handleDeleteFromEdit = (location: LocationItem) => {
-    void handleDeleteLocation(location, { stopPropagation: () => { } } as React.MouseEvent);
+    handleDeleteLocation(location, { stopPropagation: () => { } } as any);
   };
 
   const getLocationTypeLabel = (type: string): string => {
@@ -444,8 +459,7 @@ const LocationList: React.FC = () => {
   const tableColumns = [
     { id: 'name', label: 'Location Name', width: 'whitespace-nowrap' },
     { id: 'type', label: 'Type', width: 'whitespace-nowrap' },
-    { id: 'parent', label: 'Parent Location', width: 'whitespace-nowrap' },
-    { id: 'actions', label: 'Actions', width: 'whitespace-nowrap' }
+    { id: 'parent', label: 'Parent Location', width: 'whitespace-nowrap' }
   ];
 
   if (isLoading) {
@@ -478,16 +492,6 @@ const LocationList: React.FC = () => {
             style={{
               backgroundColor: colorPalette?.primary || '#7c3aed'
             }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.backgroundColor = colorPalette.primary;
-              }
-            }}
           >
             Retry
           </button>
@@ -501,7 +505,7 @@ const LocationList: React.FC = () => {
       }`}>
       {/* Sidebar - Desktop / Bottom Navbar - Mobile */}
       <div className={`md:w-64 md:border-r border-t md:border-t-0 flex-shrink-0 flex flex-col order-2 md:order-1 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-        }`}>
+        } ${selectedLocation ? 'hidden md:flex' : 'flex'}`}>
         <div className={`p-4 border-b flex-shrink-0 hidden md:block ${isDarkMode ? 'border-gray-700' : 'border-gray-200'
           }`}>
           <div className="flex items-center mb-1">
@@ -511,7 +515,6 @@ const LocationList: React.FC = () => {
         </div>
         <div className="flex-1 overflow-y-auto md:block overflow-x-auto">
           <div className="flex md:flex-col md:space-y-0 space-x-2 md:space-x-0 p-2 md:p-0">
-            {/* All */}
             <button
               onClick={() => setSidebarFilter({ type: 'all' })}
               className={`md:w-full flex-shrink-0 flex flex-col md:flex-row items-center md:justify-between px-4 py-3 text-sm transition-colors rounded-md md:rounded-none ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-100'
@@ -524,7 +527,6 @@ const LocationList: React.FC = () => {
               }}
             >
               <div className="flex flex-col md:flex-row items-center">
-                <MapPin className="h-4 w-4 md:mr-2 mb-1 md:mb-0" />
                 <span className="text-xs md:text-sm whitespace-nowrap">All</span>
               </div>
               {allLocations.length > 0 && (
@@ -543,7 +545,6 @@ const LocationList: React.FC = () => {
               )}
             </button>
 
-            {/* Regions */}
             {regions.map(region => {
               const regionCities = cities.filter(city => city.region_id === region.id);
               const isExpanded = expandedRegions.has(region.id);
@@ -592,7 +593,6 @@ const LocationList: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* Cities under Region */}
                   {isExpanded && regionCities.map(city => {
                     const cityBarangays = boroughs.filter(borough => borough.city_id === city.id);
                     const isCityExpanded = expandedCities.has(city.id);
@@ -641,7 +641,6 @@ const LocationList: React.FC = () => {
                           </button>
                         </div>
 
-                        {/* Barangays under City */}
                         {isCityExpanded && cityBarangays.map(barangay => {
                           const barangayCount = getCountForBarangay(barangay.id);
                           const isBarangaySelected = sidebarFilter.type === 'borough' && sidebarFilter.id === barangay.id;
@@ -688,10 +687,10 @@ const LocationList: React.FC = () => {
       </div>
 
       {/* Main Content */}
-      <div className={`overflow-hidden flex-1 order-1 md:order-2 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-50'
-        }`}>
+      <div className={`overflow-hidden flex-1 order-1 md:order-2 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'
+        } ${selectedLocation ? 'hidden min-[900px]:block' : 'block'}`}>
         <div className="flex flex-col h-full">
-          <div className={`p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
+          <div className={`sticky top-0 z-10 p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
               <div className="relative flex-1">
@@ -700,36 +699,33 @@ const LocationList: React.FC = () => {
                   placeholder="Search locations..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-10 py-2 focus:outline-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border border-gray-700'
-                    : 'bg-white text-gray-900 border border-gray-300'
+                  className={`w-full rounded-lg pl-10 pr-10 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${isDarkMode
+                    ? 'bg-gray-800 text-white border-gray-700 focus:ring-blue-500'
+                    : 'bg-gray-100 text-gray-900 border-gray-300 focus:ring-blue-500'
                     }`}
                   onFocus={(e) => {
                     if (colorPalette?.primary) {
                       e.currentTarget.style.borderColor = colorPalette.primary;
-                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
                     }
                   }}
                   onBlur={(e) => {
                     e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
+                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
                   }`} />
                 {searchQuery && (
                   <button
                     onClick={() => setSearchQuery('')}
-                    className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
+                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-white transition-colors`}
                   >
-                    <X size={16} />
+                    <X size={14} />
                   </button>
                 )}
               </div>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="text-white px-4 py-2 rounded text-sm transition-colors flex items-center space-x-1"
+                className="text-white px-4 py-2.5 rounded-lg text-xs transition-all flex items-center space-x-2 font-medium active:scale-95 shadow-sm"
                 style={{
                   backgroundColor: colorPalette?.primary || '#7c3aed'
                 }}
@@ -745,7 +741,32 @@ const LocationList: React.FC = () => {
                 }}
               >
                 <Plus className="h-4 w-4" />
-                <span>Add</span>
+                <span className="hidden md:inline">Add Location</span>
+              </button>
+              <button
+                onClick={() => fetchLocationData()}
+                className="p-2.5 rounded-lg flex items-center justify-center transition-colors shadow-sm active:rotate-180 duration-500"
+                title="Refresh List"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (colorPalette?.primary) {
+                    e.currentTarget.style.backgroundColor = colorPalette.primary;
+                  }
+                }}
+              >
+                <RefreshCw 
+                  className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`}
+                  style={{
+                    color: '#ffffff'
+                  }}
+                />
               </button>
             </div>
           </div>
@@ -764,69 +785,40 @@ const LocationList: React.FC = () => {
                         className={`px-4 py-2 text-left text-xs font-medium uppercase tracking-wider ${column.width} ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                           }`}
                       >
-                        <div className="flex items-center">
-                          {column.label}
-                        </div>
+                        {column.label}
                       </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody className={`divide-y ${isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
                   }`}>
-                  {filteredLocations.length > 0 ? (
-                    filteredLocations.map((location) => (
-                      <tr
-                        key={`${location.type}-${location.id}`}
-                        className={`cursor-pointer ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
-                          } ${selectedLocation?.id === location.id && selectedLocation?.type === location.type ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
-                        onClick={() => handleLocationClick(location)}
-                      >
-                        <td className={`px-4 py-3 whitespace-nowrap text-xs uppercase font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>
-                          {location.name}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-xs">
-                          <span className={getLocationTypeColor(location.type)}>
-                            {getLocationTypeLabel(location.type)}
-                          </span>
-                        </td>
-                        <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>
-                          {location.parentName || '-'}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap text-xs">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={(e) => handleEditLocation(location, e)}
-                              className={`p-1.5 rounded transition-colors ${isDarkMode
-                                ? 'text-gray-400 hover:text-blue-400 hover:bg-gray-700'
-                                : 'text-gray-600 hover:text-blue-600 hover:bg-gray-100'
-                                }`}
-                              title="Edit location"
-                            >
-                              <Edit2 size={16} />
-                            </button>
-                            <button
-                              onClick={(e) => handleDeleteLocation(location, e)}
-                              className={`p-1.5 rounded transition-colors ${isDarkMode
-                                ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700'
-                                : 'text-gray-600 hover:text-red-600 hover:bg-gray-100'
-                                }`}
-                              title="Delete location"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan={tableColumns.length} className={`px-4 py-12 text-center ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                  {paginatedLocations.map((location) => (
+                    <tr
+                      key={`${location.type}-${location.id}`}
+                      className={`cursor-pointer group transition-colors ${isDarkMode ? 'hover:bg-gray-800' : 'hover:bg-gray-50'
+                        } ${selectedLocation?.id === location.id && selectedLocation?.type === location.type ? (isDarkMode ? 'bg-gray-800' : 'bg-gray-100') : ''}`}
+                      onClick={() => handleLocationClick(location)}
+                    >
+                      <td className={`px-4 py-3 whitespace-nowrap text-xs uppercase font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
                         }`}>
-                        {allLocations.length > 0
-                          ? 'No locations found matching your filters'
-                          : 'No locations found. Create your first location.'}
+                        {location.name}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-xs">
+                        <span className={getLocationTypeColor(location.type)}>
+                          {getLocationTypeLabel(location.type)}
+                        </span>
+                      </td>
+                      <td className={`px-4 py-3 whitespace-nowrap text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                        }`}>
+                        {location.parentName || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                  {filteredLocations.length === 0 && (
+                    <tr>
+                      <td colSpan={3} className={`px-4 py-10 text-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'
+                        }`}>
+                        No locations found matching your search.
                       </td>
                     </tr>
                   )}
@@ -834,6 +826,86 @@ const LocationList: React.FC = () => {
               </table>
             </div>
           </div>
+
+          {/* Pagination Controls */}
+          {!isLoading && filteredLocations.length > 0 && totalPages > 1 && (
+            <div className={`border-t p-4 flex items-center justify-between ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200 shadow-lg'}`}>
+              <div className={`flex items-center gap-4 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                <div className="flex items-center gap-2">
+                  <span>Show</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                    className={`px-2 py-1 rounded border focus:outline-none text-xs transition-colors ${isDarkMode
+                      ? 'bg-gray-800 border-gray-700 text-white focus:border-orange-500'
+                      : 'bg-white border-gray-300 text-gray-900 focus:border-orange-500'
+                      }`}
+                  >
+                    {[10, 25, 50, 100].map(v => (
+                      <option key={v} value={v}>{v}</option>
+                    ))}
+                  </select>
+                  <span>entries</span>
+                </div>
+                <div>
+                  Showing <span className="font-medium">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium">{Math.min(currentPage * itemsPerPage, filteredLocations.length)}</span> of <span className="font-medium">{filteredLocations.length}</span> results
+                </div>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => handlePageChange(1)}
+                  disabled={currentPage === 1}
+                  className={`p-1.5 rounded transition-colors ${currentPage === 1
+                    ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                    : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                    }`}
+                  title="First Page"
+                >
+                  <ChevronsLeft size={14} />
+                </button>
+
+                <button
+                  onClick={() => handlePageChange(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className={`p-1.5 rounded transition-colors ${currentPage === 1
+                    ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                    : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                    }`}
+                >
+                  <ChevronLeft size={14} />
+                </button>
+
+                <div className="flex items-center space-x-1">
+                  <span className={`px-2 text-xs font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
+                    Page {currentPage} of {totalPages}
+                  </span>
+                </div>
+
+                <button
+                  onClick={() => handlePageChange(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className={`p-1.5 rounded transition-colors ${currentPage === totalPages
+                    ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                    : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                    }`}
+                >
+                  <ChevronRight size={14} />
+                </button>
+
+                <button
+                  onClick={() => handlePageChange(totalPages)}
+                  disabled={currentPage === totalPages}
+                  className={`p-1.5 rounded transition-colors ${currentPage === totalPages
+                    ? (isDarkMode ? 'text-gray-600 bg-gray-800 cursor-not-allowed' : 'text-gray-400 bg-gray-100 cursor-not-allowed')
+                    : (isDarkMode ? 'text-white bg-gray-700 hover:bg-gray-600' : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300')
+                    }`}
+                  title="Last Page"
+                >
+                  <ChevronsRight size={14} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -843,88 +915,36 @@ const LocationList: React.FC = () => {
         onSave={handleAddLocation}
       />
 
-      <LocationDetailsModal
-        isOpen={isDetailsModalOpen}
-        location={selectedLocation}
-        onClose={() => {
-          setIsDetailsModalOpen(false);
-          setSelectedLocation(null);
-        }}
-        onEdit={handleEditFromDetails}
-        onDelete={handleDeleteFromDetails}
-      />
-
       <EditLocationModal
         isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
         location={selectedLocation}
-        allLocations={allLocations}
-        onClose={() => {
-          setIsEditModalOpen(false);
-          setSelectedLocation(null);
-        }}
         onEdit={handleSaveEdit}
         onDelete={handleDeleteFromEdit}
-        onSelectLocation={(location) => {
-          setSelectedLocation(location);
-        }}
       />
 
-      {/* Inline Alert Modal */}
-      {alertConfig.isOpen && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => (alertConfig.type === 'alert' || alertConfig.type === 'error') ? alertConfig.onConfirm?.() : alertConfig.onCancel?.()}
+      {selectedLocation && (
+        <div className="flex-shrink-0 w-full min-[900px]:w-auto border-l h-full order-3" style={{ zIndex: 40, borderColor: isDarkMode ? '#374151' : '#e5e7eb' }}>
+          <LocationListDetails
+            location={selectedLocation}
+            onClose={() => setSelectedLocation(null)}
+            onEdit={handleEditFromDetails}
+            onDelete={handleDeleteFromDetails}
+            isMobile={typeof window !== 'undefined' ? window.innerWidth < 900 : false}
           />
-          <div className={`relative w-full max-w-sm transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-2xl transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-100'
-            }`}>
-            <div className="flex items-center space-x-3 mb-4">
-              <div className={`p-2 rounded-full ${alertConfig.type === 'error' ? 'bg-red-500/10 text-red-500' :
-                alertConfig.type === 'warning' ? 'bg-yellow-500/10 text-yellow-500' :
-                  'bg-blue-500/10 text-blue-500'
-                }`}>
-                {alertConfig.type === 'error' ? <AlertCircle size={24} /> :
-                  alertConfig.type === 'warning' ? <AlertTriangle size={24} /> :
-                    <Info size={24} />}
-              </div>
-              <h3 className={`text-lg font-bold leading-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {alertConfig.title}
-              </h3>
-            </div>
-            <div className="mt-2">
-              <p className={`text-sm whitespace-pre-line leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {alertConfig.message}
-              </p>
-            </div>
-
-            <div className="mt-8 flex justify-end space-x-3">
-              {(alertConfig.type === 'confirm' || alertConfig.type === 'warning') && (
-                <button
-                  type="button"
-                  className={`px-5 py-2 text-sm font-semibold rounded-lg transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  onClick={alertConfig.onCancel}
-                >
-                  Cancel
-                </button>
-              )}
-              <button
-                type="button"
-                className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg active:scale-95"
-                style={{
-                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'),
-                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'))}40`
-                }}
-                onClick={alertConfig.onConfirm}
-              >
-                {alertConfig.type === 'confirm' || alertConfig.type === 'warning' ?
-                  (alertConfig.title.toLowerCase().includes('delete') ? 'Delete' : 'Confirm')
-                  : 'OK'}
-              </button>
-            </div>
-          </div>
         </div>
       )}
+
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        onConfirm={globalModal.onConfirm || closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
     </div>
   );
 };

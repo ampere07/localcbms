@@ -341,6 +341,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       'city',
       'region',
       'referredBy',
+      'desiredPlan',
       'addressCoordinates',
       'houseFrontPicture',
       'accountNoCustomer',
@@ -639,6 +640,7 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
       city: 'City',
       region: 'Region',
       referredBy: 'Referred By',
+      desiredPlan: 'Desired Plan',
       addressCoordinates: 'Address Coordinates',
       houseFrontPicture: 'House Front Picture',
       usageType: 'Usage Type',
@@ -750,6 +752,14 @@ const BillingDetails: React.FC<BillingDetailsProps> = ({
             }`}>Referred By</span>
           <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
             }`}>{billingRecord.referredBy}</span>
+        </div>
+      ) : null,
+      desiredPlan: () => billingRecord.desiredPlan ? (
+        <div className="flex justify-between items-center">
+          <span className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+            }`}>Desired Plan</span>
+          <span className={`font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
+            }`}>{billingRecord.desiredPlan}</span>
         </div>
       ) : null,
       addressCoordinates: () => {

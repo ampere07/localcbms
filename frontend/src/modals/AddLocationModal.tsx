@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ChevronDown, AlertCircle, AlertTriangle, Info } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import {
   createRegion,
   createCity,
@@ -12,6 +12,7 @@ import {
   Borough
 } from '../services/cityService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 
 interface AddLocationModalProps {
   isOpen: boolean;
@@ -58,52 +59,36 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
   const [filteredBarangays, setFilteredBarangays] = useState<Borough[]>([]);
   const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [alertConfig, setAlertConfig] = useState<{
+  const [globalModal, setGlobalModal] = useState<{
     isOpen: boolean;
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
     title: string;
     message: string;
-    type: 'alert' | 'confirm' | 'error' | 'warning';
     onConfirm?: () => void;
-    onCancel?: () => void;
   }>({
     isOpen: false,
+    type: 'loading',
     title: '',
-    message: '',
-    type: 'alert'
+    message: ''
   });
 
-  const customConfirm = (title: string, message: string, type: 'confirm' | 'warning' = 'confirm'): Promise<boolean> => {
-    return new Promise((resolve) => {
-      setAlertConfig({
-        isOpen: true,
-        title,
-        message,
-        type,
-        onConfirm: () => {
-          setAlertConfig(prev => ({ ...prev, isOpen: false }));
-          resolve(true);
-        },
-        onCancel: () => {
-          setAlertConfig(prev => ({ ...prev, isOpen: false }));
-          resolve(false);
-        }
-      });
+  const showGlobalModal = (
+    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
+    title: string, 
+    message: string,
+    onConfirm?: () => void
+  ) => {
+    setGlobalModal({
+      isOpen: true,
+      type,
+      title,
+      message,
+      onConfirm
     });
   };
 
-  const customAlert = (title: string, message: string, type: 'alert' | 'error' | 'warning' = 'alert'): Promise<void> => {
-    return new Promise((resolve) => {
-      setAlertConfig({
-        isOpen: true,
-        title,
-        message,
-        type,
-        onConfirm: () => {
-          setAlertConfig(prev => ({ ...prev, isOpen: false }));
-          resolve();
-        }
-      });
-    });
+  const closeGlobalModal = () => {
+    setGlobalModal(prev => ({ ...prev, isOpen: false }));
   };
 
   useEffect(() => {
@@ -235,6 +220,7 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
     }
 
     setLoading(true);
+    showGlobalModal('loading', 'Saving Location', 'Creating your new location...');
 
     try {
       const locationData: any = {
@@ -256,45 +242,35 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
       };
 
       if (locationData.barangay.isNew && !locationData.city.isNew && !locationData.city.id) {
-        await customAlert('Required Information', 'Please select a city or create a new one before adding a barangay', 'warning');
+        showGlobalModal('warning', 'Required Information', 'Please select a city or create a new one before adding a barangay');
         setLoading(false);
         return;
       }
 
       if ((locationData.city.isNew || locationData.barangay.isNew) && !locationData.region.isNew && !locationData.region.id) {
-        await customAlert('Required Information', 'Please select a region or create a new one before adding a city or barangay', 'warning');
+        showGlobalModal('warning', 'Required Information', 'Please select a region or create a new one before adding a city or barangay');
         setLoading(false);
         return;
       }
-
-      if (locationData.region.isNew && !locationData.region.name.trim()) {
-        await customAlert('Required Information', 'Please enter a region name', 'warning');
-        setLoading(false);
-        return;
-      }
-
-      if (locationData.city.isNew && !locationData.city.name.trim()) {
-        await customAlert('Required Information', 'Please enter a city name', 'warning');
-        setLoading(false);
-        return;
-      }
-
-      if (locationData.barangay.isNew && !locationData.barangay.name.trim()) {
-        await customAlert('Required Information', 'Please enter a barangay name', 'warning');
-        setLoading(false);
-        return;
-      }
-
-      console.log('Cascading location creation:', locationData);
 
       let regionId = locationData.region.id;
       if (locationData.region.isNew) {
+        if (!locationData.region.name.trim()) {
+           showGlobalModal('warning', 'Required Information', 'Please enter a region name');
+           setLoading(false);
+           return;
+        }
         const newRegion = await createRegion({ name: locationData.region.name });
         regionId = newRegion.id;
       }
 
       let cityId = locationData.city.id;
       if (locationData.city.isNew && regionId) {
+        if (!locationData.city.name.trim()) {
+           showGlobalModal('warning', 'Required Information', 'Please enter a city name');
+           setLoading(false);
+           return;
+        }
         const newCity = await createCity({
           name: locationData.city.name,
           region_id: regionId
@@ -302,13 +278,16 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
         cityId = newCity.id;
       }
 
-      let barangayId = locationData.barangay.id;
       if (locationData.barangay.isNew && cityId) {
-        const newBarangay = await createBarangay({
+        if (!locationData.barangay.name.trim()) {
+           showGlobalModal('warning', 'Required Information', 'Please enter a barangay name');
+           setLoading(false);
+           return;
+        }
+        await createBarangay({
           name: locationData.barangay.name,
           city_id: cityId
         });
-        barangayId = newBarangay.id;
       }
 
       const createdLocations = [];
@@ -316,17 +295,21 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
       if (locationData.city.isNew) createdLocations.push(`City: ${locationData.city.name}`);
       if (locationData.barangay.isNew) createdLocations.push(`Barangay: ${locationData.barangay.name}`);
 
-      if (createdLocations.length > 0) {
-        await customAlert('Success', `Successfully created:\n${createdLocations.join('\n')}`);
-      }
-
-      onSave(locationData);
-      setLoading(false);
-      handleClose();
+      showGlobalModal(
+        'success', 
+        'Success', 
+        `Successfully created:\n${createdLocations.length > 0 ? createdLocations.join('\n') : 'Location updated successfully'}`,
+        () => {
+          closeGlobalModal();
+          onSave(locationData);
+          handleClose();
+        }
+      );
     } catch (error: any) {
       console.error('Error creating location:', error);
       const errorMessage = error.response?.data?.message || error.message || 'Failed to create location. Please try again.';
-      await customAlert('Error', `Error: ${errorMessage}`, 'error');
+      showGlobalModal('error', 'Error', errorMessage);
+    } finally {
       setLoading(false);
     }
   };
@@ -350,281 +333,238 @@ const AddLocationModal: React.FC<AddLocationModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-      <div
-        className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
-          }`}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-          ? 'bg-gray-800 border-gray-700'
-          : 'bg-gray-100 border-gray-300'
-          }`}>
-          <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-            }`}>Add Location</h2>
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={handleClose}
-              className={`px-4 py-2 rounded text-sm ${isDarkMode
-                ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                }`}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={loading}
-              className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
-              style={{
-                backgroundColor: colorPalette?.primary || '#7c3aed'
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.accent && !loading) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-              }}
-            >
-              {loading ? (
-                <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Saving...
-                </>
-              ) : (
-                'Save'
-              )}
-            </button>
-            <button
-              onClick={handleClose}
-              className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
-            >
-              <X size={24} />
-            </button>
-          </div>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {dataLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
-            </div>
-          ) : (
-            <>
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Region<span className="text-red-500">*</span>
-                </label>
-                {showNewRegionInput ? (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={newRegionName}
-                      onChange={(e) => setNewRegionName(e.target.value)}
-                      placeholder="Enter new region name"
-                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 text-white'
-                        : 'bg-white text-gray-900'
-                        }`}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        setShowNewRegionInput(false);
-                        setNewRegionName('');
-                      }}
-                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <select
-                      value={formData.regionId?.toString() || ''}
-                      onChange={(e) => handleRegionChange(e.target.value)}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${errors.regionId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                        }`}
-                    >
-                      <option value="">Select Region</option>
-                      {allRegions.map(region => (
-                        <option key={region.id} value={region.id}>{region.name}</option>
-                      ))}
-                      <option value="add_new" className="text-orange-400">+ Add New Region</option>
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`} size={20} />
-                  </div>
-                )}
-                {errors.regionId && <p className="text-red-500 text-xs mt-1">{errors.regionId}</p>}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  City<span className="text-red-500">*</span>
-                </label>
-                {showNewCityInput ? (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={newCityName}
-                      onChange={(e) => setNewCityName(e.target.value)}
-                      placeholder="Enter new city name"
-                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 text-white'
-                        : 'bg-white text-gray-900'
-                        }`}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        setShowNewCityInput(false);
-                        setNewCityName('');
-                      }}
-                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <select
-                      value={formData.cityId?.toString() || ''}
-                      onChange={(e) => handleCityChange(e.target.value)}
-                      disabled={!formData.regionId && !showNewRegionInput}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.cityId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                        }`}
-                    >
-                      <option value="">Select City</option>
-                      {filteredCities.map(city => (
-                        <option key={city.id} value={city.id}>{city.name}</option>
-                      ))}
-                      <option value="add_new" className="text-orange-400">+ Add New City</option>
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`} size={20} />
-                  </div>
-                )}
-                {errors.cityId && <p className="text-red-500 text-xs mt-1">{errors.cityId}</p>}
-              </div>
-
-              <div>
-                <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>
-                  Barangay<span className="text-red-500">*</span>
-                </label>
-                {showNewBarangayInput ? (
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={newBarangayName}
-                      onChange={(e) => setNewBarangayName(e.target.value)}
-                      placeholder="Enter new barangay name"
-                      className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                        ? 'bg-gray-800 text-white'
-                        : 'bg-white text-gray-900'
-                        }`}
-                      autoFocus
-                    />
-                    <button
-                      onClick={() => {
-                        setShowNewBarangayInput(false);
-                        setNewBarangayName('');
-                      }}
-                      className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ) : (
-                  <div className="relative">
-                    <select
-                      value={formData.barangayId?.toString() || ''}
-                      onChange={(e) => handleBarangayChange(e.target.value)}
-                      disabled={!formData.cityId && !showNewCityInput}
-                      className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.barangayId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                        } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                        }`}
-                    >
-                      <option value="">Select Barangay</option>
-                      {filteredBarangays.map(barangay => (
-                        <option key={barangay.id} value={barangay.id}>{barangay.name}</option>
-                      ))}
-                      <option value="add_new" className="text-orange-400">+ Add New Barangay</option>
-                    </select>
-                    <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                      }`} size={20} />
-                  </div>
-                )}
-                {errors.barangayId && <p className="text-red-500 text-xs mt-1">{errors.barangayId}</p>}
-              </div>
-            </>
-          )}
-        </div>
-      </div>
-      {/* Inline Alert Modal */}
-      {alertConfig.isOpen && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity"
-            onClick={() => (alertConfig.type === 'alert' || alertConfig.type === 'error') ? alertConfig.onConfirm?.() : alertConfig.onCancel?.()}
-          />
-          <div className={`relative w-full max-w-sm transform overflow-hidden rounded-2xl p-6 text-left align-middle shadow-2xl transition-all ${isDarkMode ? 'bg-gray-900 border border-gray-800' : 'bg-white border border-gray-100'
+    <>
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
+        <div
+          className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
+            }`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
+            ? 'bg-gray-800 border-gray-700'
+            : 'bg-gray-100 border-gray-300'
             }`}>
-            <div className="flex items-center space-x-3 mb-4">
-              <div className={`p-2 rounded-full ${alertConfig.type === 'error' ? 'bg-red-500/10 text-red-500' :
-                alertConfig.type === 'warning' ? 'bg-yellow-500/10 text-yellow-500' :
-                  'bg-blue-500/10 text-blue-500'
-                }`}>
-                {alertConfig.type === 'error' ? <AlertCircle size={24} /> :
-                  alertConfig.type === 'warning' ? <AlertTriangle size={24} /> :
-                    <Info size={24} />}
-              </div>
-              <h3 className={`text-lg font-bold leading-6 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {alertConfig.title}
-              </h3>
-            </div>
-            <div className="mt-2">
-              <p className={`text-sm whitespace-pre-line leading-relaxed ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                {alertConfig.message}
-              </p>
-            </div>
-
-            <div className="mt-8 flex justify-end space-x-3">
-              {(alertConfig.type === 'confirm' || alertConfig.type === 'warning') && (
-                <button
-                  type="button"
-                  className={`px-5 py-2 text-sm font-semibold rounded-lg transition-colors ${isDarkMode ? 'bg-gray-800 text-gray-300 hover:bg-gray-700' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                    }`}
-                  onClick={alertConfig.onCancel}
-                >
-                  Cancel
-                </button>
-              )}
+            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
+              }`}>Add Location</h2>
+            <div className="flex items-center space-x-3">
               <button
-                type="button"
-                className="px-5 py-2 text-sm font-semibold text-white rounded-lg transition-all shadow-lg active:scale-95"
-                style={{
-                  backgroundColor: alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'),
-                  boxShadow: `0 4px 14px 0 ${(alertConfig.type === 'error' ? '#ef4444' : (colorPalette?.primary || '#7c3aed'))}40`
-                }}
-                onClick={alertConfig.onConfirm}
+                onClick={handleClose}
+                className={`px-4 py-2 rounded text-sm ${isDarkMode
+                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
+                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                  }`}
               >
-                {alertConfig.type === 'confirm' || alertConfig.type === 'warning' ?
-                  (alertConfig.title.toLowerCase().includes('delete') ? 'Delete' : 'Confirm')
-                  : 'OK'}
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
+                style={{
+                  backgroundColor: colorPalette?.primary || '#7c3aed'
+                }}
+                onMouseEnter={(e) => {
+                  if (colorPalette?.accent && !loading) {
+                    e.currentTarget.style.backgroundColor = colorPalette.accent;
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+                }}
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save'
+                )}
+              </button>
+              <button
+                onClick={handleClose}
+                className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
+              >
+                <X size={24} />
               </button>
             </div>
           </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            {dataLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500"></div>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    Region<span className="text-red-500">*</span>
+                  </label>
+                  {showNewRegionInput ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={newRegionName}
+                        onChange={(e) => setNewRegionName(e.target.value)}
+                        placeholder="Enter new region name"
+                        className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                          }`}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => {
+                          setShowNewRegionInput(false);
+                          setNewRegionName('');
+                        }}
+                        className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={formData.regionId?.toString() || ''}
+                        onChange={(e) => handleRegionChange(e.target.value)}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none ${errors.regionId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          }`}
+                      >
+                        <option value="">Select Region</option>
+                        {allRegions.map(region => (
+                          <option key={region.id} value={region.id}>{region.name}</option>
+                        ))}
+                        <option value="add_new" className="text-orange-400">+ Add New Region</option>
+                      </select>
+                      <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} size={20} />
+                    </div>
+                  )}
+                  {errors.regionId && <p className="text-red-500 text-xs mt-1">{errors.regionId}</p>}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    City<span className="text-red-500">*</span>
+                  </label>
+                  {showNewCityInput ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={newCityName}
+                        onChange={(e) => setNewCityName(e.target.value)}
+                        placeholder="Enter new city name"
+                        className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                          }`}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => {
+                          setShowNewCityInput(false);
+                          setNewCityName('');
+                        }}
+                        className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={formData.cityId?.toString() || ''}
+                        onChange={(e) => handleCityChange(e.target.value)}
+                        disabled={!formData.regionId && !showNewRegionInput}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.cityId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          }`}
+                      >
+                        <option value="">Select City</option>
+                        {filteredCities.map(city => (
+                          <option key={city.id} value={city.id}>{city.name}</option>
+                        ))}
+                        <option value="add_new" className="text-orange-400">+ Add New City</option>
+                      </select>
+                      <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} size={20} />
+                    </div>
+                  )}
+                  {errors.cityId && <p className="text-red-500 text-xs mt-1">{errors.cityId}</p>}
+                </div>
+
+                <div>
+                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                    }`}>
+                    Barangay<span className="text-red-500">*</span>
+                  </label>
+                  {showNewBarangayInput ? (
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={newBarangayName}
+                        onChange={(e) => setNewBarangayName(e.target.value)}
+                        placeholder="Enter new barangay name"
+                        className={`w-full px-3 py-2 border border-orange-500 rounded focus:outline-none focus:border-orange-500 ${isDarkMode
+                          ? 'bg-gray-800 text-white'
+                          : 'bg-white text-gray-900'
+                          }`}
+                        autoFocus
+                      />
+                      <button
+                        onClick={() => {
+                          setShowNewBarangayInput(false);
+                          setNewBarangayName('');
+                        }}
+                        className={isDarkMode ? 'absolute right-3 top-2.5 text-gray-400 hover:text-white' : 'absolute right-3 top-2.5 text-gray-600 hover:text-gray-900'}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={formData.barangayId?.toString() || ''}
+                        onChange={(e) => handleBarangayChange(e.target.value)}
+                        disabled={!formData.cityId && !showNewCityInput}
+                        className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 appearance-none disabled:opacity-50 disabled:cursor-not-allowed ${errors.barangayId ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+                          } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
+                          }`}
+                      >
+                        <option value="">Select Barangay</option>
+                        {filteredBarangays.map(barangay => (
+                          <option key={barangay.id} value={barangay.id}>{barangay.name}</option>
+                        ))}
+                        <option value="add_new" className="text-orange-400">+ Add New Barangay</option>
+                      </select>
+                      <ChevronDown className={`absolute right-3 top-2.5 ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`} size={20} />
+                    </div>
+                  )}
+                  {errors.barangayId && <p className="text-red-500 text-xs mt-1">{errors.barangayId}</p>}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      )}
-    </div>
+      </div>
+
+      <LoadingModalGlobal
+        isOpen={globalModal.isOpen}
+        type={globalModal.type}
+        title={globalModal.title}
+        message={globalModal.message}
+        onConfirm={globalModal.onConfirm || closeGlobalModal}
+        onCancel={closeGlobalModal}
+        colorPalette={colorPalette}
+        isDarkMode={isDarkMode}
+      />
+    </>
   );
 };
 
