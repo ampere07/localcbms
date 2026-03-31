@@ -151,7 +151,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
     return `₱${numAmount.toFixed(2)}`;
   };
 
-  const formatDate = (dateStr?: string | null): string => {
+  const formatDate = (dateStr?: string | null, includeTime: boolean = false): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
@@ -159,6 +159,17 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
+
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+
       return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
@@ -512,7 +523,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>Created At</div>
                 <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{formatDate(staggered.created_at)}</div>
+                  }`}>{formatDate(staggered.created_at, true)}</div>
               </div>
 
               <div className={`flex py-2 ${isDarkMode ? 'border-b border-gray-800' : 'border-b border-gray-300'
@@ -520,7 +531,7 @@ const StaggeredListDetails: React.FC<StaggeredListDetailsProps> = ({ staggered, 
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>Updated At</div>
                 <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{formatDate(staggered.updated_at)}</div>
+                  }`}>{formatDate(staggered.updated_at, true)}</div>
               </div>
             </div>
           </div>

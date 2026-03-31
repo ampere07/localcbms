@@ -85,7 +85,7 @@ const StaggeredPayment: React.FC = () => {
     return `₱${numAmount.toFixed(2)}`;
   };
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDate = (dateStr?: string, includeTime: boolean = false): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
@@ -93,6 +93,17 @@ const StaggeredPayment: React.FC = () => {
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
+
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+
       return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
@@ -771,6 +782,10 @@ const StaggeredPayment: React.FC = () => {
                         }`}>Staggered Date</th>
                       <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                         }`}>Modified By</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Created At</th>
+                      <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                        }`}>Updated At</th>
                     </tr>
                   </thead>
                   <tbody className={`divide-y ${isDarkMode ? 'bg-gray-900 divide-gray-800' : 'bg-white divide-gray-200'
@@ -801,6 +816,10 @@ const StaggeredPayment: React.FC = () => {
                           }`}>{formatDate(record.staggered_date)}</td>
                         <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
                           }`}>{record.modified_by || '-'}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{formatDate(record.created_at, true)}</td>
+                        <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
+                          }`}>{formatDate(record.updated_at, true)}</td>
                       </tr>
                     ))}
                   </tbody>

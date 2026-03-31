@@ -222,10 +222,13 @@ const NapList: React.FC = () => {
 
   const handleSave = async (formData: NapFormData) => {
     try {
+      const authData = localStorage.getItem('authData');
+      const currentUserEmail = authData ? JSON.parse(authData)?.email : 'system';
+
       if (editingItem) {
-        await updateNapItem(editingItem.id, formData.name.trim());
+        await updateNapItem(editingItem.id, formData.name.trim(), currentUserEmail);
       } else {
-        await addNapItem(formData.name.trim());
+        await addNapItem(formData.name.trim(), currentUserEmail);
       }
     } catch (error) {
       console.error('Error submitting form:', error);

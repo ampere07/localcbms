@@ -44,7 +44,7 @@ class StatusRemarksController extends Controller
                 ], 422);
             }
 
-            $userIdentifier = \Auth::check() ? \Auth::user()->email_address : 'System';
+            $userIdentifier = $request->input('email_address') ?? (\Auth::check() ? \Auth::user()->email_address : null);
 
             $statusRemark = StatusRemarksList::create([
                 'status_remarks' => $request->status_remarks,
@@ -104,7 +104,7 @@ class StatusRemarksController extends Controller
                 ], 422);
             }
 
-            $userIdentifier = \Auth::check() ? \Auth::user()->email_address : 'System';
+            $userIdentifier = $request->input('email_address') ?? (\Auth::check() ? \Auth::user()->email_address : null);
 
             $statusRemark = StatusRemarksList::findOrFail($id);
             

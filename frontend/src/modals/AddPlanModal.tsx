@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Minus } from 'lucide-react';
+import { Plus, Minus } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
-import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import LoadingModalGlobal from '../components/LoadingModalGlobal';
-
-interface AddPlanModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSave: () => void;
-  editingPlan?: Plan | null;
-}
+import ModalUITemplate, { useModalTheme } from './ui-modal/ModalUITemplate';
 
 interface Plan {
   id: number;
@@ -23,11 +15,20 @@ interface Plan {
   updated_at?: string;
 }
 
-interface GlobalModalState {
+interface AddPlanModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  editingPlan?: Plan | null;
+}
+
+interface ModalConfig {
   isOpen: boolean;
   type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
   title: string;
   message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
 }
 
 const AddPlanModal: React.FC<AddPlanModalProps> = ({
@@ -43,9 +44,10 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
-  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-  const [globalModal, setGlobalModal] = useState<GlobalModalState>({
+  const [modifiedDate, setModifiedDate] = useState<string>('');
+  const [modifiedBy, setModifiedBy] = useState<string>('');
+  const [loading, setLoading] = useState(false);
+  const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'loading',
     title: '',
@@ -53,95 +55,95 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
   });
 
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDarkMode(localStorage.getItem('theme') === 'dark');
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const fetchColorPalette = async () => {
-      try {
-        const activePalette = await settingsColorPaletteService.getActive();
-        setColorPalette(activePalette);
-      } catch (err) {
-        console.error('Failed to fetch color palette:', err);
+    if (isOpen) {
+      if (editingPlan) {
+        setFormData({
+          name: editingPlan.name,
+          description: editingPlan.description || '',
+          price: editingPlan.price || 0
+        });
+        setModifiedDate(formatDateTime(new Date(editingPlan.modified_date || editingPlan.updated_at || new Date())));
+        setModifiedBy(editingPlan.modified_by || 'N/A');
+      } else {
+        setFormData({
+          name: '',
+          description: '',
+          price: 0
+        });
+        setErrors({});
+        setModifiedDate(formatDateTime(new Date()));
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            setModifiedBy(userData.email || userData.email_address || 'Unknown User');
+          } catch (e) {
+            setModifiedBy('Unknown User');
+          }
+        }
       }
-    };
-    fetchColorPalette();
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && editingPlan) {
-      setFormData({
-        name: editingPlan.name,
-        description: editingPlan.description || '',
-        price: editingPlan.price || 0
-      });
-    } else if (isOpen && !editingPlan) {
-      resetForm();
     }
   }, [isOpen, editingPlan]);
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      description: '',
-      price: 0
-    });
-    setErrors({});
-  };
+  const formatDateTime = (date: Date): string => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
 
-  const showGlobalModal = (type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', title: string, message: string) => {
-    setGlobalModal({
-      isOpen: true,
-      type,
-      title,
-      message
-    });
-  };
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
 
-  const closeGlobalModal = () => {
-    const wasSuccess = globalModal.type === 'success';
-    setGlobalModal({
-      ...globalModal,
-      isOpen: false
-    });
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, '0');
 
-    if (wasSuccess) {
-      handleClose();
-      onSave();
-    }
+    return `${month}/${day}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
   };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.name.trim()) {
       newErrors.name = 'Plan name is required';
     }
-
     if (formData.price < 0) {
       newErrors.price = 'Price cannot be negative';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) {
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Please fill in all required fields.'
+      });
       return;
     }
 
-    showGlobalModal('loading', 'Saving Plan', `Please wait while we ${editingPlan ? 'update' : 'add'} the plan...`);
+    setLoading(true);
 
     try {
+      const authData = localStorage.getItem('authData');
+      let userEmail = '';
+      if (authData) {
+        try {
+          const userData = JSON.parse(authData);
+          userEmail = userData.email || userData.email_address || '';
+        } catch (e) {
+          console.error('Error parsing authData:', e);
+        }
+      }
+
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
-        price: formData.price
+        price: formData.price,
+        email_address: userEmail
       };
 
       const url = editingPlan
@@ -162,35 +164,55 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        showGlobalModal(
-          'success',
-          'Success',
-          data.message || `Plan ${editingPlan ? 'updated' : 'added'} successfully`
-        );
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: data.message || `Plan ${editingPlan ? 'updated' : 'added'} successfully`,
+          onConfirm: () => {
+            onSave();
+            handleClose();
+            setModal(prev => ({ ...prev, isOpen: false }));
+          }
+        });
       } else {
         if (data.errors) {
           const errorMessages = Object.values(data.errors).flat().join('\n');
-          showGlobalModal('error', 'Validation Error', errorMessages);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Validation Errors',
+            message: errorMessages
+          });
         } else {
-          showGlobalModal(
-            'error',
-            'Error',
-            data.message || `Failed to ${editingPlan ? 'update' : 'add'} plan`
-          );
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Error',
+            message: data.message || `Failed to ${editingPlan ? 'update' : 'add'} plan`
+          });
         }
       }
     } catch (error) {
       console.error('Error submitting form:', error);
-      showGlobalModal(
-        'error',
-        'Error',
-        `Failed to ${editingPlan ? 'update' : 'add'} plan: ${error instanceof Error ? error.message : 'Unknown error'}`
-      );
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Error',
+        message: `Failed to ${editingPlan ? 'update' : 'add'} plan: ${error instanceof Error ? error.message : 'Unknown error'}`
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleClose = () => {
-    resetForm();
+    setFormData({
+      name: '',
+      description: '',
+      price: 0
+    });
+    setErrors({});
     onClose();
   };
 
@@ -204,171 +226,177 @@ const AddPlanModal: React.FC<AddPlanModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
+  return (
+    <ModalUITemplate
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={editingPlan ? 'Edit Plan' : 'Add Plan'}
+      loading={loading}
+      primaryAction={{
+        label: 'Save',
+        onClick: handleSubmit,
+        disabled: loading
+      }}
+      secondaryActionLabel="Cancel"
+      alertModal={{
+        ...modal,
+        onConfirm: modal.onConfirm || (() => setModal({ ...modal, isOpen: false })),
+        onCancel: modal.onCancel || (() => setModal({ ...modal, isOpen: false }))
+      }}
+    >
+      <div className="space-y-6">
+        <PlanFormContent
+          formData={formData}
+          setFormData={setFormData}
+          errors={errors}
+          incrementPrice={incrementPrice}
+          decrementPrice={decrementPrice}
+          modifiedDate={modifiedDate}
+          modifiedBy={modifiedBy}
+        />
+      </div>
+    </ModalUITemplate>
+  );
+};
+
+const PlanFormContent: React.FC<{
+  formData: any;
+  setFormData: (data: any) => void;
+  errors: Record<string, string>;
+  incrementPrice: () => void;
+  decrementPrice: () => void;
+  modifiedDate: string;
+  modifiedBy: string;
+}> = ({ formData, setFormData, errors, incrementPrice, decrementPrice, modifiedDate, modifiedBy }) => {
+  const { isDarkMode, colorPalette } = useModalTheme();
+
+  const inputClasses = `w-full px-3 py-2 border rounded focus:outline-none transition-all duration-200 bg-transparent ${isDarkMode ? 'border-gray-700 text-white focus:border-blue-500' : 'border-gray-300 text-black focus:border-blue-500'
+    }`;
+
+  const readOnlyClasses = `w-full px-3 py-2 border rounded bg-transparent opacity-60 cursor-not-allowed ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'
+    }`;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-        <div
-          className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
-            }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode
-              ? 'bg-gray-800 border-gray-700'
-              : 'bg-gray-100 border-gray-300'
-            }`}>
-            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{editingPlan ? 'Edit Plan' : 'Add Plan'}</h2>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleClose}
-                className={`px-4 py-2 rounded text-sm ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                  }`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center"
-                style={{
-                  backgroundColor: colorPalette?.primary || '#7c3aed'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                }}
-              >
-                Save
-              </button>
-              <button
-                onClick={handleClose}
-                className={isDarkMode ? 'text-gray-400 hover:text-white transition-colors' : 'text-gray-600 hover:text-gray-900 transition-colors'}
-              >
-                <X size={24} />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Plan Name<span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${errors.name ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                  } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                  }`}
-                placeholder="Enter plan name"
-              />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                rows={4}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 resize-none ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700 text-white'
-                    : 'bg-white border-gray-300 text-gray-900'
-                  }`}
-                placeholder="Enter plan description"
-              />
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Price<span className="text-red-500">*</span>
-              </label>
-              <div className="flex items-stretch">
-                <div className={`flex items-center px-4 border rounded-l-lg border-r-0 ${isDarkMode
-                    ? 'bg-gray-800 border-gray-700'
-                    : 'bg-gray-100 border-gray-300'
-                  }`}>
-                  <span className={`font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                    }`}>₱</span>
-                </div>
-                <input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) || 0 })}
-                  className={`flex-1 px-4 py-3 border focus:border-orange-500 focus:outline-none text-center border-l-0 border-r-0 ${errors.price ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
-                    } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'
-                    }`}
-                  step="0.01"
-                  min="0"
-                />
-                <div className={`flex flex-col border-t border-b border-r rounded-r-lg overflow-hidden ${isDarkMode
-                    ? 'border-gray-700 bg-gray-800'
-                    : 'border-gray-300 bg-gray-100'
-                  }`}>
-                  <button
-                    type="button"
-                    onClick={incrementPrice}
-                    className={`flex-1 px-3 py-1.5 flex items-center justify-center border-b ${isDarkMode
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-600 border-gray-700'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 border-gray-300'
-                      }`}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={decrementPrice}
-                    className={`flex-1 px-3 py-1.5 flex items-center justify-center ${isDarkMode
-                        ? 'text-gray-400 hover:text-white hover:bg-gray-600'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
-                      }`}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                </div>
-              </div>
-              {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
-            </div>
-
-            <div>
-              <div className={`p-4 border rounded-lg ${isDarkMode
-                  ? 'bg-blue-900/20 border-blue-700/30'
-                  : 'bg-blue-50 border-blue-200'
-                }`}>
-                <p className={`text-sm ${isDarkMode ? 'text-blue-300' : 'text-blue-700'
-                  }`}>
-                  <strong>Note:</strong> Modified date and user information will be set automatically when the plan is created or updated.
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          Plan Name<span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className={`${inputClasses} ${errors.name ? 'border-red-500' : ''}`}
+          placeholder="Enter plan name"
+          onFocus={(e) => {
+            if (colorPalette?.primary) {
+              e.currentTarget.style.borderColor = colorPalette.primary;
+              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}20`;
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          autoFocus
+        />
+        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
       </div>
 
-      <LoadingModalGlobal
-        isOpen={globalModal.isOpen}
-        type={globalModal.type}
-        title={globalModal.title}
-        message={globalModal.message}
-        onConfirm={closeGlobalModal}
-        onCancel={closeGlobalModal}
-        colorPalette={colorPalette}
-        isDarkMode={isDarkMode}
-      />
-    </>
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          Description
+        </label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={3}
+          className={`${inputClasses} resize-none`}
+          placeholder="Enter plan description"
+          onFocus={(e) => {
+            if (colorPalette?.primary) {
+              e.currentTarget.style.borderColor = colorPalette.primary;
+              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}20`;
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          Price<span className="text-red-500">*</span>
+        </label>
+        <div className="flex items-stretch">
+          <div className={`flex items-center px-4 border rounded-l-lg border-r-0 ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-300'
+            }`}>
+            <span className={`font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>₱</span>
+          </div>
+          <input
+            type="number"
+            value={formData.price}
+            onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) || 0 })}
+            className={`flex-1 px-4 py-2 border focus:outline-none text-center border-l-0 border-r-0 ${errors.price ? 'border-red-500' : isDarkMode ? 'border-gray-700' : 'border-gray-300'
+              } ${isDarkMode ? 'bg-gray-800 text-white' : 'bg-white text-gray-900'}`}
+            step="0.01"
+            min="0"
+            onFocus={(e) => {
+              if (colorPalette?.primary) {
+                e.currentTarget.style.borderColor = colorPalette.primary;
+              }
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            }}
+          />
+          <div className={`flex flex-col border-t border-b border-r rounded-r-lg overflow-hidden ${isDarkMode ? 'border-gray-700 bg-gray-800' : 'border-gray-300 bg-gray-100'}`}>
+            <button
+              type="button"
+              onClick={incrementPrice}
+              className={`flex-1 px-3 py-1 flex items-center justify-center border-b ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700 border-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200 border-gray-300'}`}
+            >
+              <Plus className="h-3 w-3" />
+            </button>
+            <button
+              type="button"
+              onClick={decrementPrice}
+              className={`flex-1 px-3 py-1 flex items-center justify-center ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'}`}
+            >
+              <Minus className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+        {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+        <div className="space-y-2">
+          <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified Date
+          </label>
+          <input
+            type="text"
+            value={modifiedDate}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified By
+          </label>
+          <input
+            type="text"
+            value={modifiedBy}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 

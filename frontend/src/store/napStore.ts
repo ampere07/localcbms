@@ -11,8 +11,8 @@ interface NapState {
     searchQuery: string;
 
     fetchNapItems: (page?: number, limit?: number, searchQuery?: string, silent?: boolean) => Promise<void>;
-    addNapItem: (name: string) => Promise<void>;
-    updateNapItem: (id: number, name: string) => Promise<void>;
+    addNapItem: (name: string, email_address?: string) => Promise<void>;
+    updateNapItem: (id: number, name: string, email_address?: string) => Promise<void>;
     deleteNapItem: (id: number) => Promise<void>;
     refreshNapItems: () => Promise<void>;
     silentRefresh: () => Promise<void>;
@@ -29,7 +29,6 @@ export const useNapStore = create<NapState>((set, get) => ({
     searchQuery: '',
 
     fetchNapItems: async (page = 1, limit = 50, query = get().searchQuery, silent = false) => {
-        const { napItems } = get();
 
         // If searching, reset list
         if (query !== get().searchQuery) {
@@ -70,10 +69,10 @@ export const useNapStore = create<NapState>((set, get) => ({
         }
     },
 
-    addNapItem: async (name: string) => {
+    addNapItem: async (name: string, email_address?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await createNAP(name);
+            const response = await createNAP(name, email_address);
             if (response.success && response.data) {
                 // Refresh list or prepend
                 await get().fetchNapItems(1, 50, get().searchQuery);
@@ -87,10 +86,10 @@ export const useNapStore = create<NapState>((set, get) => ({
         }
     },
 
-    updateNapItem: async (id: number, name: string) => {
+    updateNapItem: async (id: number, name: string, email_address?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await updateNAP(id, name);
+            const response = await updateNAP(id, name, email_address);
             if (response.success && response.data) {
                 set((state) => ({
                     napItems: state.napItems.map(item => item.id === id ? { ...item, nap_name: name, updated_at: response.data.updated_at } : item),

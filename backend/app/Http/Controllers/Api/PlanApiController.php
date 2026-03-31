@@ -7,13 +7,23 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use App\Models\ActivityLog;
+use App\Models\User;
 
 class PlanApiController extends Controller
 {
-    private function getCurrentUserId()
+    private function resolveUserId(Request $request)
     {
-        $user = DB::table('users')->first();
-        return $user ? $user->id : null;
+        $userEmail = $request->input('email_address');
+        $userId = auth()->id();
+
+        if (!$userId && $userEmail) {
+            $user = User::where('email_address', $userEmail)->first();
+            if ($user) {
+                $userId = $user->id;
+            }
+        }
+
+        return $userId;
     }
 
     public function index()
@@ -64,7 +74,7 @@ class PlanApiController extends Controller
                 ], 422);
             }
 
-            $currentUserId = $this->getCurrentUserId();
+            $currentUserId = $this->resolveUserId($request);
             $now = now();
             
             $planId = DB::table('plan_list')->insertGetId([
@@ -188,7 +198,7 @@ class PlanApiController extends Controller
                 ], 422);
             }
             
-            $currentUserId = $this->getCurrentUserId();
+            $currentUserId = $this->resolveUserId($request);
             $now = now();
             
             DB::table('plan_list')

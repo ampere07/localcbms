@@ -424,7 +424,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
     });
   };
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDate = (dateStr?: string, includeTime: boolean = false): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
@@ -433,6 +433,17 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
+      
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; // the hour '0' should be '12'
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+      
       return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       console.warn('Error formatting date:', dateStr, e);
@@ -1377,6 +1388,8 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Date Processed</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
+                      }`}>Created At</th>
+                    <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Account No.</th>
                     <th className={`px-4 py-3 text-left text-xs font-medium uppercase tracking-wider whitespace-nowrap ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`}>Received Payment</th>
@@ -1452,7 +1465,9 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                             </td>
                           )}
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatDate(transaction.date_processed)}</td>
+                            }`}>{formatDate(transaction.date_processed, true)}</td>
+                          <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
+                            }`}>{formatDate(transaction.created_at, true)}</td>
                           <td className="px-4 py-3 whitespace-nowrap text-red-400 font-medium">{transaction.account?.account_no || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap font-medium ${isDarkMode ? 'text-white' : 'text-gray-900'
                             }`}>{formatCurrency(transaction.received_payment)}</td>
@@ -1480,7 +1495,7 @@ const TransactionList: React.FC<TransactionListProps> = ({ onNavigate }) => {
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{transaction.approved_by || '-'}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                            }`}>{formatDate(transaction.updated_at)}</td>
+                            }`}>{formatDate(transaction.updated_at, true)}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
                             }`}>{formatDate(transaction.payment_date)}</td>
                           <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-700'

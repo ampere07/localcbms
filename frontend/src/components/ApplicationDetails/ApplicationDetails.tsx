@@ -80,7 +80,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     'documentAttachment',
     'otherIspBill',
     'remarks',
-    'updatedBy'
+    'updatedBy',
+    'updatedAt'
   ];
 
   const [fieldVisibility, setFieldVisibility] = useState<Record<string, boolean>>(() => {
@@ -312,7 +313,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
     return addressParts.length > 0 ? addressParts.join(', ') : 'No address provided';
   };
 
-  const formatDate = (dateStr?: string | null): string => {
+  const formatDate = (dateStr?: string | null, includeTime: boolean = false): string => {
     if (!dateStr) return 'Not provided';
     try {
       const date = new Date(dateStr);
@@ -320,6 +321,17 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
+
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+
       return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
@@ -378,7 +390,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
       documentAttachment: 'Document Attachment',
       otherIspBill: 'Other ISP Bill',
       remarks: 'Remarks',
-      updatedBy: 'Updated By'
+      updatedBy: 'Updated By',
+      updatedAt: 'Updated At'
     };
     return labels[fieldKey] || fieldKey;
   };
@@ -429,10 +442,19 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
     switch (fieldKey) {
       case 'timestamp':
-        const tsValue = detailedApplication?.create_date && detailedApplication?.create_time
-          ? `${detailedApplication.create_date} ${detailedApplication.create_time}`
-          : formatDate(application.timestamp);
-        if (!tsValue || tsValue === 'Not provided') return null;
+        let tsValue = 'Not provided';
+        if (detailedApplication?.create_date && detailedApplication?.create_time) {
+          const [h, m, s] = detailedApplication.create_time.split(':');
+          let hours = parseInt(h);
+          const ampm = hours >= 12 ? 'PM' : 'AM';
+          hours = hours % 12;
+          hours = hours ? hours : 12;
+          tsValue = `${detailedApplication.create_date} ${hours}:${m || '00'}:${s || '00'} ${ampm}`;
+        } else if (application.timestamp) {
+          tsValue = formatDate(application.timestamp, true);
+        }
+        
+        if (tsValue === 'Not provided') return null;
         return (
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'
             }`}>
@@ -902,6 +924,15 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
           <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
             <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Updated By:</div>
             <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{detailedApplication.updated_by}</div>
+          </div>
+        );
+
+      case 'updatedAt':
+        if (!detailedApplication?.updated_at) return null;
+        return (
+          <div className={`flex border-b pb-4 ${isDarkMode ? 'border-gray-800' : 'border-gray-200'}`}>
+            <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>Updated At:</div>
+            <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{formatDate(detailedApplication.updated_at, true)}</div>
           </div>
         );
 

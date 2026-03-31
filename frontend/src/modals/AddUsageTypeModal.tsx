@@ -1,8 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Info } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
-import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import LoadingModalGlobal from '../components/LoadingModalGlobal';
+import ModalUITemplate, { useModalTheme } from './ui-modal/ModalUITemplate';
 
 interface AddUsageTypeModalProps {
   isOpen: boolean;
@@ -20,6 +18,15 @@ interface UsageType {
   updated_by_user_id?: number;
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
   isOpen,
   onClose,
@@ -32,70 +39,61 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
-  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-
-  const [globalModal, setGlobalModal] = useState<{
-    isOpen: boolean;
-    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
-    title: string;
-    message: string;
-    onConfirm?: () => void;
-  }>({
+  const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'loading',
     title: '',
     message: ''
   });
 
-  const showGlobalModal = (
-    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
-    title: string, 
-    message: string,
-    onConfirm?: () => void
-  ) => {
-    setGlobalModal({
-      isOpen: true,
-      type,
-      title,
-      message,
-      onConfirm
-    });
-  };
-
-  const closeGlobalModal = () => {
-    setGlobalModal(prev => ({ ...prev, isOpen: false }));
-  };
+  const [modifiedDate, setModifiedDate] = useState<string>('');
+  const [modifiedBy, setModifiedBy] = useState<string>('');
 
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDarkMode(localStorage.getItem('theme') === 'dark');
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
+    const authData = localStorage.getItem('authData');
+    let userEmail = 'Unknown User';
 
-  useEffect(() => {
-    const fetchColorPalette = async () => {
+    if (authData) {
       try {
-        const activePalette = await settingsColorPaletteService.getActive();
-        setColorPalette(activePalette);
-      } catch (err) {
-        console.error('Failed to fetch color palette:', err);
+        const userData = JSON.parse(authData);
+        userEmail = userData.email || userData.email_address || 'Unknown User';
+      } catch (error) {
+        console.error('Error parsing auth data:', error);
       }
-    };
-    fetchColorPalette();
-  }, []);
+    }
 
-  useEffect(() => {
-    if (isOpen && editingUsageType) {
-      setFormData({
-        usage_name: editingUsageType.usage_name
-      });
-    } else if (isOpen && !editingUsageType) {
-      resetForm();
+    setModifiedBy(userEmail);
+
+    if (isOpen) {
+      if (editingUsageType) {
+        setFormData({
+          usage_name: editingUsageType.usage_name
+        });
+      } else {
+        resetForm();
+      }
+      
+      const now = new Date();
+      setModifiedDate(formatDateTime(now));
     }
   }, [isOpen, editingUsageType]);
+
+  const formatDateTime = (date: Date): string => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, '0');
+
+    return `${month}/${day}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
+  };
 
   const resetForm = () => {
     setFormData({
@@ -117,15 +115,24 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      showGlobalModal('warning', 'Validation Error', 'Usage type name is required.');
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Usage type name is required.'
+      });
       return;
     }
 
     setLoading(true);
 
     try {
+      const authData = localStorage.getItem('authData');
+      const currentUserEmail = authData ? JSON.parse(authData)?.email : 'system';
+
       const payload = {
-        usage_name: formData.usage_name.trim()
+        usage_name: formData.usage_name.trim(),
+        email_address: currentUserEmail
       };
 
       const url = editingUsageType
@@ -146,22 +153,43 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        showGlobalModal('success', 'Success', data.message || `Usage type ${editingUsageType ? 'updated' : 'added'} successfully`, () => {
-          onSave();
-          handleClose();
-          closeGlobalModal();
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success',
+          message: data.message || `Usage type ${editingUsageType ? 'updated' : 'added'} successfully`,
+          onConfirm: () => {
+            onSave();
+            handleClose();
+            setModal(prev => ({ ...prev, isOpen: false }));
+          }
         });
       } else {
         if (data.errors) {
           const errorMessages = Object.values(data.errors).flat().join('\n');
-          showGlobalModal('error', 'Validation Errors', errorMessages);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Validation Errors',
+            message: errorMessages
+          });
         } else {
-          showGlobalModal('error', 'Error', data.message || `Failed to ${editingUsageType ? 'update' : 'add'} usage type`);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Error',
+            message: data.message || `Failed to ${editingUsageType ? 'update' : 'add'} usage type`
+          });
         }
       }
     } catch (error: any) {
       console.error('Error submitting form:', error);
-      showGlobalModal('error', 'Critical Error', `Failed to process request: ${error.message}`);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'Critical Error',
+        message: `Failed to process request: ${error.message}`
+      });
     } finally {
       setLoading(false);
     }
@@ -172,134 +200,106 @@ const AddUsageTypeModal: React.FC<AddUsageTypeModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
+  return (
+    <ModalUITemplate
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={editingUsageType ? 'Edit Usage Context' : 'Add Usage Type'}
+      loading={loading}
+      primaryAction={{
+        label: 'Save',
+        onClick: handleSubmit,
+        disabled: loading
+      }}
+      secondaryActionLabel="Cancel"
+      alertModal={{
+        ...modal,
+        onConfirm: modal.onConfirm || (() => setModal({ ...modal, isOpen: false })),
+        onCancel: modal.onCancel || (() => setModal({ ...modal, isOpen: false }))
+      }}
+    >
+      <div className="space-y-6">
+        <AddUsageTypeContent
+          formData={formData}
+          setFormData={setFormData}
+          errors={errors}
+          modifiedDate={modifiedDate}
+          modifiedBy={modifiedBy}
+        />
+      </div>
+    </ModalUITemplate>
+  );
+};
+
+const AddUsageTypeContent: React.FC<{
+  formData: { usage_name: string };
+  setFormData: (data: any) => void;
+  errors: Record<string, string>;
+  modifiedDate: string;
+  modifiedBy: string;
+}> = ({ formData, setFormData, errors, modifiedDate, modifiedBy }) => {
+  const { isDarkMode, colorPalette } = useModalTheme();
+
+  const readOnlyClasses = `w-full px-3 py-2 border rounded bg-transparent opacity-60 cursor-not-allowed ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'
+    }`;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-end z-[40]" onClick={handleClose}>
-        <div
-          className={`h-full w-full md:max-w-2xl shadow-3xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900 border-l border-white/5' : 'bg-white border-l border-gray-200 shadow-2xl'
-            }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className={`px-6 py-6 flex items-center justify-between border-b ${isDarkMode
-              ? 'bg-gray-800/50 border-gray-700'
-              : 'bg-gray-50 border-gray-200'
-            }`}>
-            <div className="flex flex-col">
-              <h2 className={`text-xl font-bold tracking-tight ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>
-                {editingUsageType ? 'Modify Usage Context' : 'Register Usage Type'}
-              </h2>
-              <p className={`text-xs mt-0.5 font-medium ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-                {editingUsageType ? 'Update existing configuration' : 'Define a new usage classification'}
-              </p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleClose}
-                className={`px-4 py-2 rounded-xl text-sm font-bold transition-all active:scale-95 ${isDarkMode
-                    ? 'bg-gray-700 hover:bg-gray-600 text-gray-200'
-                    : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-                  }`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="px-6 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-sm font-bold flex items-center shadow-lg active:scale-95 transition-all"
-                style={{
-                  backgroundColor: colorPalette?.primary || '#7c3aed'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent && !loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
-                }}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 size={18} className="animate-spin mr-2" />
-                    Saving...
-                  </>
-                ) : (
-                  'Commit Changes'
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
-            <div className="space-y-6">
-              <div className="group">
-                <label className={`block text-xs font-bold uppercase tracking-widest mb-2.5 transition-colors ${isDarkMode ? 'text-gray-500 group-focus-within:text-blue-400' : 'text-gray-400 group-focus-within:text-blue-600'}`}>
-                  Usage Designation<span className="text-red-500 ml-1.5">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.usage_name}
-                    onChange={(e) => {
-                      setFormData({ ...formData, usage_name: e.target.value });
-                      if (errors.usage_name) setErrors({...errors, usage_name: ''});
-                    }}
-                    className={`w-full px-5 py-3.5 rounded-2xl border transition-all duration-300 focus:outline-none focus:ring-4 ${isDarkMode 
-                      ? 'bg-gray-800 text-white border-gray-700 focus:border-blue-500 focus:ring-blue-500/10' 
-                      : 'bg-white text-gray-900 border-gray-200 focus:border-blue-600 focus:ring-blue-600/10 shadow-sm'
-                      } ${errors.usage_name ? 'border-red-500 ring-4 ring-red-500/10' : ''}`}
-                    placeholder="e.g. Residential, Commercial, Internal"
-                    autoFocus
-                  />
-                  {errors.usage_name && (
-                    <div className="absolute -bottom-6 left-0 text-red-500 text-[10px] font-bold uppercase tracking-tighter flex items-center gap-1">
-                      <X size={10} /> {errors.usage_name}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className={`p-5 rounded-2xl border flex gap-4 ${isDarkMode
-                  ? 'bg-blue-500/5 border-blue-500/20'
-                  : 'bg-blue-50 border-blue-200 shadow-sm shadow-blue-100'
-                }`}>
-                <div className={isDarkMode ? 'text-blue-400' : 'text-blue-600'}>
-                  <Info size={24} />
-                </div>
-                <div className="flex-1">
-                  <h4 className={`text-sm font-bold mb-1 ${isDarkMode ? 'text-blue-300' : 'text-blue-800'}`}>Configuration Policy</h4>
-                  <p className={`text-xs leading-relaxed ${isDarkMode ? 'text-blue-400/80 font-medium' : 'text-blue-700/80 font-medium'}`}>
-                    Usage types are critical for classification. Modifying this might affect related reports and customer billing cycles. System-generated audit trails will log this change.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          {/* Footer Decoration */}
-          <div className="px-8 py-6 opacity-30">
-            <div className={`h-px w-full ${isDarkMode ? 'bg-gradient-to-r from-transparent via-gray-700 to-transparent' : 'bg-gradient-to-r from-transparent via-gray-300 to-transparent'}`}></div>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+          Usage Type Name<span className="text-red-500 ml-1">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.usage_name}
+          onChange={(e) => {
+            setFormData({ ...formData, usage_name: e.target.value });
+          }}
+          className={`w-full px-3 py-2 border rounded focus:outline-none transition-all duration-200 bg-transparent ${isDarkMode ? 'border-gray-700 text-white' : 'border-gray-300 text-black'
+            } ${errors.usage_name ? 'border-red-500' : ''}`}
+          placeholder="Enter usage type name"
+          autoFocus
+          onFocus={(e) => {
+            if (colorPalette?.primary) {
+              e.currentTarget.style.borderColor = colorPalette.primary;
+              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}20`;
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        />
+        {errors.usage_name && <p className="text-red-500 text-xs mt-1">{errors.usage_name}</p>}
       </div>
 
-      <LoadingModalGlobal
-        isOpen={globalModal.isOpen}
-        type={globalModal.type}
-        title={globalModal.title}
-        message={globalModal.message}
-        onConfirm={globalModal.onConfirm || closeGlobalModal}
-        onCancel={closeGlobalModal}
-        colorPalette={colorPalette}
-        isDarkMode={isDarkMode}
-      />
-    </>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified Date
+          </label>
+          <input
+            type="text"
+            value={modifiedDate}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified By
+          </label>
+          <input
+            type="text"
+            value={modifiedBy}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default AddUsageTypeModal;
+

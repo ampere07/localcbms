@@ -11,8 +11,8 @@ interface LcpState {
     searchQuery: string;
 
     fetchLcpItems: (page?: number, limit?: number, searchQuery?: string, silent?: boolean) => Promise<void>;
-    addLcpItem: (name: string) => Promise<void>;
-    updateLcpItem: (id: number, name: string) => Promise<void>;
+    addLcpItem: (name: string, email_address?: string) => Promise<void>;
+    updateLcpItem: (id: number, name: string, email_address?: string) => Promise<void>;
     deleteLcpItem: (id: number) => Promise<void>;
     refreshLcpItems: () => Promise<void>;
     silentRefresh: () => Promise<void>;
@@ -29,8 +29,6 @@ export const useLcpStore = create<LcpState>((set, get) => ({
     searchQuery: '',
 
     fetchLcpItems: async (page = 1, limit = 50, query = get().searchQuery, silent = false) => {
-        const { lcpItems } = get();
-
         // If searching, reset list
         if (query !== get().searchQuery) {
             set({ lcpItems: [], currentPage: 1, hasMore: true });
@@ -70,10 +68,10 @@ export const useLcpStore = create<LcpState>((set, get) => ({
         }
     },
 
-    addLcpItem: async (name: string) => {
+    addLcpItem: async (name: string, email_address?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await createLCP(name);
+            const response = await createLCP(name, email_address);
             if (response.success && response.data) {
                 // Refresh list or prepend
                 await get().fetchLcpItems(1, 50, get().searchQuery);
@@ -87,10 +85,10 @@ export const useLcpStore = create<LcpState>((set, get) => ({
         }
     },
 
-    updateLcpItem: async (id: number, name: string) => {
+    updateLcpItem: async (id: number, name: string, email_address?: string) => {
         set({ isLoading: true, error: null });
         try {
-            const response = await updateLCP(id, name);
+            const response = await updateLCP(id, name, email_address);
             if (response.success && response.data) {
                 set((state) => ({
                     lcpItems: state.lcpItems.map(item => item.id === id ? { ...item, lcp_name: name, updated_at: response.data.updated_at } : item),

@@ -54,9 +54,9 @@ export const getNAPById = async (id: number): Promise<NapApiResponse<NAP>> => {
     }
 };
 
-export const createNAP = async (name: string): Promise<NapApiResponse<NAP>> => {
+export const createNAP = async (name: string, email_address?: string): Promise<NapApiResponse<NAP>> => {
     try {
-        const response = await apiClient.post<NapApiResponse<NAP>>('/nap', { name });
+        const response = await apiClient.post<NapApiResponse<NAP>>('/nap', { name, email_address });
         return response.data;
     } catch (error: any) {
         console.error('Error creating NAP:', error);
@@ -64,9 +64,9 @@ export const createNAP = async (name: string): Promise<NapApiResponse<NAP>> => {
     }
 };
 
-export const updateNAP = async (id: number, name: string): Promise<NapApiResponse<NAP>> => {
+export const updateNAP = async (id: number, name: string, email_address?: string): Promise<NapApiResponse<NAP>> => {
     try {
-        const response = await apiClient.put<NapApiResponse<NAP>>(`/nap/${id}`, { name });
+        const response = await apiClient.put<NapApiResponse<NAP>>(`/nap/${id}`, { name, email_address });
         return response.data;
     } catch (error: any) {
         console.error('Error updating NAP:', error);

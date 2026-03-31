@@ -222,10 +222,13 @@ const LcpList: React.FC = () => {
 
   const handleSave = async (formData: LcpFormData) => {
     try {
+      const authData = localStorage.getItem('authData');
+      const currentUserEmail = authData ? JSON.parse(authData)?.email : 'system';
+
       if (editingItem) {
-        await updateLcpItem(editingItem.id, formData.name.trim());
+        await updateLcpItem(editingItem.id, formData.name.trim(), currentUserEmail);
       } else {
-        await addLcpItem(formData.name.trim());
+        await addLcpItem(formData.name.trim(), currentUserEmail);
       }
     } catch (error) {
       console.error('Error submitting form:', error);

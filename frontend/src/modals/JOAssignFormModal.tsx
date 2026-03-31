@@ -77,7 +77,7 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
   };
 
   const currentUser = getCurrentUser();
-  const currentUserEmail = currentUser?.email || 'unknown@email.com';
+  const currentUserEmail = currentUser?.email || '';
 
   const [formData, setFormData] = useState<JOFormData>({
     timestamp: new Date().toLocaleString('sv-SE').replace(' ', ' '),
@@ -656,7 +656,8 @@ const JOAssignFormModal: React.FC<JOAssignFormModalProps> = ({
       try {
         const applicationUpdateData: any = {
           promo: updatedFormData.promo || null,
-          status: 'Scheduled'
+          status: 'Scheduled',
+          updated_by: currentUserEmail
         };
 
         await updateApplication(applicationData.id.toString(), applicationUpdateData);

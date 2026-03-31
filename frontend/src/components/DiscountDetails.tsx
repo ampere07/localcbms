@@ -3,7 +3,7 @@ import { Mail, ExternalLink, Check, ChevronLeft, ChevronRight, Maximize2, X, Inf
 import { update } from '../services/discountService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
-const formatDate = (dateString: string | null | undefined): string => {
+const formatDate = (dateString: string | null | undefined, includeTime: boolean = false): string => {
   if (!dateString) return '-';
   try {
     const date = new Date(dateString);
@@ -11,6 +11,17 @@ const formatDate = (dateString: string | null | undefined): string => {
     const mm = String(date.getMonth() + 1).padStart(2, '0');
     const dd = String(date.getDate()).padStart(2, '0');
     const yyyy = date.getFullYear();
+    
+    if (includeTime) {
+      let hours = date.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+    }
+    
     return `${mm}/${dd}/${yyyy}`;
   } catch (e) {
     return dateString;
@@ -313,7 +324,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Date Created</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.dateCreated)}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.dateCreated, true)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
@@ -350,7 +361,7 @@ const DiscountDetails: React.FC<DiscountDetailsProps> = ({ discountRecord, onClo
 
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Modified Date</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.modifiedDate)}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{formatDate(discountRecord.modifiedDate, true)}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">

@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, ClipboardList, Info } from 'lucide-react';
+import { } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
-import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-import LoadingModalGlobal from '../components/LoadingModalGlobal';
+import ModalUITemplate, { useModalTheme } from './ui-modal/ModalUITemplate';
 
 interface AddWorkCategoryModalProps {
   isOpen: boolean;
@@ -20,6 +19,15 @@ interface WorkCategory {
   updated_by_user_id?: number;
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 const AddWorkCategoryModal: React.FC<AddWorkCategoryModalProps> = ({
   isOpen,
   onClose,
@@ -32,70 +40,60 @@ const AddWorkCategoryModal: React.FC<AddWorkCategoryModalProps> = ({
 
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [isDarkMode, setIsDarkMode] = useState(localStorage.getItem('theme') === 'dark');
-  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
-
-  const [globalModal, setGlobalModal] = useState<{
-    isOpen: boolean;
-    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
-    title: string;
-    message: string;
-    onConfirm?: () => void;
-  }>({
+  const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
     type: 'loading',
     title: '',
     message: ''
   });
-
-  const showGlobalModal = (
-    type: 'loading' | 'success' | 'error' | 'confirm' | 'warning', 
-    title: string, 
-    message: string,
-    onConfirm?: () => void
-  ) => {
-    setGlobalModal({
-      isOpen: true,
-      type,
-      title,
-      message,
-      onConfirm
-    });
-  };
-
-  const closeGlobalModal = () => {
-    setGlobalModal(prev => ({ ...prev, isOpen: false }));
-  };
+  const [modifiedDate, setModifiedDate] = useState<string>('');
+  const [modifiedBy, setModifiedBy] = useState<string>('');
 
   useEffect(() => {
-    const observer = new MutationObserver(() => {
-      setIsDarkMode(localStorage.getItem('theme') === 'dark');
-    });
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-    return () => observer.disconnect();
-  }, []);
+    const authData = localStorage.getItem('authData');
+    let userEmail = 'Unknown User';
 
-  useEffect(() => {
-    const fetchColorPalette = async () => {
+    if (authData) {
       try {
-        const activePalette = await settingsColorPaletteService.getActive();
-        setColorPalette(activePalette);
-      } catch (err) {
-        console.error('Failed to fetch color palette:', err);
+        const userData = JSON.parse(authData);
+        userEmail = userData.email || userData.email_address || 'Unknown User';
+      } catch (error) {
+        console.error('Error parsing auth data:', error);
       }
-    };
-    fetchColorPalette();
-  }, []);
+    }
 
-  useEffect(() => {
-    if (isOpen && editingWorkCategory) {
-      setFormData({
-        category: editingWorkCategory.category
-      });
-    } else if (isOpen && !editingWorkCategory) {
-      resetForm();
+    setModifiedBy(userEmail);
+
+    if (isOpen) {
+      if (editingWorkCategory) {
+        setFormData({
+          category: editingWorkCategory.category
+        });
+      } else {
+        resetForm();
+      }
+      
+      const now = new Date();
+      setModifiedDate(formatDateTime(now));
     }
   }, [isOpen, editingWorkCategory]);
+
+  const formatDateTime = (date: Date): string => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, '0');
+
+    return `${month}/${day}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
+  };
 
   const resetForm = () => {
     setFormData({
@@ -117,7 +115,12 @@ const AddWorkCategoryModal: React.FC<AddWorkCategoryModalProps> = ({
 
   const handleSubmit = async () => {
     if (!validateForm()) {
-      showGlobalModal('warning', 'Validation Error', 'Category designation is required.');
+      setModal({
+        isOpen: true,
+        type: 'warning',
+        title: 'Validation Error',
+        message: 'Category designation is required.'
+      });
       return;
     }
 
@@ -129,7 +132,7 @@ const AddWorkCategoryModal: React.FC<AddWorkCategoryModalProps> = ({
 
       const payload = {
         category: formData.category.trim(),
-        created_by: currentUserEmail
+        email_address: currentUserEmail
       };
 
       const url = editingWorkCategory
@@ -150,22 +153,43 @@ const AddWorkCategoryModal: React.FC<AddWorkCategoryModalProps> = ({
       const data = await response.json();
 
       if (response.ok && data.success) {
-        showGlobalModal('success', 'Execution Success', data.message || `Work category ${editingWorkCategory ? 'updated' : 'added'} successfully`, () => {
-          onSave();
-          handleClose();
-          closeGlobalModal();
+        setModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Execution Success',
+          message: data.message || `Work category ${editingWorkCategory ? 'updated' : 'added'} successfully`,
+          onConfirm: () => {
+            onSave();
+            handleClose();
+            setModal(prev => ({ ...prev, isOpen: false }));
+          }
         });
       } else {
         if (data.errors) {
           const errorMessages = Object.values(data.errors).flat().join('\n');
-          showGlobalModal('error', 'Integrity Error', errorMessages);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Integrity Error',
+            message: errorMessages
+          });
         } else {
-          showGlobalModal('error', 'Request Denied', data.message || `Failed to ${editingWorkCategory ? 'update' : 'add'} category`);
+          setModal({
+            isOpen: true,
+            type: 'error',
+            title: 'Request Denied',
+            message: data.message || `Failed to ${editingWorkCategory ? 'update' : 'add'} category`
+          });
         }
       }
     } catch (error: any) {
       console.error('Error submitting form:', error);
-      showGlobalModal('error', 'System Interruption', `External fault detected: ${error.message}`);
+      setModal({
+        isOpen: true,
+        type: 'error',
+        title: 'System Interruption',
+        message: `External fault detected: ${error.message}`
+      });
     } finally {
       setLoading(false);
     }
@@ -176,145 +200,107 @@ const AddWorkCategoryModal: React.FC<AddWorkCategoryModalProps> = ({
     onClose();
   };
 
-  if (!isOpen) return null;
+  return (
+    <ModalUITemplate
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={editingWorkCategory ? 'Edit Work Category' : 'Add Work Category'}
+      loading={loading}
+      maxWidth="max-w-xl"
+      primaryAction={{
+        label: 'Save',
+        onClick: handleSubmit,
+        disabled: loading
+      }}
+      secondaryActionLabel="Cancel"
+      alertModal={{
+        ...modal,
+        onConfirm: modal.onConfirm || (() => setModal({ ...modal, isOpen: false })),
+        onCancel: modal.onCancel || (() => setModal({ ...modal, isOpen: false }))
+      }}
+    >
+      <div className="space-y-6">
+        <AddWorkCategoryContent
+          formData={formData}
+          setFormData={setFormData}
+          errors={errors}
+          modifiedDate={modifiedDate}
+          modifiedBy={modifiedBy}
+        />
+      </div>
+    </ModalUITemplate>
+  );
+};
+
+const AddWorkCategoryContent: React.FC<{
+  formData: { category: string };
+  setFormData: (data: any) => void;
+  errors: Record<string, string>;
+  modifiedDate: string;
+  modifiedBy: string;
+}> = ({ formData, setFormData, errors, modifiedDate, modifiedBy }) => {
+  const { isDarkMode, colorPalette } = useModalTheme();
+
+  const readOnlyClasses = `w-full px-3 py-2 border rounded bg-transparent opacity-60 cursor-not-allowed ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'
+    }`;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-70 backdrop-blur-[2px] flex items-center justify-end z-[40]" onClick={handleClose}>
-        <div
-          className={`h-full w-full md:max-w-xl shadow-4xl transform transition-transform duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col ${isDarkMode ? 'bg-gray-950 border-l border-white/5' : 'bg-white border-l border-gray-200'
-            }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header Area */}
-          <div className={`px-8 py-10 flex flex-col border-b relative overflow-hidden ${isDarkMode
-              ? 'bg-gray-900/40 border-gray-800'
-              : 'bg-gray-50 border-gray-200'
-            }`}>
-            <div className="absolute top-0 right-0 p-4">
-              <button
-                onClick={handleClose}
-                className={`p-2 rounded-full transition-all active:scale-90 ${isDarkMode ? 'hover:bg-gray-800 text-gray-500' : 'hover:bg-gray-100 text-gray-400'}`}
-              >
-                <X size={24} />
-              </button>
-            </div>
-            
-            <div className={`mb-6 p-4 rounded-2xl w-fit ${isDarkMode ? 'bg-indigo-500/10 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}>
-              <ClipboardList size={32} strokeWidth={2.5} />
-            </div>
-
-            <h2 className={`text-2xl font-black italic tracking-tighter ${isDarkMode ? 'text-white' : 'text-gray-950'}`}>
-              {editingWorkCategory ? 'RECONFIGURE CATEGORY' : 'ESTABLISH CLASSIFICATION'}
-            </h2>
-            <p className={`text-[10px] font-black uppercase tracking-[0.3em] mt-2 opacity-50 ${isDarkMode ? 'text-indigo-300' : 'text-indigo-900'}`}>
-              {editingWorkCategory ? 'Structural refinement of work order logic' : 'New taxonomic entry for operational workflows'}
-            </p>
-          </div>
-
-          {/* Form Content */}
-          <div className="flex-1 overflow-y-auto p-10 space-y-12 custom-scrollbar">
-            <div className="space-y-10">
-              <div className="group">
-                <label className={`block text-[10px] font-black uppercase tracking-[0.2em] mb-4 transition-all duration-300 ${isDarkMode ? 'text-gray-600 group-focus-within:text-indigo-400' : 'text-gray-400 group-focus-within:text-indigo-600'}`}>
-                  Operational Category Label<span className="text-red-500 ml-2">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={formData.category}
-                    onChange={(e) => {
-                      setFormData({ ...formData, category: e.target.value });
-                      if (errors.category) setErrors({...errors, category: ''});
-                    }}
-                    className={`w-full px-8 py-5 rounded-3xl border-2 transition-all duration-500 focus:outline-none focus:ring-[12px] text-lg font-bold ${isDarkMode 
-                      ? 'bg-gray-900 text-white border-gray-800 focus:border-indigo-500/50 focus:ring-indigo-500/5' 
-                      : 'bg-white text-gray-950 border-gray-100 focus:border-indigo-600/50 focus:ring-indigo-600/5 shadow-2xl shadow-indigo-100/20'
-                      } ${errors.category ? 'border-red-500/50 ring-red-500/5' : ''}`}
-                    placeholder="e.g. TECHNICAL REPAIR"
-                    autoFocus
-                  />
-                  {errors.category && (
-                    <div className="absolute -bottom-8 left-0 text-red-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-2 animate-bounce">
-                      <X size={12} strokeWidth={3} /> {errors.category}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className={`p-8 rounded-[40px] border-2 flex flex-col gap-6 shadow-sm transition-all duration-500 hover:shadow-xl ${isDarkMode
-                  ? 'bg-indigo-500/[0.02] border-indigo-500/10'
-                  : 'bg-indigo-50/30 border-indigo-100'
-                }`}>
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-xl ${isDarkMode ? 'bg-indigo-500/20 text-indigo-400' : 'bg-indigo-100 text-indigo-600'}`}>
-                    <Info size={20} strokeWidth={2.5} />
-                  </div>
-                  <h4 className={`text-xs font-black uppercase tracking-widest ${isDarkMode ? 'text-indigo-300' : 'text-indigo-900'}`}>Structural Impact Note</h4>
-                </div>
-                <p className={`text-[11px] leading-relaxed font-bold opacity-70 italic ${isDarkMode ? 'text-indigo-200/60' : 'text-indigo-800/80'}`}>
-                  "Work order categories define the technical hierarchy of support tickets. Modifying existing entries may alter legacy reporting metrics and technician assignment logic within the Work Management Portal."
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Interface */}
-          <div className={`p-10 border-t flex flex-col gap-4 ${isDarkMode ? 'bg-gray-900/60 border-gray-800' : 'bg-gray-50/50 border-gray-200'}`}>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full px-12 py-6 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-[32px] font-black text-xs uppercase tracking-[0.4em] flex items-center justify-center shadow-3xl active:scale-95 transition-all duration-300"
-              style={{
-                backgroundColor: colorPalette?.primary || '#6366f1',
-                boxShadow: `0 20px 40px -15px ${isDarkMode ? 'rgba(99, 102, 241, 0.4)' : 'rgba(99, 102, 241, 0.2)'}`
-              }}
-              onMouseEnter={(e) => {
-                if (colorPalette?.accent && !loading) {
-                  e.currentTarget.style.backgroundColor = colorPalette.accent;
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.backgroundColor = colorPalette.primary;
-                }
-              }}
-            >
-              {loading ? (
-                <>
-                  <Loader2 size={24} className="animate-spin mr-4" />
-                  Synchronizing Core...
-                </>
-              ) : (
-                'Finalize Entry'
-              )}
-            </button>
-            
-            <button
-              onClick={handleClose}
-              className={`w-full py-4 rounded-full font-black text-[9px] uppercase tracking-[0.5em] transition-all duration-300 active:scale-95 ${isDarkMode
-                  ? 'text-gray-600 hover:text-white'
-                  : 'text-gray-400 hover:text-gray-900'
-                }`}
-            >
-              Abort Classification
-            </button>
-          </div>
-        </div>
+    <div className="space-y-6">
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-800'}`}>
+          Category Name<span className="text-red-500 ml-1">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.category}
+          onChange={(e) => {
+            setFormData({ ...formData, category: e.target.value });
+          }}
+          className={`w-full px-3 py-2 border rounded focus:outline-none transition-all duration-200 bg-transparent ${isDarkMode ? 'border-gray-700 text-white' : 'border-gray-300 text-black'
+            } ${errors.category ? 'border-red-500' : ''}`}
+          placeholder="Enter category name"
+          autoFocus
+          onFocus={(e) => {
+            if (colorPalette?.primary) {
+              e.currentTarget.style.borderColor = colorPalette.primary;
+              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}20`;
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        />
+        {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
       </div>
 
-      <LoadingModalGlobal
-        isOpen={globalModal.isOpen}
-        type={globalModal.type}
-        title={globalModal.title}
-        message={globalModal.message}
-        onConfirm={globalModal.onConfirm || closeGlobalModal}
-        onCancel={closeGlobalModal}
-        colorPalette={colorPalette}
-        isDarkMode={isDarkMode}
-      />
-    </>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified Date
+          </label>
+          <input
+            type="text"
+            value={modifiedDate}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+        <div className="space-y-2">
+          <label className={`block text-xs font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified By
+          </label>
+          <input
+            type="text"
+            value={modifiedBy}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 
 export default AddWorkCategoryModal;
+

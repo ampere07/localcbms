@@ -33,7 +33,7 @@ const ALL_COLUMNS = [
     { key: 'send_to', label: 'Send To' },
     { key: 'date_range', label: 'Date Range' },
     { key: 'created_by', label: 'Created By' },
-    { key: 'created_at', label: 'Created At (GMT+8)' },
+    { key: 'created_at', label: 'Created At' },
 ];
 
 const DEFAULT_VISIBLE = [
@@ -52,7 +52,13 @@ const formatDate = (d?: string | null) => {
         const mm = String(date.getMonth() + 1).padStart(2, '0');
         const dd = String(date.getDate()).padStart(2, '0');
         const yyyy = date.getFullYear();
-        return `${mm}/${dd}/${yyyy}`;
+        let hours = date.getHours();
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const hh = String(hours).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hh}:${minutes} ${ampm}`;
     } catch {
         return d;
     }

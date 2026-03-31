@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2 } from 'lucide-react';
 import { API_BASE_URL } from '../config/api';
-import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
-
-interface ModalConfig {
-  isOpen: boolean;
-  type: 'success' | 'error' | 'warning' | 'confirm' | 'loading';
-  title: string;
-  message: string;
-  onConfirm?: () => void;
-  onCancel?: () => void;
-}
+import ModalUITemplate, { useModalTheme } from './ui-modal/ModalUITemplate';
 
 interface Promo {
   id: number;
   name: string;
+  promo_name?: string;
+  description?: string;
   status?: string;
+  created_at?: string;
+  updated_at?: string;
+  creator_email?: string;
+  updater_email?: string;
 }
 
 interface PromoFormModalProps {
@@ -25,85 +21,87 @@ interface PromoFormModalProps {
   editingPromo: Promo | null;
 }
 
+interface ModalConfig {
+  isOpen: boolean;
+  type: 'loading' | 'success' | 'error' | 'confirm' | 'warning';
+  title: string;
+  message: string;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+}
+
 const PromoFormModal: React.FC<PromoFormModalProps> = ({
   isOpen,
   onClose,
   onSave,
   editingPromo
 }) => {
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(true);
-  const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     status: ''
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [modifiedDate, setModifiedDate] = useState<string>('');
+  const [modifiedBy, setModifiedBy] = useState<string>('');
   const [modal, setModal] = useState<ModalConfig>({
     isOpen: false,
-    type: 'success',
+    type: 'loading',
     title: '',
     message: ''
   });
 
   useEffect(() => {
-    const checkDarkMode = () => {
-      const theme = localStorage.getItem('theme');
-      setIsDarkMode(theme === 'dark' || theme === null);
-    };
-
-    checkDarkMode();
-
-    const observer = new MutationObserver(() => {
-      checkDarkMode();
-    });
-
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class']
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const fetchColorPalette = async () => {
-      try {
-        const activePalette = await settingsColorPaletteService.getActive();
-        setColorPalette(activePalette);
-      } catch (err) {
-        console.error('Failed to fetch color palette:', err);
+    if (isOpen) {
+      if (editingPromo) {
+        setFormData({
+          name: editingPromo.name,
+          status: editingPromo.status || ''
+        });
+        setModifiedDate(formatDateTime(new Date(editingPromo.updated_at || editingPromo.created_at || new Date())));
+        setModifiedBy(editingPromo.updater_email || editingPromo.creator_email || 'N/A');
+      } else {
+        setFormData({
+          name: '',
+          status: ''
+        });
+        setErrors({});
+        setModifiedDate(formatDateTime(new Date()));
+        const authData = localStorage.getItem('authData');
+        if (authData) {
+          try {
+            const userData = JSON.parse(authData);
+            setModifiedBy(userData.email || userData.email_address || 'Unknown User');
+          } catch (e) {
+            setModifiedBy('Unknown User');
+          }
+        }
       }
-    };
-    fetchColorPalette();
-  }, []);
-
-  useEffect(() => {
-    if (isOpen && editingPromo) {
-      setFormData({
-        name: editingPromo.name,
-        status: editingPromo.status || ''
-      });
-    } else if (isOpen && !editingPromo) {
-      resetForm();
     }
   }, [isOpen, editingPromo]);
 
-  const resetForm = () => {
-    setFormData({
-      name: '',
-      status: ''
-    });
-    setErrors({});
+  const formatDateTime = (date: Date): string => {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const year = date.getFullYear();
+
+    let hours = date.getHours();
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const seconds = String(date.getSeconds()).padStart(2, '0');
+    const ampm = hours >= 12 ? 'pm' : 'am';
+
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    const strHours = String(hours).padStart(2, '0');
+
+    return `${month}/${day}/${year} ${strHours}:${minutes}:${seconds} ${ampm}`;
   };
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-
     if (!formData.name.trim()) {
       newErrors.name = 'Promo name is required';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -122,9 +120,21 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
     setLoading(true);
 
     try {
+      const authData = localStorage.getItem('authData');
+      let userEmail = '';
+      if (authData) {
+        try {
+          const userData = JSON.parse(authData);
+          userEmail = userData.email || userData.email_address || '';
+        } catch (e) {
+          console.error('Error parsing authData:', e);
+        }
+      }
+
       const payload = {
         name: formData.name.trim(),
-        status: formData.status.trim()
+        status: formData.status.trim(),
+        email_address: userEmail
       };
 
       const url = editingPromo
@@ -188,206 +198,137 @@ const PromoFormModal: React.FC<PromoFormModalProps> = ({
   };
 
   const handleClose = () => {
-    resetForm();
+    setFormData({
+      name: '',
+      status: ''
+    });
+    setErrors({});
     onClose();
   };
 
-  if (!isOpen) return null;
+  return (
+    <ModalUITemplate
+      isOpen={isOpen}
+      onClose={handleClose}
+      title={editingPromo ? 'Edit Promo' : 'Add Promo'}
+      loading={loading}
+      primaryAction={{
+        label: 'Save',
+        onClick: handleSubmit,
+        disabled: loading
+      }}
+      secondaryActionLabel="Cancel"
+      alertModal={{
+        ...modal,
+        onConfirm: modal.onConfirm || (() => setModal({ ...modal, isOpen: false })),
+        onCancel: modal.onCancel || (() => setModal({ ...modal, isOpen: false }))
+      }}
+    >
+      <div className="space-y-6">
+        <PromoFormContent
+          formData={formData}
+          setFormData={setFormData}
+          errors={errors}
+          modifiedDate={modifiedDate}
+          modifiedBy={modifiedBy}
+        />
+      </div>
+    </ModalUITemplate>
+  );
+};
+
+const PromoFormContent: React.FC<{
+  formData: any;
+  setFormData: (data: any) => void;
+  errors: Record<string, string>;
+  modifiedDate: string;
+  modifiedBy: string;
+}> = ({ formData, setFormData, errors, modifiedDate, modifiedBy }) => {
+  const { isDarkMode, colorPalette } = useModalTheme();
+
+  const inputClasses = `w-full px-3 py-2 border rounded focus:outline-none transition-all duration-200 bg-transparent ${isDarkMode ? 'border-gray-700 text-white focus:border-blue-500' : 'border-gray-300 text-black focus:border-blue-500'
+    }`;
+
+  const readOnlyClasses = `w-full px-3 py-2 border rounded bg-transparent opacity-60 cursor-not-allowed ${isDarkMode ? 'border-gray-800 text-gray-400' : 'border-gray-200 text-gray-500'
+    }`;
 
   return (
-    <>
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-end z-50" onClick={handleClose}>
-        <div
-          className={`h-full w-3/4 md:w-full md:max-w-2xl shadow-2xl transform transition-transform duration-300 ease-in-out overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-900' : 'bg-white'
-            }`}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className={`px-6 py-4 flex items-center justify-between border-b ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-100 border-gray-200'
-            }`}>
-            <h2 className={`text-xl font-semibold ${isDarkMode ? 'text-white' : 'text-gray-900'
-              }`}>{editingPromo ? 'Edit Promo' : 'Add Promo'}</h2>
-            <div className="flex items-center space-x-3">
-              <button
-                onClick={handleClose}
-                className={`px-4 py-2 rounded text-sm transition-colors ${isDarkMode
-                  ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                  : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                  }`}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded text-sm flex items-center transition-colors"
-                style={{
-                  backgroundColor: colorPalette?.primary || '#7c3aed'
-                }}
-                onMouseEnter={(e) => {
-                  if (colorPalette?.accent && !loading) {
-                    e.currentTarget.style.backgroundColor = colorPalette.accent;
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (colorPalette?.primary) {
-                    e.currentTarget.style.backgroundColor = colorPalette.primary;
-                  }
-                }}
-              >
-                {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Saving...
-                  </>
-                ) : (
-                  'Save'
-                )}
-              </button>
-              <button
-                onClick={handleClose}
-                className={`transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white' : 'text-gray-600 hover:text-gray-900'
-                  }`}
-              >
-                <X size={24} />
-              </button>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-6 space-y-6">
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Promo Name<span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 text-white border-gray-700'
-                  : 'bg-white text-gray-900 border-gray-300'
-                  } ${errors.name ? 'border-red-500' : ''}`}
-                placeholder="Enter promo name"
-              />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-            </div>
-
-            <div>
-              <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                }`}>
-                Status
-              </label>
-              <select
-                value={formData.status}
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className={`w-full px-3 py-2 border rounded focus:outline-none focus:border-orange-500 ${isDarkMode
-                  ? 'bg-gray-800 text-white border-gray-700'
-                  : 'bg-white text-gray-900 border-gray-300'
-                  }`}
-              >
-                <option value="">Select Status</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-        </div>
+    <div className="space-y-4">
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          Promo Name<span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.name}
+          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+          className={`${inputClasses} ${errors.name ? 'border-red-500' : ''}`}
+          placeholder="Enter promo name"
+          onFocus={(e) => {
+            if (colorPalette?.primary) {
+              e.currentTarget.style.borderColor = colorPalette.primary;
+              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}20`;
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+          autoFocus
+        />
+        {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
       </div>
 
-      {loading && (
-        <div className="fixed inset-0 bg-black bg-opacity-70 z-[10000] flex items-center justify-center">
-          <div className={`rounded-lg p-8 flex flex-col items-center space-y-6 min-w-[320px] ${isDarkMode ? 'bg-gray-800' : 'bg-white'
-            }`}>
-            <Loader2
-              className="w-20 h-20 animate-spin"
-              style={{ color: colorPalette?.primary || '#7c3aed' }}
-            />
-          </div>
-        </div>
-      )}
+      <div className="space-y-2">
+        <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+          Status
+        </label>
+        <select
+          value={formData.status}
+          onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+          className={inputClasses}
+          onFocus={(e) => {
+            if (colorPalette?.primary) {
+              e.currentTarget.style.borderColor = colorPalette.primary;
+              e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}20`;
+            }
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
+            e.currentTarget.style.boxShadow = 'none';
+          }}
+        >
+          <option value="">Select Status</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
 
-      {modal.isOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[60]">
-          <div className={`border rounded-lg p-8 max-w-md w-full mx-4 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
-            }`}>
-            {modal.type === 'loading' ? (
-              <div className="text-center">
-                <div className="flex justify-center mb-4">
-                  <div className="animate-spin rounded-full h-16 w-16 border-b-4" style={{ borderColor: colorPalette?.primary || '#7c3aed' }}></div>
-                </div>
-                <h3 className={`text-xl font-semibold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{modal.title}</h3>
-                <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
-                  }`}>{modal.message}</p>
-              </div>
-            ) : (
-              <>
-                <h3 className={`text-lg font-semibold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{modal.title}</h3>
-                <p className={`mb-6 whitespace-pre-line ${isDarkMode ? 'text-gray-300' : 'text-gray-700'
-                  }`}>{modal.message}</p>
-                <div className="flex items-center justify-end gap-3">
-                  {modal.type === 'confirm' ? (
-                    <>
-                      <button
-                        onClick={modal.onCancel}
-                        className={`px-4 py-2 rounded transition-colors ${isDarkMode
-                          ? 'bg-gray-700 hover:bg-gray-600 text-white'
-                          : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
-                          }`}
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        onClick={modal.onConfirm}
-                        className="px-4 py-2 text-white rounded transition-colors"
-                        style={{
-                          backgroundColor: colorPalette?.primary || '#7c3aed'
-                        }}
-                        onMouseEnter={(e) => {
-                          if (colorPalette?.accent) {
-                            e.currentTarget.style.backgroundColor = colorPalette.accent;
-                          }
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                        }}
-                      >
-                        Confirm
-                      </button>
-                    </>
-                  ) : (
-                    <button
-                      onClick={() => {
-                        if (modal.onConfirm) {
-                          modal.onConfirm();
-                        } else {
-                          setModal({ ...modal, isOpen: false });
-                        }
-                      }}
-                      className="px-4 py-2 text-white rounded transition-colors"
-                      style={{
-                        backgroundColor: colorPalette?.primary || '#7c3aed'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (colorPalette?.accent) {
-                          e.currentTarget.style.backgroundColor = colorPalette.accent;
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-                      }}
-                    >
-                      OK
-                    </button>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="space-y-2">
+          <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified Date
+          </label>
+          <input
+            type="text"
+            value={modifiedDate}
+            readOnly
+            className={readOnlyClasses}
+          />
         </div>
-      )}
-    </>
+        <div className="space-y-2">
+          <label className={`block text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
+            Modified By
+          </label>
+          <input
+            type="text"
+            value={modifiedBy}
+            readOnly
+            className={readOnlyClasses}
+          />
+        </div>
+      </div>
+    </div>
   );
 };
 

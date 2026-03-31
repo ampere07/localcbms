@@ -56,9 +56,9 @@ export const getLCPById = async (id: number): Promise<LcpApiResponse<LCP>> => {
   }
 };
 
-export const createLCP = async (name: string): Promise<LcpApiResponse<LCP>> => {
+export const createLCP = async (name: string, email_address?: string): Promise<LcpApiResponse<LCP>> => {
   try {
-    const response = await apiClient.post<LcpApiResponse<LCP>>('/lcp', { name });
+    const response = await apiClient.post<LcpApiResponse<LCP>>('/lcp', { name, email_address });
     return response.data;
   } catch (error: any) {
     console.error('Error creating LCP:', error);
@@ -66,9 +66,9 @@ export const createLCP = async (name: string): Promise<LcpApiResponse<LCP>> => {
   }
 };
 
-export const updateLCP = async (id: number, name: string): Promise<LcpApiResponse<LCP>> => {
+export const updateLCP = async (id: number, name: string, email_address?: string): Promise<LcpApiResponse<LCP>> => {
   try {
-    const response = await apiClient.put<LcpApiResponse<LCP>>(`/lcp/${id}`, { name });
+    const response = await apiClient.put<LcpApiResponse<LCP>>(`/lcp/${id}`, { name, email_address });
     return response.data;
   } catch (error: any) {
     console.error('Error updating LCP:', error);

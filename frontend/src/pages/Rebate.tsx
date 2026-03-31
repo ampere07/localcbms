@@ -88,6 +88,31 @@ const Rebate: React.FC = () => {
   const [selectedCustomer, setSelectedCustomer] = useState<CustomerDetailData | null>(null);
   const [isLoadingDetails, setIsLoadingDetails] = useState<boolean>(false);
 
+  const formatDate = (dateStr?: string, includeTime: boolean = false): string => {
+    if (!dateStr) return 'No date';
+    try {
+      const date = new Date(dateStr);
+      if (isNaN(date.getTime())) return dateStr;
+      const mm = String(date.getMonth() + 1).padStart(2, '0');
+      const dd = String(date.getDate()).padStart(2, '0');
+      const yyyy = date.getFullYear();
+
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+
+      return `${mm}/${dd}/${yyyy}`;
+    } catch (e) {
+      return dateStr;
+    }
+  };
+
   // Pagination State
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [itemsPerPage, setItemsPerPage] = useState(25);
@@ -687,7 +712,7 @@ const Rebate: React.FC = () => {
                         <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
                           }`}>{record.modified_by || '-'}</td>
                         <td className={`px-4 py-3 whitespace-nowrap ${isDarkMode ? 'text-gray-300' : 'text-gray-900'
-                          }`}>{record.modified_date || '-'}</td>
+                          }`}>{formatDate(record.modified_date, true)}</td>
                       </tr>
                     ))}
                   </tbody>

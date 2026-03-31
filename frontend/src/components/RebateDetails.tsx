@@ -129,7 +129,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
     }
   };
 
-  const formatDate = (dateStr?: string): string => {
+  const formatDate = (dateStr?: string, includeTime: boolean = false): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
@@ -137,6 +137,17 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
+
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+
       return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
@@ -374,7 +385,7 @@ const RebateDetails: React.FC<RebateDetailsProps> = ({ rebate, onClose, onViewCu
                 <div className={`w-40 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                   }`}>Modified Date</div>
                 <div className={`flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-                  }`}>{formatDate(rebate.modified_date)}</div>
+                  }`}>{formatDate(rebate.modified_date, true)}</div>
               </div>
             </div>
           </div>

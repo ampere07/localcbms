@@ -225,14 +225,26 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
     return `₱${numAmount.toFixed(2)}`;
   };
 
-  const formatDate = (dateStr?: string | null): string => {
+  const formatDate = (dateStr?: string | null, includeTime: boolean = false): string => {
     if (!dateStr) return 'No date';
     try {
       const date = new Date(dateStr);
       if (isNaN(date.getTime())) return dateStr;
+      
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
+      
+      if (includeTime) {
+        let hours = date.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12;
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+      }
+      
       return `${mm}/${dd}/${yyyy}`;
     } catch (e) {
       return dateStr;
@@ -616,7 +628,7 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
               {renderField('Transaction Type', transaction.transaction_type)}
               {renderField('Received Payment', formatCurrency(transaction.received_payment), false, true)}
               {renderField('Payment Date', formatDate(transaction.payment_date))}
-              {renderField('Date Processed', formatDate(transaction.date_processed))}
+              {renderField('Date Processed', formatDate(transaction.date_processed, true))}
               {renderField('Processed By', transaction.processor?.email_address || transaction.processed_by_user, true)}
               {renderField('Approved By', transaction.approved_by, true)}
               {renderField('Payment Method', transaction.payment_method_info?.payment_method || transaction.payment_method, true)}
@@ -665,8 +677,8 @@ const TransactionListDetails: React.FC<TransactionListDetailsProps> = ({ transac
                 </div>
               )}
 
-              {renderField('Created At', formatDate(transaction.created_at))}
-              {renderField('Updated At', formatDate(transaction.updated_at))}
+              {renderField('Created At', formatDate(transaction.created_at, true))}
+              {renderField('Updated At', formatDate(transaction.updated_at, true))}
             </div>
           </div>
 

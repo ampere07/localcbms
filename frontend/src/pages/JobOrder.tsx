@@ -200,41 +200,24 @@ const JobOrderPage: React.FC = () => {
       const mm = String(date.getMonth() + 1).padStart(2, '0');
       const dd = String(date.getDate()).padStart(2, '0');
       const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
+      let hours = date.getHours();
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const hh = String(hours).padStart(2, '0');
+      return `${mm}/${dd}/${yyyy} ${hh}:${minutes} ${ampm}`;
     } catch (e) {
       return '-';
     }
   };
 
   const formatOnlyDate = (dateStr?: string | null): string => {
-    if (!dateStr) return '-';
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      return `${mm}/${dd}/${yyyy}`;
-    } catch (e) {
-      return '-';
-    }
+    return formatDate(dateStr);
   };
 
   const formatDateTime = (dateStr?: string | null): string => {
-    if (!dateStr) return '-';
-    try {
-      const date = new Date(dateStr);
-      if (isNaN(date.getTime())) return dateStr;
-      const mm = String(date.getMonth() + 1).padStart(2, '0');
-      const dd = String(date.getDate()).padStart(2, '0');
-      const yyyy = date.getFullYear();
-      const hh = String(date.getHours()).padStart(2, '0');
-      const min = String(date.getMinutes()).padStart(2, '0');
-      const sc = String(date.getSeconds()).padStart(2, '0');
-      return `${mm}/${dd}/${yyyy} ${hh}:${min}:${sc}`;
-    } catch (e) {
-      return '-';
-    }
+    return formatDate(dateStr);
   };
 
   const calculateDuration = (start?: string | null, end?: string | null): string => {

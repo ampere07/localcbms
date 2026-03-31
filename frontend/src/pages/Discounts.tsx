@@ -44,6 +44,31 @@ interface LocationItem {
   count: number;
 }
 
+const formatDate = (dateStr?: string, includeTime: boolean = false): string => {
+  if (!dateStr) return 'No date';
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    const yyyy = date.getFullYear();
+
+    if (includeTime) {
+      let hours = date.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12;
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      const seconds = String(date.getSeconds()).padStart(2, '0');
+      return `${mm}/${dd}/${yyyy} ${hours}:${minutes}:${seconds} ${ampm}`;
+    }
+
+    return `${mm}/${dd}/${yyyy}`;
+  } catch (e) {
+    return dateStr;
+  }
+};
+
 const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
   try {
     const response = await discountService.getAll();
@@ -73,13 +98,13 @@ const getDiscountRecords = async (): Promise<DiscountRecord[]> => {
           discountId: String(discount.id),
           discountAmount: parseFloat(discount.discount_amount) || 0,
           discountStatus: discount.status || 'Unknown',
-          dateCreated: discount.created_at ? new Date(discount.created_at).toLocaleDateString() : 'N/A',
+          dateCreated: discount.created_at ? formatDate(discount.created_at) : 'N/A',
           processedBy: discount.processed_by_user?.full_name || discount.processed_by_user?.username || 'N/A',
-          processedDate: discount.processed_date ? new Date(discount.processed_date).toLocaleDateString() : 'N/A',
+          processedDate: discount.processed_date ? formatDate(discount.processed_date) : 'N/A',
           approvedBy: discount.approved_by_user?.full_name || discount.approved_by_user?.username || 'N/A',
           approvedByEmail: discount.approved_by_user?.email_address || discount.approved_by_user?.email,
           modifiedBy: discount.updated_by_user?.full_name || discount.updated_by_user?.username || 'N/A',
-          modifiedDate: discount.updated_at ? new Date(discount.updated_at).toLocaleString() : 'N/A',
+          modifiedDate: discount.updated_at ? formatDate(discount.updated_at, true) : 'N/A',
           userEmail: discount.processed_by_user?.email_address || discount.processed_by_user?.email || 'N/A',
           remarks: discount.remarks || '',
           cityId: customer?.city_id || undefined,
