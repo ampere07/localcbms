@@ -44,7 +44,7 @@ const convertCustomerDataToBillingDetail = (customerData: CustomerDetailData): B
     city: customerData.city || '',
     region: customerData.region || '',
 
-    usageType: customerData.technicalDetails?.usageTypeId ? `Type ${customerData.technicalDetails.usageTypeId}` : '',
+    usageType: customerData.technicalDetails?.usageType || '',
     referredBy: customerData.referredBy || '',
     referralContactNo: '',
     groupName: customerData.groupName || '',

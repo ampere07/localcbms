@@ -40,7 +40,9 @@ use App\Http\Controllers\Api\ReconnectionLogsController;
 use App\Http\Controllers\ConsolidatedNotificationController;
 use App\Http\Controllers\Api\ServiceOrderItemApiController;
 use App\Http\Controllers\ReportController;
+use App\Http\Controllers\TechnicianController;
 
+Route::apiResource('technicians', TechnicianController::class);
 Route::get('/reports', [ReportController::class , 'index']);
 Route::post('/reports', [ReportController::class , 'store']);
 Route::get('/reports-migrate-pdf', function () {

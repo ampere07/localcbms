@@ -4,7 +4,7 @@ import {
   ExternalLink, Mail, ChevronDown, ChevronRight as ChevronRightIcon,
   Ban, XCircle, RotateCw, CheckCircle, Loader, Square, Settings, ArrowRightCircle
 } from 'lucide-react';
-import { getApplication, updateApplication } from '../../services/applicationService';
+import { getApplication, updateApplication, getApplications } from '../../services/applicationService';
 import { Application } from '../../types/application';
 import ConfirmationModal from '../../modals/MoveToJoModal';
 import JOAssignFormModal from '../../modals/JOAssignFormModal';
@@ -49,6 +49,8 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
   const [loadingPlanOverlay, setLoadingPlanOverlay] = useState(false);
   const [notFoundMessage, setNotFoundMessage] = useState<string | null>(null);
   const [statusRemarks, setStatusRemarks] = useState<string>('');
+  const [duplicateApplications, setDuplicateApplications] = useState<any[]>([]);
+  const [loadingDuplicates, setLoadingDuplicates] = useState(false);
 
   const FIELD_VISIBILITY_KEY = 'applicationDetailsFieldVisibility';
   const FIELD_ORDER_KEY = 'applicationDetailsFieldOrder';
@@ -292,6 +294,33 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
 
     fetchApplicationDetails();
   }, [application.id]);
+
+  useEffect(() => {
+    const fetchDuplicates = async () => {
+      if (pendingStatus !== 'Duplicate' || !detailedApplication) {
+        setDuplicateApplications([]);
+        return;
+      }
+
+      try {
+        setLoadingDuplicates(true);
+        const mobile = detailedApplication.mobile_number || application.mobile_number;
+        if (!mobile) return;
+
+        const response = await getApplications(true, 1, 10, mobile);
+        if (response.success && response.applications) {
+          const filtered = response.applications.filter((app: any) => app.id !== detailedApplication.id && app.id !== application.id);
+          setDuplicateApplications(filtered);
+        }
+      } catch (err) {
+        console.error('Error fetching duplicate applications:', err);
+      } finally {
+        setLoadingDuplicates(false);
+      }
+    };
+
+    fetchDuplicates();
+  }, [pendingStatus, detailedApplication, application.id]);
 
   const getClientFullName = (): string => {
     return [
@@ -1246,16 +1275,46 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               <p className={`text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                 Are you sure you want to change the status to "{pendingStatus}"?
               </p>
+
+              {pendingStatus === 'Duplicate' && (
+                <div className="space-y-2">
+                  <label className={`block text-sm font-medium ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                    Potential Duplicates
+                  </label>
+                  {loadingDuplicates ? (
+                    <div className="flex items-center space-x-2 text-sm text-gray-500">
+                      <Loader size={14} className="animate-spin" />
+                      <span>Checking for duplicates...</span>
+                    </div>
+                  ) : duplicateApplications.length > 0 ? (
+                    <div className={`text-xs border rounded divide-y max-h-40 overflow-y-auto ${isDarkMode ? 'bg-gray-800 border-gray-700 divide-gray-700 text-gray-300' : 'bg-gray-50 border-gray-200 divide-gray-200 text-gray-600'}`}>
+                      {duplicateApplications.map((app, idx) => (
+                        <div key={app.id || idx} className="p-2">
+                          <div className="font-semibold">{app.first_name} {app.last_name}</div>
+                          <div className="flex justify-between mt-1 opacity-80">
+                            <span>ID: {app.id}</span>
+                            <span className="capitalize">{app.status}</span>
+                          </div>
+                          <div className="opacity-80 truncate">{app.mobile_number} | {app.email_address}</div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-xs italic text-gray-500">No matching applications found.</div>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className={`block text-sm font-medium mb-1 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                  Remarks
+                  Remarks {pendingStatus === 'Cancelled' && <span className="text-red-500">*</span>}
                 </label>
                 <textarea
                   value={statusRemarks}
                   onChange={(e) => setStatusRemarks(e.target.value)}
                   rows={3}
-                  placeholder="Enter remarks (optional)"
-                  className={`w-full px-3 py-2 rounded border focus:outline-none resize-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'}`}
+                  placeholder={`Enter remarks ${pendingStatus === 'Cancelled' ? '(required)' : '(optional)'}`}
+                  className={`w-full px-3 py-2 rounded border focus:outline-none resize-none ${isDarkMode ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'} ${pendingStatus === 'Cancelled' && !statusRemarks.trim() ? 'border-red-500' : ''}`}
                 />
               </div>
             </div>
@@ -1268,7 +1327,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
               </button>
               <button
                 onClick={handleConfirmStatusChange}
-                disabled={loading}
+                disabled={loading || (pendingStatus === 'Cancelled' && !statusRemarks.trim())}
                 className="px-4 py-2 rounded text-sm text-white disabled:opacity-50"
                 style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}
               >

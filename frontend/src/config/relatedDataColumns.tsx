@@ -89,12 +89,12 @@ export const relatedDataColumns = {
     {
       key: 'invoice_date',
       label: 'Invoice Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     {
       key: 'due_date',
       label: 'Due Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'total_amount', label: 'Total Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'received_payment', label: 'Received Payment', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -114,7 +114,7 @@ export const relatedDataColumns = {
     {
       key: 'date_processed',
       label: 'Date Processed',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'processed_by', label: 'Processed By', render: (val: any) => val || '-' },
     { key: 'payment_method', label: 'Payment Method', render: (val: any) => val || '-' },
@@ -124,7 +124,7 @@ export const relatedDataColumns = {
     {
       key: 'updated_at',
       label: 'Modified Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'transaction_id', label: 'Transaction ID', render: (val: any) => val || '-' },
     { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
@@ -136,7 +136,7 @@ export const relatedDataColumns = {
     {
       key: 'date_time',
       label: 'Date Time',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'reference_no', label: 'Reference No', render: (val: any) => val || '-' },
     { key: 'total_amount', label: 'Total Amount', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -158,7 +158,7 @@ export const relatedDataColumns = {
     {
       key: 'date_processed',
       label: 'Date Processed',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'status', label: 'Status', render: (val: any) => val || '-' },
     { key: 'received_payment', label: 'Received Payment', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -175,13 +175,13 @@ export const relatedDataColumns = {
     {
       key: 'updated_at',
       label: 'Modified Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'transaction_type', label: 'Transaction Type', render: (val: any) => val || '-' },
     {
       key: 'payment_date',
       label: 'Payment Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
     { key: 'city', label: 'City', render: (val: any) => val || '-' },
@@ -196,7 +196,7 @@ export const relatedDataColumns = {
     {
       key: 'staggered_date',
       label: 'Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'staggered_balance', label: 'Balance', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'months_to_pay', label: 'Months', render: (val: any) => val || 0 },
@@ -205,7 +205,7 @@ export const relatedDataColumns = {
     {
       key: 'modified_date',
       label: 'Modified Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'user_email', label: 'User Email', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' }
@@ -221,19 +221,19 @@ export const relatedDataColumns = {
     {
       key: 'used_date',
       label: 'Used Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     {
       key: 'processed_date',
       label: 'Processed',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'processed_by_user_id', label: 'Processed By', render: (val: any) => val || '-' },
     { key: 'approved_by_user_id', label: 'Approved By', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
     { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
     { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -241,7 +241,7 @@ export const relatedDataColumns = {
     {
       key: 'updated_at',
       label: 'Modified Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'concern', label: 'Concern', render: (val: any) => val || '-' },
     { key: 'concern_remarks', label: 'Concern Remarks', render: (val: any) => val || '-' },
@@ -252,13 +252,13 @@ export const relatedDataColumns = {
     {
       key: 'timestamp',
       label: 'Timestamp',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'account_no', label: 'Account No', render: (val: any) => val || '-' },
     {
       key: 'date_installed',
       label: 'Date Installed',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'full_name', label: 'Full Name', render: (val: any) => val || '-' },
     { key: 'contact_number', label: 'Contact Number', render: (val: any) => val || '-' },
@@ -315,7 +315,7 @@ export const relatedDataColumns = {
   ] as TableColumn[],
 
   reconnectionLogs: [
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
     { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
@@ -324,19 +324,19 @@ export const relatedDataColumns = {
     { key: 'reconnection_fee', label: 'Fee', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
   disconnectedLogs: [
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
     { key: 'session_id', label: 'Session ID', render: (val: any) => val || '-' },
     { key: 'username', label: 'Username', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -360,17 +360,17 @@ export const relatedDataColumns = {
     {
       key: 'date_changed',
       label: 'Date Changed',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     {
       key: 'date_used',
       label: 'Date Used',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
     { key: 'created_by_user', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
     { key: 'updated_by_user', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -383,12 +383,12 @@ export const relatedDataColumns = {
     {
       key: 'date_used',
       label: 'Date Used',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
     { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
     { key: 'updated_by', label: 'Updated By', render: (val: any) => val || '-' },
     { key: 'invoice_id', label: 'Invoice ID', render: (val: any) => val || '-' },
     { key: 'service_charge_type', label: 'Charge Type', render: (val: any) => val || '-' }
@@ -397,13 +397,13 @@ export const relatedDataColumns = {
   changeDueLogs: [
     { key: 'id', label: 'ID' },
     { key: 'account_id', label: 'Account ID', render: (val: any) => val || '-' },
-    { key: 'previous_date', label: 'Prev Date', render: (val: any) => formatDate(val) },
-    { key: 'changed_date', label: 'Changed Date', render: (val: any) => formatDate(val) },
+    { key: 'previous_date', label: 'Prev Date', render: (val: any) => formatDateTime(val) },
+    { key: 'changed_date', label: 'Changed Date', render: (val: any) => formatDateTime(val) },
     { key: 'added_balance', label: 'Added Bal', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
     { key: 'created_by_user_id', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) },
     { key: 'updated_by_user_id', label: 'Updated By', render: (val: any) => val || '-' }
   ] as TableColumn[],
 
@@ -415,25 +415,25 @@ export const relatedDataColumns = {
     {
       key: 'payment_date',
       label: 'Payment Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'reference_no', label: 'Ref No', render: (val: any) => val || '-' },
     { key: 'remarks', label: 'Remarks', render: (val: any) => val || '-' },
     { key: 'created_by', label: 'Created By', render: (val: any) => val || '-' },
-    { key: 'created_at', label: 'Created At', render: (val: any) => formatDate(val) },
-    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDate(val) }
+    { key: 'created_at', label: 'Created At', render: (val: any) => formatDateTime(val) },
+    { key: 'updated_at', label: 'Updated At', render: (val: any) => formatDateTime(val) }
   ] as TableColumn[],
 
   statementOfAccounts: [
     {
       key: 'statement_date',
       label: 'Statement Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     {
       key: 'due_date',
       label: 'Due Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'balance_from_previous_bill', label: 'Balance From Previous Bill', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
     { key: 'amount_due', label: 'Amount Due', render: (val: any) => `₱${parseFloat(val || '0').toFixed(2)}` },
@@ -444,7 +444,7 @@ export const relatedDataColumns = {
     {
       key: 'date_installed',
       label: 'Date Installed',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'email_address', label: 'Email Address', render: (val: any) => val || '-' },
     { key: 'plan', label: 'Plan', render: (val: any) => val || '-' },
@@ -460,12 +460,12 @@ export const relatedDataColumns = {
     {
       key: 'disconnection_date',
       label: 'Disconnection Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     {
       key: 'updated_at',
       label: 'Modified Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'print_link', label: 'Print Link', render: (val: any) => val ? 'View' : '-' },
     { key: 'barangay', label: 'Barangay', render: (val: any) => val || '-' },
@@ -478,7 +478,7 @@ export const relatedDataColumns = {
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'item_name', label: 'Item', render: (val: any) => val || '-' },
     { key: 'item_description', label: 'Description', render: (val: any) => val || '-' },
@@ -496,7 +496,7 @@ export const relatedDataColumns = {
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'borrowed_by', label: 'Borrowed By', render: (val: any) => val || '-' },
     { key: 'item_quantity', label: 'Quantity', render: (val: any) => val || 0 },
@@ -510,7 +510,7 @@ export const relatedDataColumns = {
     {
       key: 'created_at',
       label: 'Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     }
   ] as TableColumn[],
 
@@ -519,7 +519,7 @@ export const relatedDataColumns = {
     {
       key: 'date',
       label: 'Date',
-      render: (val: any) => formatDate(val)
+      render: (val: any) => formatDateTime(val)
     },
     { key: 'reported_by', label: 'Reported By', render: (val: any) => val || '-' },
     { key: 'item_quantity', label: 'Qty', render: (val: any) => val || 0 },

@@ -12,6 +12,8 @@ import { getUsedPorts } from '../services/portService';
 import { getAllLCPNAPs, LCPNAP } from '../services/lcpnapService';
 import { routerModelService, RouterModel } from '../services/routerModelService';
 import { getBillingRecordDetails } from '../services/billingService';
+import { technicianService } from '../services/technicianService';
+
 
 
 interface ServiceOrderEditModalProps {
@@ -115,7 +117,9 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   const currentUserEmail = currentUser?.email || 'unknown@email.com';
   const isTechnician = currentUser?.role_id === 2 || (typeof currentUser?.role === 'string' && currentUser.role.toLowerCase() === 'technician');
 
-  const [technicians, setTechnicians] = useState<Array<{ name: string; email: string }>>([]);
+  const [technicians, setTechnicians] = useState<Array<{ name: string; id?: number }>>([]);
+  const [technicianUsers, setTechnicianUsers] = useState<Array<{ name: string; email: string }>>([]);
+
   const [lcps, setLcps] = useState<string[]>([]);
   const [naps, setNaps] = useState<string[]>([]);
   const [usedPorts, setUsedPorts] = useState<string[]>([]);
@@ -382,9 +386,29 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
   useEffect(() => {
     const fetchTechnicians = async () => {
       try {
+        const response = await technicianService.getAllTechnicians();
+        if (response.success && Array.isArray(response.data)) {
+          const techs = response.data.map(tech => {
+            const firstName = (tech.first_name || '').trim();
+            const mi = tech.middle_initial ? `${tech.middle_initial}. ` : '';
+            const lastName = (tech.last_name || '').trim();
+            return {
+              id: tech.id,
+              name: `${firstName} ${mi}${lastName}`.trim()
+            };
+          });
+          setTechnicians(techs);
+        }
+      } catch (error) {
+        console.error('Error fetching technicians:', error);
+      }
+    };
+
+    const fetchTechnicianUsers = async () => {
+      try {
         const response = await apiClient.get<{ success: boolean; data: any[] }>('/users');
         if (response.data.success && Array.isArray(response.data.data)) {
-          const technicianUsers = response.data.data
+          const users = response.data.data
             .filter(user => {
               const role = typeof user.role === 'string' ? user.role : (user.role as any)?.role_name || '';
               return role.toLowerCase() === 'technician';
@@ -399,14 +423,13 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
               };
             })
             .filter(tech => tech.name);
-
-          console.log('Fetched technicians:', technicianUsers);
-          setTechnicians(technicianUsers);
+          setTechnicianUsers(users);
         }
       } catch (error) {
-        console.error('Error fetching technicians:', error);
+        console.error('Error fetching technician users:', error);
       }
     };
+
 
     const fetchTechnicalDetails = async () => {
       try {
@@ -460,9 +483,11 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
 
     if (isOpen) {
       fetchTechnicians();
+      fetchTechnicianUsers();
       fetchTechnicalDetails();
       fetchConcerns();
     }
+
 
   }, [isOpen]);
 
@@ -1465,15 +1490,15 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                     >
                       <option value="">Select Technician</option>
                       <option value="None">None</option>
-                      {technicians.map((tech) => {
-                        const emailValue = (tech as any).email_address || tech.email || '';
-                        console.log('Technician option:', tech, 'Email:', emailValue);
+                      {technicianUsers.map((tech) => {
+                        const emailValue = tech.email || '';
                         return (
                           <option key={emailValue} value={emailValue}>
                             {emailValue}
                           </option>
                         );
                       })}
+
                     </select>
                     <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                   </div>
@@ -2271,7 +2296,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         >
                           <option value="">Select Visit With</option>
                           <option value="None">None</option>
-                          {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
+                          {technicians.filter(tech => tech.name !== formData.visitBy && tech.name !== formData.visitWithOther).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
                             </option>
@@ -2297,7 +2322,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         >
                           <option value="">Select Visit With Other</option>
                           <option value="None">None</option>
-                          {technicians.filter(tech => tech.name !== formData.visitBy).map((tech, index) => (
+                          {technicians.filter(tech => tech.name !== formData.visitBy && tech.name !== formData.visitWith).map((tech, index) => (
                             <option key={index} value={tech.name}>
                               {tech.name}
                             </option>
@@ -2305,6 +2330,7 @@ const ServiceOrderEditModal: React.FC<ServiceOrderEditModalProps> = ({
                         </select>
                         <ChevronDown className="absolute right-3 top-2.5 text-gray-400 pointer-events-none" size={20} />
                       </div>
+
                       {errors.visitWithOther && (
                         <div className="flex items-center mt-1">
                           <div className="flex items-center justify-center w-4 h-4 rounded-full text-white text-xs mr-2" style={{ backgroundColor: colorPalette?.primary || '#7c3aed' }}>!</div>

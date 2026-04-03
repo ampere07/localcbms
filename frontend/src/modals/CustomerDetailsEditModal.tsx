@@ -15,6 +15,7 @@ import { billingStatusService, BillingStatus } from '../services/billingStatusSe
 import { getUsedPorts } from '../services/portService';
 import { getAllInventoryItems, InventoryItem } from '../services/inventoryItemService';
 import apiClient from '../config/api';
+import SearchableField from '../components/common/SearchableField';
 
 interface CustomerDetailsEditModalProps {
   isOpen: boolean;
@@ -61,14 +62,10 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
   const [usageTypes, setUsageTypes] = useState<UsageType[]>([]);
   const [usedPorts, setUsedPorts] = useState<Set<string>>(new Set());
   const [totalPorts, setTotalPorts] = useState<number>(32);
-  const [lcpnapSearch, setLcpnapSearch] = useState('');
-  const [isLcpnapOpen, setIsLcpnapOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [activeImageSize, setActiveImageSize] = useState<ImageSizeSetting | null>(null);
   const [billingStatuses, setBillingStatuses] = useState<BillingStatus[]>([]);
   const [inventoryRouterModels, setInventoryRouterModels] = useState<InventoryItem[]>([]);
-  const [routerModelSearch, setRouterModelSearch] = useState('');
-  const [isRouterModelOpen, setIsRouterModelOpen] = useState(false);
   const [originalRouterModemSn, setOriginalRouterModemSn] = useState('');
 
   const [modal, setModal] = useState<ModalConfig>({
@@ -227,12 +224,11 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           })(),
           vlan: recordData.vlan || recordData.VLAN || '',
           lcpnap: lcpnapValue,
-          usageType: recordData.usageType || recordData.usage_type || ''
+          usageType: recordData.usageType || recordData.usage_type || recordData.Usage_Type || recordData.UsageType || ''
         });
 
         const initialSn = recordData.routerModemSn || recordData.router_modem_sn || recordData.routerModemSN || '';
         setOriginalRouterModemSn(initialSn);
-        setRouterModelSearch(recordData.routerModel || recordData.router_model || '');
       }
     }
     // Using granular IDs instead of the whole recordData object prevents 
@@ -307,7 +303,32 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
           }
 
           setVlans(vlansRes.success && Array.isArray(vlansRes.data) ? vlansRes.data : []);
-          setUsageTypes(usageTypesRes.success && Array.isArray(usageTypesRes.data) ? usageTypesRes.data : []);
+          const fetchedUsageTypes = usageTypesRes.success && Array.isArray(usageTypesRes.data) ? [...usageTypesRes.data] : [];
+          
+          let currentUsage = recordData?.usageType || recordData?.usage_type || recordData?.Usage_Type || recordData?.UsageType;
+          
+          if (currentUsage) {
+            const matchedUsage = fetchedUsageTypes.find((u: any) => 
+              String(u.usage_name).toLowerCase() === String(currentUsage).trim().toLowerCase() || 
+              String(u.id) === String(currentUsage).trim()
+            );
+
+            if (!matchedUsage) {
+              fetchedUsageTypes.push({ id: -1, usage_name: currentUsage });
+            } else {
+              currentUsage = matchedUsage.usage_name;
+            }
+          }
+
+          setUsageTypes(fetchedUsageTypes);
+
+          setFormData((prev: any) => {
+            const existingUsage = prev.usageType;
+            if (existingUsage !== currentUsage) {
+              return { ...prev, usageType: currentUsage || '' };
+            }
+            return prev;
+          });
         }
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -1317,87 +1338,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
                   {errors.connectionType && <p className="text-red-500 text-xs mt-1">{errors.connectionType}</p>}
                 </div>
 
-                <div className="relative">
-                  <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                    Router Model<span className="text-red-500">*</span>
-                  </label>
-                  <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                    } ${errors.routerModel ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
-                    <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                    <input
-                      type="text"
-                      placeholder="Search Router Model..."
-                      value={isRouterModelOpen ? routerModelSearch : (formData.routerModel || '')}
-                      onChange={(e) => {
-                        setRouterModelSearch(e.target.value);
-                        if (!isRouterModelOpen) setIsRouterModelOpen(true);
-                      }}
-                      onFocus={() => {
-                        setIsRouterModelOpen(true);
-                      }}
-                      className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (isRouterModelOpen) {
-                          setIsRouterModelOpen(false);
-                        } else {
-                          handleInputChange('routerModel', '');
-                          setRouterModelSearch('');
-                        }
-                      }}
-                      className={`ml-2 transition-transform duration-200 ${isRouterModelOpen ? 'rotate-180' : ''}`}
-                    >
-                      <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                    </button>
-                  </div>
-
-                  {/* Router Model Recommendation Dropdown */}
-                  {isRouterModelOpen && (
-                    <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} style={{ minWidth: '100%' }}>
-                      <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                        {inventoryRouterModels
-                          .filter(item => item.item_name.toLowerCase().includes(routerModelSearch.toLowerCase()))
-                          .map((item) => (
-                            <div
-                              key={item.id}
-                              className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.routerModel === item.item_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
-                              onClick={() => {
-                                handleInputChange('routerModel', item.item_name);
-                                setIsRouterModelOpen(false);
-                                setRouterModelSearch('');
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <span>{item.item_name}</span>
-                                {formData.routerModel === item.item_name && (
-                                  <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        {inventoryRouterModels.filter(item => item.item_name.toLowerCase().includes(routerModelSearch.toLowerCase())).length === 0 && (
-                          <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                            No Router Model found for "{routerModelSearch}"
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Click outside to close */}
-                  {isRouterModelOpen && (
-                    <div
-                      className="fixed inset-0 z-40 bg-transparent"
-                      onClick={() => {
-                        setIsRouterModelOpen(false);
-                        setRouterModelSearch('');
-                      }}
-                    />
-                  )}
-                  {errors.routerModel && <p className="text-red-500 text-xs mt-1">{errors.routerModel}</p>}
-                </div>
+                <SearchableField
+                  label="Router Model"
+                  placeholder="Search Router Model..."
+                  value={formData.routerModel}
+                  onSelect={(value) => handleInputChange('routerModel', value)}
+                  options={inventoryRouterModels}
+                  optionLabelKey="item_name"
+                  isDarkMode={isDarkMode}
+                  error={errors.routerModel}
+                  required
+                />
 
                 <div>
                   <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
@@ -1450,88 +1401,17 @@ const CustomerDetailsEditModal: React.FC<CustomerDetailsEditModalProps> = ({
 
                 {formData.connectionType === 'Fiber' && (
                   <>
-                    <div className="relative">
-                      <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                        LCP-NAP<span className="text-red-500">*</span>
-                      </label>
-                      <div className={`flex items-center px-3 py-2 border rounded transition-colors ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'
-                        } ${errors.lcpnap ? 'border-red-500' : 'focus-within:border-orange-500'}`}>
-                        <Search size={16} className={`mr-2 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`} />
-                        <input
-                          type="text"
-                          placeholder="Search LCP-NAP..."
-                          value={isLcpnapOpen ? lcpnapSearch : (formData.lcpnap || '')}
-                          onChange={(e) => {
-                            setLcpnapSearch(e.target.value);
-                            if (!isLcpnapOpen) setIsLcpnapOpen(true);
-                          }}
-                          onFocus={() => {
-                            setIsLcpnapOpen(true);
-                          }}
-                          className={`w-full bg-transparent border-none focus:outline-none p-0 text-sm ${isDarkMode ? 'text-white' : 'text-gray-900'}`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (isLcpnapOpen) {
-                              setIsLcpnapOpen(false);
-
-                            } else {
-                              handleInputChange('lcpnap', '');
-                              setLcpnapSearch('');
-                            }
-                          }}
-                          className={`ml-2 transition-transform duration-200 ${isLcpnapOpen ? 'rotate-180' : ''}`}
-                        >
-                          <ChevronDown size={18} className={isDarkMode ? 'text-gray-400' : 'text-gray-500'} />
-                        </button>
-                      </div>
-
-                      {/* LCP-NAP Recommendation Dropdown */}
-                      {isLcpnapOpen && (
-                        <div className={`absolute left-0 right-0 top-full mt-1 z-50 rounded-md shadow-2xl border overflow-hidden flex flex-col ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`} style={{ minWidth: '100%' }}>
-                          <div className="max-h-60 overflow-y-auto custom-scrollbar">
-                            {lcpnaps
-                              .filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase()))
-                              .map((item) => (
-                                <div
-                                  key={item.id}
-                                  className={`px-4 py-2.5 text-sm cursor-pointer transition-colors ${isDarkMode ? 'hover:bg-gray-700 text-gray-200' : 'hover:bg-gray-100 text-gray-700'} ${formData.lcpnap === item.lcpnap_name ? (isDarkMode ? 'bg-orange-600/20 text-orange-400' : 'bg-orange-50 text-orange-600') : ''}`}
-                                  onClick={() => {
-                                    handleInputChange('lcpnap', item.lcpnap_name);
-                                    setIsLcpnapOpen(false);
-                                    setLcpnapSearch('');
-                                  }}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <span>{item.lcpnap_name}</span>
-                                    {formData.lcpnap === item.lcpnap_name && (
-                                      <div className="w-1.5 h-1.5 rounded-full bg-orange-500"></div>
-                                    )}
-                                  </div>
-                                </div>
-                              ))}
-                            {lcpnaps.filter(item => item.lcpnap_name.toLowerCase().includes(lcpnapSearch.toLowerCase())).length === 0 && (
-                              <div className={`px-4 py-8 text-center text-sm italic ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                                No LCP-NAP found for "{lcpnapSearch}"
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Click outside to close */}
-                      {isLcpnapOpen && (
-                        <div
-                          className="fixed inset-0 z-40 bg-transparent"
-                          onClick={() => {
-                            setIsLcpnapOpen(false);
-                            setLcpnapSearch('');
-                          }}
-                        />
-                      )}
-                      {errors.lcpnap && <p className="text-red-500 text-xs mt-1">{errors.lcpnap}</p>}
-                    </div>
+                    <SearchableField
+                      label="LCP-NAP"
+                      placeholder="Search LCP-NAP..."
+                      value={formData.lcpnap}
+                      onSelect={(value) => handleInputChange('lcpnap', value)}
+                      options={lcpnaps}
+                      optionLabelKey="lcpnap_name"
+                      isDarkMode={isDarkMode}
+                      error={errors.lcpnap}
+                      required
+                    />
 
                     <div>
                       <label className={`block text-sm font-medium mb-2 ${isDarkMode ? 'text-gray-300' : 'text-gray-700'}`}>

@@ -22,6 +22,8 @@ import { getActiveImageSize, resizeImage, ImageSizeSetting } from '../services/i
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import LocationPicker from '../components/LocationPicker';
 import { pppoeService, UsernamePattern } from '../services/pppoeService';
+import { technicianService } from '../services/technicianService';
+
 
 interface Region {
   id: number;
@@ -187,7 +189,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
-  const [technicians, setTechnicians] = useState<Array<{ email: string; name: string }>>([]);
+  const [technicians, setTechnicians] = useState<Array<{ name: string; id?: number }>>([]);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [routerModels, setRouterModels] = useState<RouterModel[]>([]);
   const [lcpnaps, setLcpnaps] = useState<LCPNAP[]>([]);
@@ -659,23 +661,21 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
     const fetchTechnicians = async () => {
       if (isOpen) {
         try {
-          const response = await userService.getUsersByRole('technician');
-          if (response.success && response.data) {
-            const technicianList = response.data
-              .filter((user: any) => user.first_name || user.last_name)
-              .map((user: any) => {
-                const firstName = (user.first_name || '').trim();
-                const lastName = (user.last_name || '').trim();
-                const fullName = `${firstName} ${lastName}`.trim();
-                return {
-                  email: user.email_address || user.email || '',
-                  name: fullName || user.username || user.email_address || user.email || ''
-                };
-              })
-              .filter((tech: any) => tech.name);
+          const response = await technicianService.getAllTechnicians();
+          if (response.success && Array.isArray(response.data)) {
+            const technicianList = response.data.map(tech => {
+              const firstName = (tech.first_name || '').trim();
+              const mi = tech.middle_initial ? `${tech.middle_initial}. ` : '';
+              const lastName = (tech.last_name || '').trim();
+              return {
+                id: tech.id,
+                name: `${firstName} ${mi}${lastName}`.trim()
+              };
+            });
             setTechnicians(technicianList);
           }
         } catch (error) {
+          console.error('Error fetching technicians:', error);
         }
       }
     };
@@ -2753,7 +2753,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       {formData.visit_by && !technicians.some(t => t.name === formData.visit_by) && (
                         <option value={formData.visit_by}>{formData.visit_by}</option>
                       )}
-                      {technicians.map((technician, index) => (
+                      {technicians.filter(t => t.name !== formData.visit_with && t.name !== formData.visit_with_other).map((technician, index) => (
                         <option key={index} value={technician.name}>{technician.name}</option>
                       ))}
                     </select>
@@ -2782,7 +2782,7 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       {formData.visit_with && formData.visit_with !== 'None' && formData.visit_with !== '' && !technicians.some(t => t.name === formData.visit_with) && (
                         <option value={formData.visit_with}>{formData.visit_with}</option>
                       )}
-                      {technicians.filter(t => t.name !== formData.visit_by).map((technician, index) => (
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with_other).map((technician, index) => (
                         <option key={index} value={technician.name}>{technician.name}</option>
                       ))}
                     </select>
@@ -2811,10 +2811,11 @@ const JobOrderDoneFormTechModal: React.FC<JobOrderDoneFormTechModalProps> = ({
                       {formData.visit_with_other && formData.visit_with_other !== 'None' && formData.visit_with_other !== '' && !technicians.some(t => t.name === formData.visit_with_other) && (
                         <option value={formData.visit_with_other}>{formData.visit_with_other}</option>
                       )}
-                      {technicians.filter(t => t.name !== formData.visit_by).map((technician, index) => (
+                      {technicians.filter(t => t.name !== formData.visit_by && t.name !== formData.visit_with).map((technician, index) => (
                         <option key={index} value={technician.name}>{technician.name}</option>
                       ))}
                     </select>
+
                     <ChevronDown className={`absolute right-3 top-2.5 pointer-events-none ${isDarkMode ? 'text-gray-400' : 'text-gray-600'
                       }`} size={20} />
                   </div>

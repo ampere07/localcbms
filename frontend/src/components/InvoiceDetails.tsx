@@ -267,10 +267,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
         ? 'bg-gray-800 border-gray-700'
         : 'bg-gray-100 border-gray-200'
         }`}>
-        <h1 className={`text-lg font-semibold truncate pr-4 min-w-0 flex-1 ${isDarkMode ? 'text-white' : 'text-gray-900'
-          }`}>
-          {invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}
-        </h1>
+          {invoiceRecord.invoiceNo || invoiceRecord.id}
         <div className="flex items-center space-x-2 flex-shrink-0">
           <button
             onClick={onClose}
@@ -291,7 +288,7 @@ const InvoiceDetails: React.FC<InvoiceDetailsProps> = ({ invoiceRecord, onViewCu
           <div className="px-5 py-4">
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Invoice No.</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.invoiceNo || '2508182' + invoiceRecord.id}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{invoiceRecord.invoiceNo || invoiceRecord.id}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">

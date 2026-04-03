@@ -108,7 +108,7 @@ export const useInvoiceStore = create<InvoiceStore>((set, get) => ({
                 city: record.account?.customer?.city || '',
                 region: record.account?.customer?.region || '',
                 provider: 'SWITCH',
-                invoiceNo: '2508182' + record.id.toString(),
+                invoiceNo: record.id.toString(),
                 totalAmountDue: Number(record.total_amount) || 0,
                 invoicePayment: Number(record.received_payment) || 0,
                 paymentMethod: record.received_payment > 0 ? 'Payment Received' : 'N/A',

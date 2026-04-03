@@ -179,7 +179,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeSection, onSectionChange, onLog
       icon: Users,
       allowedRoles: ['superadmin'],
       children: [
-        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['superadmin'] }
+        { id: 'user-management', label: 'Users Management', icon: User, allowedRoles: ['superadmin'] },
+        { id: 'tech-users', label: 'Tech Users', icon: Wrench, allowedRoles: ['superadmin'] }
         // { id: 'organization-management', label: 'Organization Management', icon: Building2, allowedRoles: ['administrator'] },
         // { id: 'group-management', label: 'Affiliate', icon: Shield, allowedRoles: ['administrator'] }
       ]

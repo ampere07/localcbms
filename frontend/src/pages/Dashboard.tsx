@@ -64,6 +64,7 @@ import ConcernConfig from './ConcernConfig';
 import DashboardCustomer from './DashboardCustomer';
 import Bills from './Bills';
 import Reports from './Reports';
+import TechUsers from './TechUsers';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface DashboardProps {
@@ -248,6 +249,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onLogout }) => {
                 return <ReconnectionLogs />;
             case 'user-management':
                 return <UserManagement />;
+            case 'tech-users':
+                return <TechUsers />;
             case 'organization-management':
                 return <OrganizationManagement />;
             case 'group-management':

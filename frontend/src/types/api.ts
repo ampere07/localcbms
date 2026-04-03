@@ -193,3 +193,13 @@ export interface SalesAgent {
   created_at: string;
   updated_at: string;
 }
+
+export interface Technician {
+  id: number;
+  first_name: string;
+  middle_initial?: string;
+  last_name: string;
+  updated_at?: string;
+  updated_by?: string;
+}
+

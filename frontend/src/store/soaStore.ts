@@ -107,7 +107,7 @@ const transform = (record: SOARecord): SOARecordUI => {
         city: record.account?.customer?.city || '',
         region: record.account?.customer?.region || '',
         provider: 'SWITCH',
-        statementNo: '2509180' + record.id.toString(),
+        statementNo: record.id.toString(),
         paymentReceived: Number(record.payment_received_previous) || 0,
         remainingBalance: Number(record.remaining_balance_previous) || 0,
         modifiedBy: record.updated_by,

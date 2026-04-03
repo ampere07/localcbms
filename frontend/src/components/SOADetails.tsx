@@ -304,7 +304,7 @@ const SOADetails: React.FC<SOADetailsProps> = ({ soaRecord, onViewCustomer, onCl
           <div className="px-5 py-4">
             <div className="flex justify-between items-center py-2">
               <span className={isDarkMode ? 'text-gray-400' : 'text-gray-600'}>Statement No.</span>
-              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.statementNo || '2509180' + soaRecord.id}</span>
+              <span className={isDarkMode ? 'text-white' : 'text-gray-900'}>{soaRecord.statementNo || soaRecord.id}</span>
             </div>
 
             <div className="flex justify-between items-center py-2">
