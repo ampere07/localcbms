@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Search, Plus, Loader2, RefreshCw, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, User as UserIcon, X } from 'lucide-react';
+import { Plus, Loader2, RefreshCw, ChevronsLeft, ChevronsRight, ChevronLeft, ChevronRight, User as UserIcon, X } from 'lucide-react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import { User } from '../types/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import UserDetails from '../components/UserDetails';
@@ -169,32 +170,13 @@ const UserManagement: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1">
-              <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`} />
-              <input
-                type="text"
-                placeholder="Search name, username, email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className={`w-full pl-10 pr-10 py-2 text-sm rounded-lg border transition-all focus:outline-none ${isDarkMode ? 'bg-gray-800' : 'bg-gray-50'}`}
-                style={{
-                  borderColor: isSearchFocused
-                    ? (colorPalette?.primary || '#3b82f6')
-                    : (isDarkMode ? '#374151' : '#d1d5db') // gray-700 for dark, gray-300 for light
-                }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
+            <GlobalSearch 
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isDarkMode={isDarkMode}
+              colorPalette={colorPalette}
+              placeholder="Search name, username, email..."
+            />
             <select
               value={userTypeFilter}
               onChange={(e) => setUserTypeFilter(e.target.value as any)}

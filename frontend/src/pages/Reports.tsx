@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
-    Search, RefreshCw, Filter, ArrowUp, ArrowDown, ExternalLink,
+    RefreshCw, Filter, ArrowUp, ArrowDown, ExternalLink,
     ChevronLeft, ChevronRight, X, Settings2, FileText, Plus, DownloadCloud
 } from 'lucide-react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import apiClient from '../config/api';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import AddReportModal from '../modals/AddReportModal';
@@ -321,26 +322,13 @@ const Reports: React.FC = () => {
                         </button>
 
                         {/* Search */}
-                        <div className="relative">
-                            <Search size={14} className={`absolute left-2.5 top-2.5 ${subText}`} />
-                            <input
-                                type="text"
-                                placeholder="Search reports…"
-                                value={searchQuery}
-                                onChange={e => setSearchQuery(e.target.value)}
-                                className={`pl-8 pr-10 py-2 text-sm border rounded-md focus:outline-none w-56 ${inputCls}`}
-                                style={{ '--tw-ring-color': primary } as any}
-                            />
-                            {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery('')}
-                                    className={`absolute right-2.5 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                                        }`}
-                                >
-                                    <X size={14} />
-                                </button>
-                            )}
-                        </div>
+                        <GlobalSearch 
+                            searchQuery={searchQuery}
+                            setSearchQuery={setSearchQuery}
+                            isDarkMode={isDarkMode}
+                            colorPalette={colorPalette}
+                            placeholder="Search reports…"
+                        />
 
                         {/* Column picker */}
                         <div className="relative" ref={columnPickerRef}>

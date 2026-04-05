@@ -1,5 +1,6 @@
-import { AlertTriangle, Search, Circle, ChevronLeft, ChevronRight, Menu, ChevronDown, RefreshCw, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { AlertTriangle, Circle, ChevronLeft, ChevronRight, Menu, ChevronDown, RefreshCw, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import ReconnectionLogsDetails from '../components/ReconnectionLogsDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useReconnectionStore } from '../store/reconnectionStore';
@@ -665,30 +666,13 @@ const ReconnectionLogs: React.FC = () => {
               >
                 <Menu className="h-5 w-5" />
               </button>
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search reconnection logs..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded pl-10 pr-4 py-2 focus:outline-none ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700'
-                    : 'bg-white text-gray-900 border-gray-300'
-                    }`}
-                  onFocus={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.borderColor = colorPalette.primary;
-                      e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                    }
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                    e.currentTarget.style.boxShadow = 'none';
-                  }}
-                />
-                <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-              </div>
+              <GlobalSearch 
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                isDarkMode={isDarkMode}
+                colorPalette={colorPalette}
+                placeholder="Search reconnection logs..."
+              />
               <button
                 onClick={handleRefresh}
                 disabled={isLoading}

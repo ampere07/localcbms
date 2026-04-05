@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Plus, ChevronRight, ChevronDown, X, RefreshCw, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import { Plus, ChevronRight, ChevronDown, RefreshCw, ChevronLeft, ChevronsLeft, ChevronsRight } from 'lucide-react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import AddLocationModal from '../modals/AddLocationModal';
 import EditLocationModal from '../modals/EditLocationModal';
 import LocationListDetails from '../components/LocationListDetails';
@@ -693,36 +694,13 @@ const LocationList: React.FC = () => {
           <div className={`sticky top-0 z-10 p-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-800' : 'bg-white border-gray-200'
             }`}>
             <div className="flex items-center space-x-3">
-              <div className="relative flex-1">
-                <input
-                  type="text"
-                  placeholder="Search locations..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className={`w-full rounded-lg pl-10 pr-10 py-2.5 text-xs focus:outline-none focus:ring-1 transition-all ${isDarkMode
-                    ? 'bg-gray-800 text-white border-gray-700 focus:ring-blue-500'
-                    : 'bg-gray-100 text-gray-900 border-gray-300 focus:ring-blue-500'
-                    }`}
-                  onFocus={(e) => {
-                    if (colorPalette?.primary) {
-                      e.currentTarget.style.borderColor = colorPalette.primary;
-                    }
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                  }}
-                />
-                <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                  }`} />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery('')}
-                    className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full text-gray-400 hover:text-white transition-colors`}
-                  >
-                    <X size={14} />
-                  </button>
-                )}
-              </div>
+              <GlobalSearch 
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                isDarkMode={isDarkMode}
+                colorPalette={colorPalette}
+                placeholder="Search locations..."
+              />
               <button
                 onClick={() => setIsAddModalOpen(true)}
                 className="text-white px-4 py-2.5 rounded-lg text-xs transition-all flex items-center space-x-2 font-medium active:scale-95 shadow-sm"

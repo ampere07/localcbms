@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Filter, Search, X, MapPin, ChevronDown } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import SMSBlastDetails from '../components/SMSBlastDetails';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import AddSMSBlastModal from '../modals/AddSMSBlastModal';
@@ -29,7 +30,6 @@ const SMSBlast: React.FC = () => {
   const [selectedSMSBlast, setSelectedSMSBlast] = useState<SMSBlastRecord | null>(null);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   useEffect(() => {
     const fetchColorPalette = async () => {
@@ -141,52 +141,13 @@ const SMSBlast: React.FC = () => {
             SMS Blast
           </h1>
           <div className="flex items-center flex-1 max-w-md mx-4">
-            <div className="relative w-full group">
-              <div
-                className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none transition-colors duration-200 ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}
-                style={{
-                  color: (searchQuery || isSearchFocused)
-                    ? (colorPalette?.primary || '#7c3aed')
-                    : undefined
-                }}
-              >
-                <Search size={18} />
-              </div>
-              <input
-                type="text"
-                placeholder="Search SMS logs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`block w-full pl-10 pr-3 py-2 border rounded-xl leading-5 transition-all duration-200 sm:text-sm focus:outline-none focus:ring-2 ${isDarkMode
-                  ? 'bg-gray-800 border-gray-700 text-white placeholder-gray-500 focus:bg-gray-700'
-                  : 'bg-white border-gray-200 text-gray-900 placeholder-gray-400'
-                  }`}
-                style={{
-                  borderColor: searchQuery ? (colorPalette?.primary || '#7c3aed') : undefined,
-                  boxShadow: searchQuery ? `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}33` : undefined
-                }}
-                onFocus={(e) => {
-                  setIsSearchFocused(true);
-                  e.currentTarget.style.borderColor = colorPalette?.primary || '#7c3aed';
-                  e.currentTarget.style.boxShadow = `0 0 0 2px ${(colorPalette?.primary || '#7c3aed')}33`;
-                }}
-                onBlur={(e) => {
-                  setIsSearchFocused(false);
-                  if (!searchQuery) {
-                    e.currentTarget.style.borderColor = '';
-                    e.currentTarget.style.boxShadow = '';
-                  }
-                }}
-              />
-              {searchQuery && (
-                <button
-                  onClick={() => setSearchQuery('')}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X size={16} />
-                </button>
-              )}
-            </div>
+            <GlobalSearch 
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              isDarkMode={isDarkMode}
+              colorPalette={colorPalette}
+              placeholder="Search SMS logs..."
+            />
           </div>
           <div className="flex items-center space-x-2">
             <button

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Plus, Eye, Edit, Trash2, X } from 'lucide-react';
+import { Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import AddInventoryCategoryModal from '../modals/AddInventoryCategoryModal';
 import {
   getInventoryCategories,
@@ -266,39 +267,13 @@ const InventoryCategoryList: React.FC = () => {
       <div className={`px-6 py-4 border-b flex-shrink-0 ${isDarkMode ? 'bg-gray-900 border-gray-700' : 'bg-white border-gray-200'
         }`}>
         <div className="flex items-center justify-between">
-          <div className="relative flex-1 max-w-md">
-            <input
-              type="text"
-              placeholder="Search Inventory Category List"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={`w-full rounded pl-10 pr-10 py-2 border focus:outline-none ${isDarkMode
-                ? 'bg-gray-800 text-white border-gray-600'
-                : 'bg-gray-100 text-gray-900 border-gray-300'
-                }`}
-              onFocus={(e) => {
-                if (colorPalette?.primary) {
-                  e.currentTarget.style.borderColor = colorPalette.primary;
-                  e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-                }
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            />
-            <Search className={`absolute left-3 top-2.5 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-              }`} />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className={`absolute right-3 top-2.5 p-0.5 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-800' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
-                  }`}
-              >
-                <X size={16} />
-              </button>
-            )}
-          </div>
+          <GlobalSearch 
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            isDarkMode={isDarkMode}
+            colorPalette={colorPalette}
+            placeholder="Search Inventory Category List"
+          />
           <button
             onClick={() => setIsAddModalOpen(true)}
             className="text-white px-4 py-2 rounded text-sm flex items-center space-x-2 transition-colors ml-4"

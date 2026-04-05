@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { logsService } from '../services/userService';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 
 interface ActivityLog {
   log_id: number;
@@ -55,7 +56,7 @@ const Logs: React.FC = () => {
   const [logs, setLogs] = useState<ActivityLog[]>([]);
   const [stats, setStats] = useState<LogStats | null>(null);
   const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [filterLevel, setFilterLevel] = useState<string>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -105,7 +106,7 @@ const Logs: React.FC = () => {
       const params = {
         page,
         per_page: 20,
-        search: searchTerm || undefined,
+        search: searchQuery || undefined,
         level: filterLevel !== 'all' ? filterLevel : undefined,
       };
 
@@ -151,7 +152,7 @@ const Logs: React.FC = () => {
     }, 500);
 
     return () => clearTimeout(delayedSearch);
-  }, [searchTerm, filterLevel]);
+  }, [searchQuery, filterLevel]);
 
   const handlePageChange = (newPage: number) => {
     setCurrentPage(newPage);
@@ -270,32 +271,12 @@ const Logs: React.FC = () => {
 
         {/* Filters */}
         <div className="flex justify-between items-center mb-8 gap-4">
-          <input
-            type="text"
+          <GlobalSearch 
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            isDarkMode={isDarkMode}
+            colorPalette={colorPalette}
             placeholder="Search logs by message, action, or user..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className={`px-4 py-3 rounded flex-1 max-w-md ${isDarkMode
-              ? 'bg-gray-900 border text-white placeholder-gray-500'
-              : 'bg-white border text-gray-900 placeholder-gray-400'
-              } focus:outline-none`}
-            style={{
-              '--tw-ring-color': colorPalette?.primary || '#7c3aed',
-              borderColor: isDarkMode ? '#4b5563' : '#d1d5db' // Default border colors (gray-600 / gray-300)
-            } as React.CSSProperties}
-            onFocus={(e) => {
-              if (colorPalette?.primary) {
-                e.currentTarget.style.borderColor = colorPalette.primary;
-                e.currentTarget.style.boxShadow = `0 0 0 1px ${colorPalette.primary}`;
-              } else {
-                e.currentTarget.style.borderColor = '#7c3aed';
-                e.currentTarget.style.boxShadow = `0 0 0 1px #7c3aed`;
-              }
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = isDarkMode ? '#4b5563' : '#d1d5db';
-              e.currentTarget.style.boxShadow = 'none';
-            }}
           />
 
           <select

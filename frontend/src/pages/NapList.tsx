@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Plus, Edit2, Trash2, Loader2, X, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw } from 'lucide-react';
+import { Search, Plus, Edit2, Trash2, Loader2, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RefreshCw } from 'lucide-react';
+import GlobalSearch from './globalfunctions/GlobalSearch';
 import EditNapModal from '../modals/EditNapModal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 import { useNapStore } from '../store/napStore';
@@ -157,8 +158,7 @@ const NapList: React.FC = () => {
     }
   };
 
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const query = e.target.value;
+  const handleSearchChange = (query: string) => {
     setSearchQuery(query);
 
     if (searchTimeout.current) clearTimeout(searchTimeout.current);
@@ -247,40 +247,13 @@ const NapList: React.FC = () => {
             }`}>
             <div className="px-4 py-4">
               <div className="flex items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className={`absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'
-                    }`} />
-                  <input
-                    type="text"
-                    placeholder="Search NAP"
-                    value={searchQuery}
-                    onChange={handleSearch}
-                    className={`w-full pl-10 pr-10 py-2.5 text-xs rounded border transition-all focus:outline-none focus:ring-1 ${isDarkMode
-                      ? 'bg-gray-800 text-white border-gray-700 focus:ring-blue-500'
-                      : 'bg-gray-100 text-gray-900 border-gray-300 focus:ring-blue-500'
-                      }`}
-                    onFocus={(e) => {
-                      if (colorPalette?.primary) {
-                        e.currentTarget.style.borderColor = colorPalette.primary;
-                      }
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = isDarkMode ? '#374151' : '#d1d5db';
-                    }}
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => {
-                        setSearchQuery('');
-                        fetchNapItems(1, itemsPerPage, '');
-                      }}
-                      className={`absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full transition-colors ${isDarkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'
-                        }`}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
-                </div>
+                <GlobalSearch 
+                  searchQuery={searchQuery}
+                  setSearchQuery={handleSearchChange}
+                  isDarkMode={isDarkMode}
+                  colorPalette={colorPalette}
+                  placeholder="Search NAP"
+                />
                 <button
                   onClick={handleAddNew}
                   className="px-4 py-2.5 text-white rounded-lg flex items-center gap-2 transition-all font-medium text-xs active:scale-95 shadow-sm"
