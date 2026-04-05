@@ -1012,7 +1012,7 @@ const ApplicationDetails: React.FC<ApplicationDetailsProps> = ({ application, on
         </div>
 
         <div className="flex items-center space-x-3">
-          {!['scheduled', 'schedule', 'duplicate', 'cancelled', 'no slot', 'no facility'].includes(currentStatus) && (
+          {!['scheduled', 'schedule'].includes(currentStatus) && (
             <button
               className="px-3 py-1 rounded-sm flex items-center text-white"
               style={{

@@ -988,24 +988,26 @@ const ServiceOrderDetails: React.FC<ServiceOrderDetailsProps> = ({ serviceOrder,
 
         <div className="flex items-center space-x-3">
 
-          <button
-            className="text-white px-3 py-1 rounded-sm flex items-center disabled:opacity-50"
-            style={{
-              backgroundColor: colorPalette?.primary || '#7c3aed'
-            }}
-            onMouseEnter={(e) => {
-              if (colorPalette?.accent) {
-                e.currentTarget.style.backgroundColor = colorPalette.accent;
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
-            }}
-            onClick={handleEditClick}
-          >
-            <Edit size={16} className="mr-1" />
-            <span>Edit</span>
-          </button>
+          {serviceOrder.supportStatus?.toLowerCase() !== 'resolved' && (
+            <button
+              className="text-white px-3 py-1 rounded-sm flex items-center disabled:opacity-50"
+              style={{
+                backgroundColor: colorPalette?.primary || '#7c3aed'
+              }}
+              onMouseEnter={(e) => {
+                if (colorPalette?.accent) {
+                  e.currentTarget.style.backgroundColor = colorPalette.accent;
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = colorPalette?.primary || '#7c3aed';
+              }}
+              onClick={handleEditClick}
+            >
+              <Edit size={16} className="mr-1" />
+              <span>Edit</span>
+            </button>
+          )}
 
           <div className="relative">
             <button

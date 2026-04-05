@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Loader2, Eye, EyeOff } from 'lucide-react';
 import { User, CreateUserRequest, UpdateUserRequest, Role } from '../types/api';
 import { userService, roleService } from '../services/userService';
+import LoadingModalGlobal from '../components/LoadingModalGlobal';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
 
 interface UserModalProps {
@@ -18,6 +19,17 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
   const [loading, setLoading] = useState(false);
   const [roles, setRoles] = useState<Role[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [loadingModal, setLoadingModal] = useState<{
+    isOpen: boolean;
+    type: 'loading' | 'success' | 'error';
+    title: string;
+    message: string;
+  }>({
+    isOpen: false,
+    type: 'loading',
+    title: '',
+    message: '',
+  });
   
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -132,9 +144,15 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
 
   const handleSave = async () => {
     if (!validate()) return;
-    setLoading(true);
+    setLoadingModal({
+      isOpen: true,
+      type: 'loading',
+      title: isEditMode ? 'Updating User' : 'Creating User',
+      message: 'Please wait counter while we process the request...',
+    });
+
     try {
-      let response;
+      let response: any;
       if (isEditMode && user) {
         const updateData: UpdateUserRequest = {
           first_name: formData.first_name,
@@ -152,24 +170,44 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
       }
 
       if (response.success && response.data) {
-        onSave(response.data);
-        setFormData({
-          first_name: '',
-          middle_initial: '',
-          last_name: '',
-          username: '',
-          email_address: '',
-          contact_number: '',
-          password: '',
-          role_id: undefined,
+        setLoadingModal({
+          isOpen: true,
+          type: 'success',
+          title: 'Success!',
+          message: isEditMode ? 'User profile has been updated successfully.' : 'New user has been created successfully.',
         });
-        setConfirmPassword('');
-        onClose();
+        
+        setTimeout(() => {
+          onSave(response.data!);
+          setFormData({
+            first_name: '',
+            middle_initial: '',
+            last_name: '',
+            username: '',
+            email_address: '',
+            contact_number: '',
+            password: '',
+            role_id: undefined,
+          });
+          setConfirmPassword('');
+          setLoadingModal(prev => ({ ...prev, isOpen: false }));
+          onClose();
+        }, 1500);
       } else {
-        setErrors({ general: response.message || 'Action failed' });
+        setLoadingModal({
+          isOpen: true,
+          type: 'error',
+          title: 'Action Failed',
+          message: response.message || 'We could not complete the request.',
+        });
       }
     } catch (err: any) {
-      setErrors({ general: err.message || 'An error occurred' });
+      setLoadingModal({
+        isOpen: true,
+        type: 'error',
+        title: 'System Error',
+        message: err.message || 'An unexpected error occurred.',
+      });
     } finally {
       setLoading(false);
     }
@@ -305,6 +343,16 @@ const UserModal: React.FC<UserModalProps> = ({ isOpen, onClose, onSave, user }) 
           </button>
         </div>
       </div>
+
+      <LoadingModalGlobal 
+        isOpen={loadingModal.isOpen}
+        type={loadingModal.type}
+        title={loadingModal.title}
+        message={loadingModal.message}
+        isDarkMode={isDarkMode}
+        colorPalette={colorPalette}
+        onConfirm={() => setLoadingModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

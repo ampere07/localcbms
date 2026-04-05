@@ -26,6 +26,7 @@ export interface WidgetState {
   visible: boolean;
   layout?: Layout;
   fontSize?: number; // per-widget font size
+  paymentMode?: 'type' | 'months'; // For Payment Methods widget
 }
 
 export type FilterType =

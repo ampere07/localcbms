@@ -41,6 +41,7 @@ import { WidthProvider } from 'react-grid-layout/legacy';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
 import { settingsColorPaletteService, ColorPalette } from '../services/settingsColorPaletteService';
+import { paymentMethodService, PaymentMethod } from '../services/paymentMethodService';
 
 import {
   WidgetConfig,
@@ -83,6 +84,7 @@ const LiveMonitor: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [isDraggable, setIsDraggable] = useState(false);
   const [colorPalette, setColorPalette] = useState<ColorPalette | null>(null);
+  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
 
   // React Grid Layout state
 
@@ -236,6 +238,18 @@ const LiveMonitor: React.FC = () => {
 
     refreshInterval.current = setInterval(() => fetchAllWidgets(), 15000);
 
+    const fetchPaymentMethods = async () => {
+      try {
+        const res = await paymentMethodService.getAll();
+        if (res.success && Array.isArray(res.data)) {
+          setPaymentMethods(res.data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch payment methods:', err);
+      }
+    };
+    fetchPaymentMethods();
+
     return () => {
       if (refreshInterval.current) clearInterval(refreshInterval.current);
       observer.disconnect();
@@ -264,7 +278,8 @@ const LiveMonitor: React.FC = () => {
         year: widgetState.year || '',
         bgy: widgetState.bgy || 'All',
         start: widgetState.startDate || '',
-        end: widgetState.endDate || ''
+        end: widgetState.endDate || '',
+        payment_mode: widgetState.paymentMode || ''
       });
 
       const response = await fetch(url, {
@@ -416,27 +431,42 @@ const LiveMonitor: React.FC = () => {
   const generateChartData = (widgetData: WidgetData[], widgetId: string, viewType: string) => {
     if (!widgetData || widgetData.length === 0) return null;
 
-    const isMonthly = widgetId.includes('_mon') || widgetId.startsWith('invoice_') || widgetId.startsWith('transactions_') || widgetId.startsWith('portal_');
+    let data = widgetData;
+    // Filter out non-month labels when in months mode for Payment Methods
+    if (widgetId === 'pay_method_mon' && widgetStates[widgetId]?.paymentMode === 'months') {
+      data = widgetData.filter(d => {
+        const m = parseInt(d.label);
+        return !isNaN(m) && m >= 1 && m <= 12;
+      });
+      if (data.length === 0) return null;
+    }
+
+    const isMonthly = (widgetId.includes('_mon') || widgetId.startsWith('invoice_') || widgetId.startsWith('transactions_') || widgetId.startsWith('portal_')) && 
+                      !(widgetId === 'pay_method_mon' && widgetStates[widgetId]?.paymentMode === 'type');
 
     const formatLabel = (label: string) => {
       const monthNum = parseInt(label);
+      if (widgetId === 'pay_method_mon' && widgetStates[widgetId]?.paymentMode === 'type') {
+        const match = paymentMethods.find(pm => String(pm.id) === label);
+        return match ? match.payment_method : label;
+      }
       if (!isNaN(monthNum) && monthNum >= 1 && monthNum <= 12) {
         return MONTH_NAMES[monthNum - 1];
       }
       return label;
     };
 
-    const labels = widgetData.map(d => formatLabel(d.label));
+    const labels = data.map(d => formatLabel(d.label));
 
     // Handle multi-series data (e.g., Invoice Yearly Count with Paid/Unpaid statuses per month)
-    if (widgetData[0].series) {
-      const seriesKeys = Array.from(new Set(widgetData.flatMap(d => Object.keys(d.series || {}))));
+    if (data[0].series) {
+      const seriesKeys = Array.from(new Set(data.flatMap(d => Object.keys(d.series || {}))));
 
       return {
         labels,
         datasets: seriesKeys.map((key, idx) => ({
           label: key,
-          data: widgetData.map(d => Number(d.series?.[key] || 0)),
+          data: data.map(d => Number(d.series?.[key] || 0)),
           backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
           borderWidth: 0
         }))
@@ -452,7 +482,7 @@ const LiveMonitor: React.FC = () => {
           labels,
           datasets: [{
             label: WIDGETS[widgetId]?.title || 'Value',
-            data: widgetData.map(d => Number(d.value || 0)),
+            data: data.map(d => Number(d.value || 0)),
             backgroundColor: CHART_COLORS[0],
             borderWidth: 0
           }]
@@ -462,8 +492,8 @@ const LiveMonitor: React.FC = () => {
       // Default bar chart: each item gets its own legend entry
       return {
         labels,
-        datasets: widgetData.map((d, idx) => {
-          const dataArr = new Array(widgetData.length).fill(null);
+        datasets: data.map((d, idx) => {
+          const dataArr = new Array(data.length).fill(null);
           dataArr[idx] = Number(d.value || 0);
           return {
             label: d.label,
@@ -479,8 +509,8 @@ const LiveMonitor: React.FC = () => {
       labels,
       datasets: [{
         label: WIDGETS[widgetId]?.title || 'Count',
-        data: widgetData.map(d => Number(d.value || 0)),
-        backgroundColor: viewType === 'line' ? CHART_COLORS[0] : widgetData.map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]),
+        data: data.map(d => Number(d.value || 0)),
+        backgroundColor: viewType === 'line' ? CHART_COLORS[0] : data.map((_, idx) => CHART_COLORS[idx % CHART_COLORS.length]),
         borderColor: CHART_COLORS[0],
         borderWidth: viewType === 'line' ? 2 : 0,
         tension: 0.3
@@ -813,6 +843,17 @@ const LiveMonitor: React.FC = () => {
 
     return (
       <div className="flex gap-2 items-center text-xs flex-wrap" style={{ fontSize: `${fontSize}px` }}>
+        {id === 'pay_method_mon' && (
+          <select
+            value={state.paymentMode || 'type'}
+            onChange={(e) => updateWidgetState(id, { paymentMode: e.target.value as any })}
+            className={`px-2 py-1 rounded border text-[10px] ${isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-300'}`}
+          >
+            <option value="type">Type of Payment</option>
+            <option value="months">Months</option>
+          </select>
+        )}
+
         {(config.filterType === 'toggle_today' || config.filterType === 'date' || config.filterType === 'date_bgy') && (
           <select
             value={state.scope}

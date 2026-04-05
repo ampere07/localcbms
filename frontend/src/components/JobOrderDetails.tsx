@@ -613,12 +613,11 @@ const JobOrderDetails: React.FC<JobOrderDetailsProps> = ({ jobOrder, onClose, on
     const billingStatus = (jobOrder.billing_status || jobOrder.Billing_Status || '').toLowerCase();
     const onsiteStatus = (jobOrder.Onsite_Status || jobOrder.onsite_status || '').toLowerCase();
 
-    if (onsiteStatus === 'reschedule' || onsiteStatus === 'failed') {
-      return true;
-    }
+    // The ONLY time it is HIDDEN is when onsite is 'done' AND billing is 'approved' or 'done'
+    const isHiddenState = onsiteStatus === 'done' && (billingStatus === 'approved' || billingStatus === 'done');
 
     if (isAdministrator) {
-      return billingStatus === 'in progress' || jobOrder.billing_status_id === 1 || jobOrder.Billing_Status_ID === 1;
+      return !isHiddenState;
     }
 
     if (isTechnician) {
